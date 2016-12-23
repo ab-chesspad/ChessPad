@@ -1,0 +1,205 @@
+<resources>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+
+    <string name="app_name">ChessPad</string>
+	<string name="about">\ ChessPad %s\n PGN editor\n Solutions In Hand\n alexbootman@gmail.com
+	</string>
+
+    <string name="err_empty_new_tag_name">New tag name is empty</string>
+    <string name="err_tag_name_exists">Tag name exists already</string>
+
+    <string name="alert_append_title">Append / Save As</string>
+    <string name="alert_append_label">Full Path to Pgn File:</string>
+
+    <string name="alert_msg_wait">Please wait...</string>
+
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="done">Done</string>
+
+    <string name="msg_save">Do you want to save your changes to the opened game?</string>
+    <string name="msg_del_move">Do you want to delete this and the following moves?</string>
+    <string name="msg_del_game">Do you want to remove irreversibly the whole game from pgn file?</string>
+    <string name="msg_3_fold_repetition">Three-fold repetition</string>
+    <string name="msg_50_reversible_moves">50 consecutive reversible moves</string>
+
+    <string name="menu_load">Load</string>
+    <string name="menu_merge">Merge</string>
+    <string name="menu_setup">Setup</string>
+    <string name="menu_save">Save</string>
+    <string name="menu_append">Append</string>
+    <string name="menu_cancel_setup">Cancel Setup</string>
+    <string name="menu_about">About</string>
+
+    <string name="label_en_pass">En passant: </string>
+    <string name="label_halfmove_clock">Halfmove clock: </string>
+    <string name="label_move_num">Move number: </string>
+
+    <string-array name="setup_errs">
+        <item>0 Setup OK</item>
+        <item>1 Invalid en passant format</item>
+        <item>2 dummy</item>
+        <item>3 Invalid square for white en passant</item>
+        <item>4 Invalid square for black en passant</item>
+        <item>5 dummy</item>
+        <item>6 dummy</item>
+        <item>7 No white king</item>
+        <item>8 No black king</item>
+        <item>9 Row for white pawn!</item>
+        <item>10 Row for black pawn!</item>
+        <item>11 En passant when half-move clock >0!</item>
+        <item>12 Other king checked</item>
+        <item>13 Invalid castling</item>
+        <item>14 Invalid en passant</item>
+        <item>15 Too many white pieces</item>
+        <item>16 Too many black pieces</item>
+        <item>17 Impossible white pieces</item>
+        <item>18 Impossible black pieces</item>
+    </string-array>
+
+    <string-array name="glyphs">
+        <item>$0 null annotation</item>
+        <item>$1 good move (traditional \'!\')</item>
+        <item>$2 poor move (traditional \'?\')</item>
+        <item>$3 very good move (traditional \'!!\')</item>
+        <item>$4 very poor move (traditional \'??\')</item>
+        <item>$5 speculative move (traditional \'!?\')</item>
+        <item>$6 questionable move (traditional \'?!\')</item>
+        <item>$7 forced move (all others lose quickly)</item>
+        <item>$8 singular move (no reasonable alternatives)</item>
+        <item>$9 worst move</item>
+        <item>$10 drawish position</item>
+        <item>$11 equal chances, quiet position</item>
+        <item>$12 equal chances, active position</item>
+        <item>$13 unclear position</item>
+        <item>$14 White has a slight advantage</item>
+        <item>$15 Black has a slight advantage</item>
+        <item>$16 White has a moderate advantage</item>
+        <item>$17 Black has a moderate advantage</item>
+        <item>$18 White has a decisive advantage</item>
+        <item>$19 Black has a decisive advantage</item>
+        <item>$20 White has a crushing advantage (Black should resign)</item>
+        <item>$21 Black has a crushing advantage (White should resign)</item>
+        <item>$22 White is in zugzwang</item>
+        <item>$23 Black is in zugzwang</item>
+        <item>$24 White has a slight space advantage</item>
+        <item>$25 Black has a slight space advantage</item>
+        <item>$26 White has a moderate space advantage</item>
+        <item>$27 Black has a moderate space advantage</item>
+        <item>$28 White has a decisive space advantage</item>
+        <item>$29 Black has a decisive space advantage</item>
+        <item>$30 White has a slight time (development) advantage</item>
+        <item>$31 Black has a slight time (development) advantage</item>
+        <item>$32 White has a moderate time (development) advantage</item>
+        <item>$33 Black has a moderate time (development) advantage</item>
+        <item>$34 White has a decisive time (development) advantage</item>
+        <item>$35 Black has a decisive time (development) advantage</item>
+        <item>$36 White has the initiative</item>
+        <item>$37 Black has the initiative</item>
+        <item>$38 White has a lasting initiative</item>
+        <item>$39 Black has a lasting initiative</item>
+        <item>$40 White has the attack</item>
+        <item>$41 Black has the attack</item>
+        <item>$42 White has insufficient compensation for material deficit</item>
+        <item>$43 Black has insufficient compensation for material deficit</item>
+        <item>$44 White has sufficient compensation for material deficit</item>
+        <item>$45 Black has sufficient compensation for material deficit</item>
+        <item>$46 White has more than adequate compensation for material deficit</item>
+        <item>$47 Black has more than adequate compensation for material deficit</item>
+        <item>$48 White has a slight center control advantage</item>
+        <item>$49 Black has a slight center control advantage</item>
+        <item>$50 White has a moderate center control advantage</item>
+        <item>$51 Black has a moderate center control advantage</item>
+        <item>$52 White has a decisive center control advantage</item>
+        <item>$53 Black has a decisive center control advantage</item>
+        <item>$54 White has a slight kingside control advantage</item>
+        <item>$55 Black has a slight kingside control advantage</item>
+        <item>$56 White has a moderate kingside control advantage</item>
+        <item>$57 Black has a moderate kingside control advantage</item>
+        <item>$58 White has a decisive kingside control advantage</item>
+        <item>$59 Black has a decisive kingside control advantage</item>
+        <item>$60 White has a slight queenside control advantage</item>
+        <item>$61 Black has a slight queenside control advantage</item>
+        <item>$62 White has a moderate queenside control advantage</item>
+        <item>$63 Black has a moderate queenside control advantage</item>
+        <item>$64 White has a decisive queenside control advantage</item>
+        <item>$65 Black has a decisive queenside control advantage</item>
+        <item>$66 White has a vulnerable first rank</item>
+        <item>$67 Black has a vulnerable first rank</item>
+        <item>$68 White has a well protected first rank</item>
+        <item>$69 Black has a well protected first rank</item>
+        <item>$70 White has a poorly protected king</item>
+        <item>$71 Black has a poorly protected king</item>
+        <item>$72 White has a well protected king</item>
+        <item>$73 Black has a well protected king</item>
+        <item>$74 White has a poorly placed king</item>
+        <item>$75 Black has a poorly placed king</item>
+        <item>$76 White has a well placed king</item>
+        <item>$77 Black has a well placed king</item>
+        <item>$78 White has a very weak pawn structure</item>
+        <item>$79 Black has a very weak pawn structure</item>
+        <item>$80 White has a moderately weak pawn structure</item>
+        <item>$81 Black has a moderately weak pawn structure</item>
+        <item>$82 White has a moderately strong pawn structure</item>
+        <item>$83 Black has a moderately strong pawn structure</item>
+        <item>$84 White has a very strong pawn structure</item>
+        <item>$85 Black has a very strong pawn structure</item>
+        <item>$86 White has poor knight placement</item>
+        <item>$87 Black has poor knight placement</item>
+        <item>$88 White has good knight placement</item>
+        <item>$89 Black has good knight placement</item>
+        <item>$90 White has poor bishop placement</item>
+        <item>$91 Black has poor bishop placement</item>
+        <item>$92 White has good bishop placement</item>
+        <item>$93 Black has good bishop placement</item>
+        <item>$94 White has poor rook placement</item>
+        <item>$95 Black has poor rook placement</item>
+        <item>$96 White has good rook placement</item>
+        <item>$97 Black has good rook placement</item>
+        <item>$98 White has poor queen placement</item>
+        <item>$99 Black has poor queen placement</item>
+        <item>$100 White has good queen placement</item>
+        <item>$101 Black has good queen placement</item>
+        <item>$102 White has poor piece coordination</item>
+        <item>$103 Black has poor piece coordination</item>
+        <item>$104 White has good piece coordination</item>
+        <item>$105 Black has good piece coordination</item>
+        <item>$106 White has played the opening very poorly</item>
+        <item>$107 Black has played the opening very poorly</item>
+        <item>$108 White has played the opening poorly</item>
+        <item>$109 Black has played the opening poorly</item>
+        <item>$110 White has played the opening well</item>
+        <item>$111 Black has played the opening well</item>
+        <item>$112 White has played the opening very well</item>
+        <item>$113 Black has played the opening very well</item>
+        <item>$114 White has played the middlegame very poorly</item>
+        <item>$115 Black has played the middlegame very poorly</item>
+        <item>$116 White has played the middlegame poorly</item>
+        <item>$117 Black has played the middlegame poorly</item>
+        <item>$118 White has played the middlegame well</item>
+        <item>$119 Black has played the middlegame well</item>
+        <item>$120 White has played the middlegame very well</item>
+        <item>$121 Black has played the middlegame very well</item>
+        <item>$122 White has played the ending very poorly</item>
+        <item>$123 Black has played the ending very poorly</item>
+        <item>$124 White has played the ending poorly</item>
+        <item>$125 Black has played the ending poorly</item>
+        <item>$126 White has played the ending well</item>
+        <item>$127 Black has played the ending well</item>
+        <item>$128 White has played the ending very well</item>
+        <item>$129 Black has played the ending very well</item>
+        <item>$130 White has slight counterplay</item>
+        <item>$131 Black has slight counterplay</item>
+        <item>$132 White has moderate counterplay</item>
+        <item>$133 Black has moderate counterplay</item>
+        <item>$134 White has decisive counterplay</item>
+        <item>$135 Black has decisive counterplay</item>
+        <item>$136 White has moderate time control pressure</item>
+        <item>$137 Black has moderate time control pressure</item>
+        <item>$138 White has severe time control pressure</item>
+        <item>$139 Black has severe time control pressure</item>
+    </string-array>
+</resources>
