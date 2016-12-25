@@ -18,7 +18,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- *
+ * base class for all test classes
  * Created by Alexander Bootman on 8/8/16.
  */
 public class BaseTest {
@@ -185,7 +185,6 @@ public class BaseTest {
     public Move invert(Move src) {
         Move trg = src.clone();
         trg.moveFlags ^= Config.FLAGS_BLACK_MOVE;
-//        trg.moveFlags &= ~Config.FLAGS_AMBIG;
         trg.to.y = Config.BOARD_SIZE - 1 - trg.to.y;
         if(trg.from.y != -1) {
             trg.from.y = Config.BOARD_SIZE - 1 - trg.from.y;
@@ -236,6 +235,15 @@ public class BaseTest {
         return trg;
     }
 
+    /**
+     * For the supplied position validate each move as receied via UI and as read from pgn file
+     * revert position and check the same move made by opponent
+     * Limitation: conversion from userMove to pgnMove incorrect for ambiguous moves.
+     * @param fen position
+     * @param moves array of moves with expected result
+     * @throws IOException
+     */
+
     public void testMoves(String fen, Pair<String, Integer>[] moves) throws IOException {
         String pgn = String.format("[FEN \"%s\"]", fen);
         BufferedReader br = new BufferedReader(new StringReader(pgn));
@@ -276,14 +284,11 @@ public class BaseTest {
                 Assert.assertEquals(String.format("%s\n%s%s error!", entry.first, pgnTree.getBoard().toString(), pgnMove.toString()), true, res);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), pgnMove.toString(),
                         pgnMove.moveFlags, expectedFlags), expectedFlags, pgnMove.moveFlags);
-//                invertedPgnMove.moveFlags, expectedFlags), expectedFlags, invertedPgnMove.moveFlags);
             }
 
             // validate as user move
             pgnTree.currentMove.snapshot = board.clone();
             res = pgnTree.validateUserMove(move);
-//            String str = pgnTree.getBoard().toString();
-//            logger.debug(str);
             if (expectedFlags == ERR) {
                 Assert.assertEquals(String.format("%s must be error", move.toString()), false, res);
             } else {
@@ -305,15 +310,12 @@ public class BaseTest {
                 Assert.assertEquals(String.format("%s\n%s%s error!", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString()), true, res);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString(),
                         invertedPgnMove.moveFlags, expectedFlags), expectedFlags, invertedPgnMove.moveFlags);
-//                        invertedPgnMove.snapshot.flags, expectedFlags), expectedFlags, invertedPgnMove.snapshot.flags);
                 expectedFlags ^= Config.FLAGS_BLACK_MOVE;
             }
 
             // validate as user move
             pgnTree.currentMove.snapshot = invertedBoard.clone();
             res = pgnTree.validateUserMove(invertedMove);
-//            str = pgnTree.getBoard().toString();
-//            logger.debug(str);
             if (expectedFlags == ERR) {
                 Assert.assertEquals(String.format("%s must be error", invertedMove.toString()), false, res);
             } else {

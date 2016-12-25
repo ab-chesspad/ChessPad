@@ -1,19 +1,17 @@
 package com.ab.pgn;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.LinkedList;
 import java.util.List;
 
 /**
- * unit tests
+ * parsing tests
  * Created by Alexander Bootman on 8/5/16.
  */
 public class PgnMoveParsingTest extends BaseTest {
@@ -154,14 +152,6 @@ public class PgnMoveParsingTest extends BaseTest {
             PgnTree unserialized = new PgnTree(new BitStream.Reader(writer));
             Assert.assertEquals(pgnTree.getBoard().toString(), unserialized.getBoard().toString());
             Assert.assertTrue(areEqual(pgnTree.root, unserialized.root));
-
-/*
-            String fullPgn = pgnTree.toPgn();
-            PgnTree fromFullPgn = parse(fullPgn).get(0);
-            Assert.assertEquals(pgnTree.getBoard().toString(), fromFullPgn.getBoard().toString());
-            Assert.assertTrue(areEqual(pgnTree.root, fromFullPgn.root));
-*/
-
         }
     }
 
@@ -176,7 +166,6 @@ public class PgnMoveParsingTest extends BaseTest {
                 "";
         List<PgnTree> pgnTrees = parse(pgn);
         Assert.assertTrue((pgnTrees.get(0).getBoard().flags & Config.FLAGS_REPETITION) != 0);
-//        logger.debug("done");
     }
 
     @Test
@@ -257,7 +246,6 @@ public class PgnMoveParsingTest extends BaseTest {
         PgnItem.setRoot(new File(root));
         File testFile = new File(String.format("%stest.zip", root));
         PgnItem.copy(new File(TEST_ROOT + "newyork1924.zip"), testFile);
-//        PgnItem.copy(new File(TEST_ROOT + "list1.zip"), testFile);
         List<PgnItem> items = getZipItems(testFile.getAbsolutePath());
         int count = items.size();
         int testIndex = 1;

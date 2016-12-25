@@ -2,24 +2,17 @@ package com.ab.pgn;
 
 import junit.framework.Assert;
 
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.StringReader;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
- *
+ * test pgn operations
  * Created by Alexander Bootman on 7/30/16.
  */
 public class PgnItemTest extends BaseTest {
@@ -192,16 +185,6 @@ public class PgnItemTest extends BaseTest {
                 List<PgnItem> items = item.getChildrenNames();
                 for (PgnItem p : items) {
                     logger.debug(String.format("\t%s", p.toString()));
-/*
-                if (p instanceof PgnItem.Item) {
-                    // pgn
-                    PgnItem.getPgnItem((PgnItem.Item) p);
-                    String moveText = ((PgnItem.Item) p).moveText.replaceAll("(?s)\\{.*?\\}", "");
-                    ((PgnItem.Item) p).moveText = moveText;
-                    System.out.println(String.format("\t%s", ((PgnItem.Item) p).moveText));
-                    ((PgnItem.Item) p).save();
-                } else
-*/
                     if (p instanceof PgnItem.Pgn) {
                         // zip
                         List<PgnItem> children = p.getChildrenNames();
@@ -275,15 +258,8 @@ public class PgnItemTest extends BaseTest {
     public void testRegex3() {
         String s =
                 "\\\"Lloyds Bank\\\" op\"]\n" +
-//            "[Abc \"aaa, \\\\bbb, \\\"c \\\\\"cc\"]" +
             "\n";
         String pat = "([^\\])\\\"";
-//        String s1 = s.replaceAll("([^\\\\])\\\\\"", "$1\"");
-//        String s1 = s.replaceAll("([^\\\\])\\\\(\")", "$1$2");
-//        String s2 = s.replaceAll("([^\\\\])\\\\\\\\", "$1\\\\");
-//        logger.debug(String.format("regex: %s, %s, %s", s, s1, s2));
-
-//        String s3 = s.replaceAll("([^\\\\])\\\\(\"|\\\\)", "$1$2");
         String s3 = s.replaceAll("(^|[^\\\\])\\\\(\"|\\\\)", "$1$2");
 
         logger.debug(String.format("regex: %s, %s", s, s3));
@@ -293,13 +269,6 @@ public class PgnItemTest extends BaseTest {
     @Test
     public void testRegex4() {
         String s = "\"bl\\a-\"bla\"";
-//        String pat = "(\\\\|\\\")";
-//        Pattern p = Pattern.compile(pat);
-//        Matcher m = p.matcher(s);
-//
-//        while(m.find()) {
-//            logger.debug(String.format("match: %s, %s", s, m.group(1)));
-//        }
         String s3 = s.replaceAll("(\\\\|\\\")", "\\\\$1");
 
         logger.debug(String.format("regex: %s, %s", s, s3));

@@ -1,11 +1,10 @@
 package com.ab.pgn;
 
-import org.apache.log4j.Logger;
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- *
+ * uint tests
  * Created by Alexander Bootman on 8/3/16.
  */
 public class BoardTest extends BaseTest {
