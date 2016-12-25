@@ -117,66 +117,16 @@ public class MoveValidationTest extends BaseTest {
         testMoves(fen, moves);
     }
 
-    /////////////////////////////
-
-    private void testMove(String moveText, Pair<String, Integer>[] positions, boolean pgnMove) throws IOException {
+    @SuppressWarnings("unchecked")
+    private void testMove(String moveText, Pair<String, Integer>[] positions) throws IOException {
         for (Pair<String, Integer> position : positions) {
-            String pgn = String.format("[FEN \"%s\"]", position.first);
-            BufferedReader br = new BufferedReader(new StringReader(pgn));
-            final List<PgnItem> items = new LinkedList<>();
-            PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
-                @Override
-                public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws IOException {
-                    items.add(entry);
-                    return true;
-                }
-
-                @Override
-                public boolean getMoveText(PgnItem entry) {
-                    return true;
-                }
-            });
-            Assert.assertEquals(items.size(), 1);
-            PgnTree pgnTree = new PgnTree((PgnItem.Item) items.get(0));
-            Board board = pgnTree.getBoard();
-            Board invertedBoard = invert(pgnTree.getBoard());
-            MoveParser moveParser = new MoveParser(pgnTree);
-            Move move = moveParser.parseMove(moveText);
-            Move invertedMove = invert(move);
-            int expectedFlags = position.second;
-            boolean res;
-            if(pgnMove) {
-                res = board.validatePgnMove(move, Config.VALIDATE_USER_MOVE);
-            } else {
-                res = pgnTree.validateUserMove(move);
-            }
-            String str = pgnTree.getBoard().toString();
-            logger.debug(str);
-            if(expectedFlags == ERR) {
-                Assert.assertEquals(String.format("%s, %s must be error", board.toFEN(), move.toString()), false, res);
-            } else {
-                Assert.assertEquals(String.format("%s, %s flags must be 0x%04x", board.toFEN(), move.toString(), move.moveFlags), expectedFlags, move.moveFlags);
-            }
-
-            pgnTree.currentMove.snapshot = invertedBoard;
-            if(pgnMove) {
-                res = board.validatePgnMove(invertedMove, Config.VALIDATE_USER_MOVE);
-            } else {
-                res = pgnTree.validateUserMove(invertedMove);
-            }
-            str = pgnTree.getBoard().toString();
-            logger.debug(str);
-            if(expectedFlags == ERR) {
-                Assert.assertEquals(String.format("%s, %s must be error", invertedBoard.toFEN(), invertedMove.toString()), false, res);
-            } else {
-                expectedFlags ^= Config.FLAGS_BLACK_MOVE;
-                Assert.assertEquals(String.format("%s, %s flags must be 0x%04x", invertedBoard.toFEN(), invertedMove.toString(), invertedMove.moveFlags), expectedFlags, invertedMove.moveFlags);
-            }
+            String fen = position.first;
+            Pair<String, Integer>[] moves = new Pair[] {new Pair<>(moveText, position.second)};
+            testMoves(fen, moves);
         }
     }
 
     @Test
-    @Ignore("Old")
     @SuppressWarnings("unchecked")
     public void testQCastle() throws IOException {
         final String move = "o-o-o";    // o-o-o
@@ -186,7 +136,7 @@ public class MoveValidationTest extends BaseTest {
                 new Pair<>("r3k2r/8/8/8/7b/8/8/R3K2R w KQkq - 0 1", ERR),
                 new Pair<>("r3k2r/8/8/8/5b2/8/8/R3K2R w KQkq - 0 1", ERR),
         };
-        testMove(move, fens, true);
+        testMove(move, fens);
     }
 
     // todo: knight, bishop, queen
