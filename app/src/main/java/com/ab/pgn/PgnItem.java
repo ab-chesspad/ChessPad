@@ -432,9 +432,16 @@ public abstract class PgnItem {
         return headers;
     }
 
-    public static List<Pair<String, String>> cloneHeaders(List<Pair<String, String>> oldHeaders) {
+    public static List<Pair<String, String>> cloneHeaders(List<Pair<String, String>> oldHeaders, String... skip) {
         List<Pair<String, String>> headers = new ArrayList<>();
-        for(Pair<String, String> header : oldHeaders) {
+clone:  for(Pair<String, String> header : oldHeaders) {
+            if(skip != null) {
+                for(String e : skip) {
+                    if (header.first.equals(e)) {
+                        continue clone;
+                    }
+                }
+            }
             headers.add(new Pair<>(header.first, header.second));
         }
         return headers;
@@ -560,8 +567,8 @@ public abstract class PgnItem {
             return headers;
         }
 
-        public void setHeaders(List<Pair<String, String>> headers) {
-            this.headers = cloneHeaders(headers);
+        public void setHeaders(List<Pair<String, String>> headers, String... skip) {
+            this.headers = cloneHeaders(headers, skip);
             headerMap = null;
         }
 
@@ -573,6 +580,8 @@ public abstract class PgnItem {
         }
 
         public List<Pair<String, String>> cloneHeaders(String... skip) {
+            return cloneHeaders(this.headers, skip);
+/*
             List<Pair<String, String>> headers = new ArrayList<>();
 
 clone:      for(Pair<String, String> header : this.headers) {
@@ -586,6 +595,7 @@ clone:      for(Pair<String, String> header : this.headers) {
                 headers.add(new Pair<>(header.first, header.second));
             }
             return headers;
+*/
         }
     }
 

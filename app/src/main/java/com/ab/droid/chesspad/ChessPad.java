@@ -39,7 +39,7 @@ import java.util.List;
  */
 public class ChessPad extends AppCompatActivity {
     protected final String DEBUG_TAG = this.getClass().getName();
-    private static final int SERIALIZATION_VERSION = 1;         // igor - 7
+    private static final int SERIALIZATION_VERSION = 2;         // igor - 7
 
     static final String
         STATUS_FILE_NAME = "ChessPad.status",
@@ -156,13 +156,14 @@ public class ChessPad extends AppCompatActivity {
             versionName = "0.0";
         }
         resources = getResources();
-        sample();       // initially create a sample pgn
+//        sample();       // initially create a sample pgn
     }
 
     private void init() {
         try {
             setup = null;
             chessPadView = new ChessPadView(this);
+            sample();       // initially create a sample pgn
         } catch (Throwable t) {
 //dlgMessage(DialogType.About, t.toString(), DIALOG_BUTTON_OK);
             Log.e(DEBUG_TAG, t.toString(), t);
@@ -204,7 +205,6 @@ public class ChessPad extends AppCompatActivity {
                 fis = openFileInput(STATUS_FILE_NAME);
             } catch (FileNotFoundException e) {
                 Log.d(DEBUG_TAG, "onResume() 1", e);
-//            sample();       // initially create a sample pgn
             }
 
             if (fis != null) {

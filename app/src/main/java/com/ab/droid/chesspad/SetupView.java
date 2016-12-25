@@ -160,9 +160,9 @@ public class SetupView {
             @Override
             public void onClick(View v) {
                 CpToggleButton btn = (CpToggleButton)v;
+                chessPad.setup.setFlag(!btn.isChecked(), Config.FLAGS_BLACK_MOVE); // reversed check
                 btn.toggle();
                 btnWhiteMove.toggle();
-                chessPad.setup.setFlag(btn.isChecked(), Config.FLAGS_BLACK_MOVE);
             }
         });
         btnBlackMove.setChecked(chessPad.setup.getFlag(Config.FLAGS_BLACK_MOVE) != 0);
@@ -170,9 +170,9 @@ public class SetupView {
             @Override
             public void onClick(View v) {
                 CpToggleButton btn = (CpToggleButton)v;
+                chessPad.setup.setFlag(btn.isChecked(), Config.FLAGS_BLACK_MOVE); // reversed check
                 btn.toggle();
                 btnBlackMove.toggle();
-                chessPad.setup.setFlag(!btn.isChecked(), Config.FLAGS_BLACK_MOVE);
             }
         });
         btnWhiteMove.setChecked(chessPad.setup.getFlag(Config.FLAGS_BLACK_MOVE) == 0);
@@ -266,6 +266,7 @@ public class SetupView {
                 btn.toggle();
                 btnWhiteMove.toggle();
                 chessPad.setup.setFlag(btn.isChecked(), Config.FLAGS_BLACK_MOVE);
+                chessPad.setup.validate();
             }
         });
         btnBlackMove.setChecked(chessPad.setup.getFlag(Config.FLAGS_BLACK_MOVE) != 0);
@@ -276,6 +277,7 @@ public class SetupView {
                 btn.toggle();
                 btnBlackMove.toggle();
                 chessPad.setup.setFlag(!btn.isChecked(), Config.FLAGS_BLACK_MOVE);
+                chessPad.setup.validate();
             }
         });
         btnWhiteMove.setChecked(chessPad.setup.getFlag(Config.FLAGS_BLACK_MOVE) == 0);
@@ -364,10 +366,15 @@ public class SetupView {
                 @Override
                 public void onClick(View v) {
                     toggle();
-                    chessPad.setup.setFlag(isChecked(), flag);
+                    if(flag != 0) {
+                        chessPad.setup.setFlag(isChecked(), flag);
+                        chessPad.setup.validate();
+                    }
                 }
             });
-            setChecked(chessPad.setup.getFlag(flag) != 0);
+            if(flag != 0) {
+                setChecked(chessPad.setup.getFlag(flag) != 0);
+            }
         }
 
         @Override
@@ -380,13 +387,13 @@ public class SetupView {
 
         public void toggle() {
             pressed = !pressed;
-            chessPad.setup.validate();
+//            chessPad.setup.validate();
             invalidate();
         }
 
         public void setChecked( boolean pressed ) {
             this.pressed = pressed;
-            chessPad.setup.validate();
+//            chessPad.setup.validate();
             invalidate();
         }
 

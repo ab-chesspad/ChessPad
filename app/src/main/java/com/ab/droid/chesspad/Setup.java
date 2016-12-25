@@ -91,10 +91,12 @@ public class Setup implements ChessPadView.ChangeObserver {
     }
 
     public void setHeaders(List<Pair<String, String>> headers) {
+/*
         int fenIndex = this.headers.indexOf(Config.HEADER_FEN);
         if(fenIndex != -1) {
             headers.add(headers.get(fenIndex));
         }
+*/
         this.headers = headers;
     }
 

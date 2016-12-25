@@ -421,9 +421,9 @@ public class Board {
         // verify if the other king is checked:
         Move probe = newMove();
         if ((this.flags & Config.FLAGS_BLACK_MOVE) == 0) {
-            probe.to = king[0];
-        } else {
             probe.to = king[1];
+        } else {
+            probe.to = king[0];
         }
         return findAttack(probe.to, null) == null ? 0 : 12;
     }
