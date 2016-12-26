@@ -35,7 +35,7 @@ import java.util.List;
 
 /**
  * main activity
- * Created by Alexander Bootman on 8/18/16.
+ * Created by Alexander Bootman on 8/20/16.
  */
 public class ChessPad extends AppCompatActivity {
     protected final String DEBUG_TAG = this.getClass().getName();

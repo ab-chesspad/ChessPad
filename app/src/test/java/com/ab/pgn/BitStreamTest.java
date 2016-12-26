@@ -7,7 +7,7 @@ import java.io.IOException;
 
 /**
  * unit tests
- * Created by Alexander Bootman on 8/10/16.
+ * Created by Alexander Bootman on 8/13/16.
  */
 public class BitStreamTest {
 

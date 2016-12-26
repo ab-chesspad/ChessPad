@@ -5,7 +5,7 @@ import java.util.StringTokenizer;
 
 /**
  *
- * Created by Alexander Bootman on 8/3/16.
+ * Created by Alexander Bootman on 8/6/16.
  */
 public class PgnParser {
 

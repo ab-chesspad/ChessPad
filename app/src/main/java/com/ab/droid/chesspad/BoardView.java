@@ -23,7 +23,7 @@ import java.util.List;
 
 /**
  * visual board
- * Created by Alexander Bootman on 8/17/16.
+ * Created by Alexander Bootman on 8/20/16.
  */
 public class BoardView extends View {
     private final String DEBUG_TAG = this.getClass().getName();

@@ -4,7 +4,7 @@ import java.io.IOException;
 
 /**
  * move data - pgnTree node
- * Created by Alexander Bootman on 8/3/16.
+ * Created by Alexander Bootman on 8/6/16.
  */
 public class Move {
     public Square from;                  // from.x == -1 for null move or a placeholder

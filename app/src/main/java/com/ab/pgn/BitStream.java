@@ -8,7 +8,7 @@ import java.io.OutputStream;
 
 /**
  * BitStream.Reader and BitStream.Writer
- * Created by Alexander Bootman on 8/10/16.
+ * Created by Alexander Bootman on 8/13/16.
  */
 public abstract class BitStream {
     protected byte[] bits = new byte[1];

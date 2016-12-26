@@ -25,7 +25,7 @@ import java.io.IOException;
 
 /**
  * full ChessPad screen
- * Created by Alexander Bootman on 8/18/16.
+ * Created by Alexander Bootman on 8/20/16.
  */
 public class ChessPadView extends View {
     protected final String DEBUG_TAG = this.getClass().getName();

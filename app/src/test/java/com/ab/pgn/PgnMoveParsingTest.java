@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * parsing tests
- * Created by Alexander Bootman on 8/5/16.
+ * Created by Alexander Bootman on 8/6/16.
  */
 public class PgnMoveParsingTest extends BaseTest {
     final static String version = Config.version;
@@ -262,7 +262,7 @@ public class PgnMoveParsingTest extends BaseTest {
         item.setMoveText(null);
         item.setIndex(0);
         for(int i = 0; i < count; ++i) {
-            logger.debug(String.format("delete %s", i));
+//            logger.debug(String.format("delete %s", i));
             item.save();    // delete #0 since moveText is null
             items1 = getZipItems(testFile.getAbsolutePath());
             if(i == count - 1) {

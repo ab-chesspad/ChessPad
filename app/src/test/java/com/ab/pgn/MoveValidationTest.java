@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * test various moves
- * Created by Alexander Bootman on 8/24/16.
+ * Created by Alexander Bootman on 8/27/16.
  */
 public class MoveValidationTest extends BaseTest {
 

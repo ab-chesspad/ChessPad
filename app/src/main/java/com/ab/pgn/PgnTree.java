@@ -8,7 +8,7 @@ import java.util.List;
 
 /**
  * tree of game moves
- * Created by Alexander Bootman on 8/3/16.
+ * Created by Alexander Bootman on 8/6/16.
  */
 public class PgnTree {
     transient protected final String DEBUG_TAG = this.getClass().getName();

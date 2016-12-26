@@ -4,7 +4,7 @@ import java.io.IOException;
 
 /**
  * chess board square
- * Created by Alexander Bootman on 8/5/16.
+ * Created by Alexander Bootman on 8/6/16.
  */
 public class Square {
     public int x = -1, y = -1;
