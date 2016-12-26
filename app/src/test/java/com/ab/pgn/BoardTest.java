@@ -5,7 +5,7 @@ import org.junit.Test;
 
 /**
  * uint tests
- * Created by Alexander Bootman on 8/3/16.
+ * Created by Alexander Bootman on 8/7/16.
  */
 public class BoardTest extends BaseTest {
 

@@ -21,7 +21,7 @@ import java.util.List;
  * https://en.wikipedia.org/wiki/Threefold_repetition
  * ... for a position to be considered the same, each player must have the same set of legal moves
  * each time, including the possible rights to castle and capture en passant.
- * Created by Alexander Bootman on 8/4/16.
+ * Created by Alexander Bootman on 8/6/16.
  */
 public class Pack {
     private static final int PACK_SIZE = 3;              // longs.length

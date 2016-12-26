@@ -6,7 +6,7 @@ import java.io.IOException;
 
 /**
  * sample
- * Created by Alexander Bootman on 8/31/16.
+ * Created by Alexander Bootman on 8/28/16.
  */
 public class Sample {
     private ChessPad chessPad;
