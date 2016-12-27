@@ -84,6 +84,11 @@ public class Setup implements ChessPadView.ChangeObserver {
     }
 
     public PgnTree toPgnTree() throws IOException {
+        int err;
+        if((err = validate()) != 0) {
+            Log.e(DEBUG_TAG, String.format("Setup error %s\n%s", err, board.toString()));
+            return new PgnTree();
+        }
         PgnTree pgnTree = new PgnTree(board);
         headers.remove(headers.size() - 1);     // remove 'add new' row
         pgnTree.getPgn().setHeaders(headers);

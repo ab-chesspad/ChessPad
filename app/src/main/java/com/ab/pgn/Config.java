@@ -2,11 +2,11 @@ package com.ab.pgn;
 
 import android.os.Environment;
 
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.FileAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.log4j.PatternLayout;
+//import org.apache.log4j.ConsoleAppender;
+//import org.apache.log4j.FileAppender;
+//import org.apache.log4j.Level;
+//import org.apache.log4j.Logger;
+//import org.apache.log4j.PatternLayout;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import de.mindpipe.android.logging.log4j.LogConfigurator;
+//import de.mindpipe.android.logging.log4j.LogConfigurator;
 
 /**
  *
@@ -22,7 +22,7 @@ import de.mindpipe.android.logging.log4j.LogConfigurator;
  */
 public class Config {
     public static final String version = "1.0";
-    public static Level logLevel = Level.FATAL;
+//    public static Level logLevel = Level.FATAL;
 
     public static final int
             MY_BUF_SIZE = 0x2000,
@@ -159,31 +159,31 @@ public class Config {
     }
 */
 
-    public static void initLogger(Level logLevel) {
-        Config.logLevel = logLevel;
-        Logger rootLogger = Logger.getRootLogger();
-        ConsoleAppender console = new ConsoleAppender(); //create appender
-        //configure the appender
-        String PATTERN = "%d [%p|%c|%C{1}] %m%n";
-        console.setLayout(new PatternLayout(PATTERN));
-        console.setThreshold(logLevel);
-        console.activateOptions();
-        //add appender to any Logger (here is root)
-//        Logger.getRootLogger().addAppender(console);
-        rootLogger.addAppender(console);
-
-        FileAppender fa = new FileAppender();
-        fa.setName("FileLogger");
-        fa.setFile("../logs/appLog.log");
-        fa.setLayout(new PatternLayout("%d %-5p [%c{1}] %m%n"));
-        fa.setThreshold(logLevel);
-        fa.setAppend(true);
-        fa.activateOptions();
-
-        //add appender to any Logger (here is root)
-//        Logger.getRootLogger().addAppender(fa);
-        rootLogger.addAppender(fa);
-    }
+//    public static void initLogger(Level logLevel) {
+//        Config.logLevel = logLevel;
+//        Logger rootLogger = Logger.getRootLogger();
+//        ConsoleAppender console = new ConsoleAppender(); //create appender
+//        //configure the appender
+//        String PATTERN = "%d [%p|%c|%C{1}] %m%n";
+//        console.setLayout(new PatternLayout(PATTERN));
+//        console.setThreshold(logLevel);
+//        console.activateOptions();
+//        //add appender to any Logger (here is root)
+////        Logger.getRootLogger().addAppender(console);
+//        rootLogger.addAppender(console);
+//
+//        FileAppender fa = new FileAppender();
+//        fa.setName("FileLogger");
+//        fa.setFile("../logs/appLog.log");
+//        fa.setLayout(new PatternLayout("%d %-5p [%c{1}] %m%n"));
+//        fa.setThreshold(logLevel);
+//        fa.setAppend(true);
+//        fa.activateOptions();
+//
+//        //add appender to any Logger (here is root)
+////        Logger.getRootLogger().addAppender(fa);
+//        rootLogger.addAppender(fa);
+//    }
 /*
 
     static Logger rootLogger = Logger.getRootLogger();
@@ -220,8 +220,7 @@ public class Config {
     }
 */
 
-    static public class PGNException
-            extends RuntimeException {
+    static public class PGNException extends RuntimeException {
         static final long serialVersionUID = 1989L;
 
         public PGNException(String t) {

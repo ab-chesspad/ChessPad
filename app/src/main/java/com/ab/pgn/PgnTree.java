@@ -1,6 +1,6 @@
 package com.ab.pgn;
 
-import org.apache.log4j.Logger;
+//import org.apache.log4j.Logger;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -21,7 +21,7 @@ public class PgnTree {
     transient private boolean startVariation;                     // flag for pgn parsing
     transient private List<Move> variations = new LinkedList<>(); // stack for pgn parsing
 
-    transient final Logger logger = Logger.getLogger(this.getClass());
+//    transient final Logger logger = Logger.getLogger(this.getClass());
 
     public PgnTree() {
         init();
@@ -172,7 +172,7 @@ public class PgnTree {
     }
 
     public void setComment(String newComment) {
-        logger.debug(newComment);
+//        logger.debug(newComment);
         Move move = currentMove;
         if (currentMove == null) {
             move = root;
@@ -326,7 +326,7 @@ public class PgnTree {
             board.flags |= Config.FLAGS_REPETITION;
         }
 
-        logger.debug(this.getBoard().toString());
+//        logger.debug(this.getBoard().toString());
         if(startVariation) {
             Move lastVariation = currentMove.nextMove;
             variations.add(lastVariation);
