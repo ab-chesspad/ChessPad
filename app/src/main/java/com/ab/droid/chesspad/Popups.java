@@ -4,14 +4,12 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Color;
-import android.support.annotation.NonNull;
 import android.support.v7.app.AlertDialog;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -382,8 +380,8 @@ public class Popups {
                     } else {
                         chessPad.setup.setHeaders(editHeaders);
                     }
-                    editHeaders = null;
                     dismissDlg();
+                    editHeaders = null;
                 } else {
                     if (selected == editHeaders.size() - 1) {
                         String label = editHeaders.get(editHeaders.size() - 1).first.trim();
@@ -463,8 +461,8 @@ public class Popups {
                         public void onClick(DialogInterface dialog, int which) {
                             try {
                                 Object selectedItem = arrayAdapter.getItem(which);
-                                if (selectedItem instanceof MenuItem) {
-                                    if (!((MenuItem) selectedItem).isEnabled()) {
+                                if (selectedItem instanceof ChessPad.MenuItem) {
+                                    if (!((ChessPad.MenuItem) selectedItem).isEnabled()) {
                                         return; // ignore
                                     }
                                 }
@@ -786,6 +784,10 @@ public class Popups {
 
         @Override
         public int getCount() {
+            if(editHeaders == null) {
+                Log.e(DEBUG_TAG, "getCount, editHeaders == null");
+                return 0;
+            }
             return editHeaders.size();
         }
 

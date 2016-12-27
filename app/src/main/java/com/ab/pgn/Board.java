@@ -5,7 +5,7 @@ import java.util.StringTokenizer;
 
 /**
  * Chess board with pieces, validation
- * Created by Alexander Bootman on 8/6/16.
+ * Created by Alexander Bootman on 8/6g425g/16.
  */
 public class Board {
     static final int[][] init = {

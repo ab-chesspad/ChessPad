@@ -1,6 +1,6 @@
 package com.ab.pgn;
 
-import org.apache.log4j.Logger;
+//import org.apache.log4j.Logger;
 
 import java.io.IOException;
 
@@ -9,7 +9,7 @@ import java.io.IOException;
  * Created by Alexander Bootman on 8/6/16.
  */
 public class MoveParser implements PgnParser.MoveTextHandler {
-    final Logger logger = Logger.getLogger(this.getClass());
+//    final Logger logger = Logger.getLogger(this.getClass());
 
     private PgnTree pgnTree;
 
@@ -47,7 +47,7 @@ public class MoveParser implements PgnParser.MoveTextHandler {
             } else if (ch == Config.MOVE_CHECKMATE.charAt(0)) {
                 newMove.moveFlags |= Config.FLAGS_CHECKMATE;
             } else if (Config.PGN_OLD_GLYPHS.indexOf(ch) >= 0) {
-                logger.debug(_moveText);
+//                logger.debug(_moveText);
             } else if (Character.isLetterOrDigit(ch)) {
                 break;
             }
@@ -132,27 +132,27 @@ public class MoveParser implements PgnParser.MoveTextHandler {
 
     @Override
     public void onMove(String _moveText) throws IOException {
-        logger.debug(_moveText);
+//        logger.debug(_moveText);
         Move newMove = parseMove(_moveText);
 
         if (!pgnTree.addPgnMove(newMove)) {
             newMove.snapshot = pgnTree.getBoard().clone();
             newMove.snapshot.plyNum += 2;   // ??
             String msg = String.format("invalid move %s for:\n%s", newMove.toNumString(), pgnTree.getBoard().toString());
-            logger.debug(msg);
+//            logger.debug(msg);
             throw new Config.PGNException(msg);
         }
     }
 
     @Override
     public void onVariantOpen() {
-        logger.debug("onVariantOpen");
+//        logger.debug("onVariantOpen");
         pgnTree.openVariation(true);
     }
 
     @Override
     public void onVariantClose() {
-        logger.debug("onVariantClose");
+//        logger.debug("onVariantClose");
         pgnTree.closeVariation();
 
     }
