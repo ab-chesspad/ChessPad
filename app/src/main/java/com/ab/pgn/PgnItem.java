@@ -300,9 +300,11 @@ public abstract class PgnItem {
         return src.replaceAll("(\\\\|\\\")", "\\\\$1");
     }
 
-    // todo: optimize
-    public static String getTitle(List<Pair<String, String>> headers) {
+    public static String getTitle(List<Pair<String, String>> headers, int index) {
         StringBuilder sb = new StringBuilder();
+        if(index > 0) {
+            sb.append(String.format("%s. ", index));
+        }
         String sep = "";
         for (String h : Config.titleHeaders) {
             String v = null;
@@ -494,7 +496,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         @Override
         public String toString() {
-            return getTitle(this.headers);
+            return getTitle(this.headers, this.index);
         }
 
         public String toPgnString() {

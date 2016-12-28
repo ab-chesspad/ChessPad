@@ -99,6 +99,16 @@ public class MoveValidationTest extends BaseTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    public void testMateCastle() throws IOException {
+        String fen = "r1rkr3/2p1p3/8/8/8/8/8/R3K3 w Q - 0 4";
+        final Pair<String, Integer>[] moves = new Pair[] {
+                new Pair<>("0-0-0#", Config.FLAGS_W_QUEEN_OK | Config.FLAGS_CASTLE | Config.FLAGS_CHECKMATE),
+        };
+        testMoves(fen, moves);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     public void testCheck() throws IOException {
         String fen = "r2qkbnr/pP1ppNpp/8/4P3/1p6/8/P1PP2pP/RNBQK2R w KQkq - 99 6";
         final Pair<String, Integer>[] moves = new Pair[] {
@@ -113,6 +123,16 @@ public class MoveValidationTest extends BaseTest {
         String fen = "7r/8/Q2R4/6pk/7p/4PP2/3K2PB/7R w - - 0 1";
         final Pair<String, Integer>[] moves = new Pair[] {
                 new Pair<>("g2g4+", Config.FLAGS_ENPASSANT_OK | Config.FLAGS_CHECK),
+        };
+        testMoves(fen, moves);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCheck2() throws IOException {
+        String fen = "r2kr3/2p1p3/8/8/8/8/8/R3K3 w Q - 0 4";
+        final Pair<String, Integer>[] moves = new Pair[] {
+                new Pair<>("0-0-0+", Config.FLAGS_W_QUEEN_OK | Config.FLAGS_CASTLE | Config.FLAGS_CHECK),
         };
         testMoves(fen, moves);
     }

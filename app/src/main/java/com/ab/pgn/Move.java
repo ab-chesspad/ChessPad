@@ -135,37 +135,37 @@ public class Move {
             } else {
                 res.append(Config.PGN_Q_CASTLE);
             }
-            return new String(res.append(" "));
+        } else {
+            if ((piece & ~Config.BLACK) != Config.PAWN) {
+                res.append(Config.FEN_PIECES.charAt(piece & ~Config.BLACK));
+            }
+
+            if ((longNotation || (moveFlags & Config.FLAGS_X_AMBIG) != 0)) {
+                res.append(from.x2String());
+            }
+            if ((longNotation || (moveFlags & Config.FLAGS_Y_AMBIG) != 0)) {
+                res.append(from.y2String());
+            }
+            if (!longNotation && getColorlessPiece() == Config.PAWN && to.x != from.x) {
+                res.append(from.x2String());
+            }
+
+            if (pieceTaken != Config.EMPTY ||
+                    getColorlessPiece() == Config.PAWN && to.x != from.x) {
+                res.append(Config.MOVE_CAPTURE);
+            }
+
+            res.append(to.toString());
+
+            if (piecePromoted != Config.EMPTY) {
+                res.append(Config.MOVE_PROMOTION).append(Config.FEN_PIECES.charAt(piecePromoted & ~Config.BLACK));
+            }
         }
-
-        if ((piece & ~Config.BLACK) != Config.PAWN) {
-            res.append(Config.FEN_PIECES.charAt(piece & ~Config.BLACK));
-        }
-
-        if ((longNotation || (moveFlags & Config.FLAGS_X_AMBIG) != 0)) {
-            res.append(from.x2String());
-        }
-        if ((longNotation || (moveFlags & Config.FLAGS_Y_AMBIG) != 0)) {
-            res.append(from.y2String());
-        }
-        if(!longNotation && getColorlessPiece() == Config.PAWN && to.x != from.x) {
-            res.append(from.x2String());
-        }
-
-        if (pieceTaken != Config.EMPTY ||
-                getColorlessPiece() == Config.PAWN && to.x != from.x)
-            res.append(Config.MOVE_CAPTURE);
-
-        res.append(to.toString());
-
-        if (piecePromoted != Config.EMPTY)
-            res.append(Config.MOVE_PROMOTION).append(Config.FEN_PIECES.charAt(piecePromoted & ~Config.BLACK));
-
-        if ((moveFlags & Config.FLAGS_CHECKMATE) != 0)
+        if ((moveFlags & Config.FLAGS_CHECKMATE) != 0) {
             res.append(Config.MOVE_CHECKMATE);
-        else if ((moveFlags & Config.FLAGS_CHECK) != 0)
+        } else if ((moveFlags & Config.FLAGS_CHECK) != 0) {
             res.append(Config.MOVE_CHECK);
-
+        }
         return new String(res.append(" "));
     }
 
