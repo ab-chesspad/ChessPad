@@ -336,6 +336,7 @@ public class Popups {
             case Promotion:
                 dismissDlg();
                 promotionMove.piecePromoted = (selected + 2) | (promotionMove.moveFlags & Config.BLACK);
+                promotionMove.snapshot = null;
                 chessPad.pgnTree.addUserMove(promotionMove);
                 break;
 

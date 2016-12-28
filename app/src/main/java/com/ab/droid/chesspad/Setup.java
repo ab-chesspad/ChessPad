@@ -80,7 +80,7 @@ public class Setup implements ChessPadView.ChangeObserver {
     }
 
     public String getTitleText() {
-        return PgnItem.getTitle(headers);
+        return PgnItem.getTitle(headers, -1);
     }
 
     public PgnTree toPgnTree() throws IOException {

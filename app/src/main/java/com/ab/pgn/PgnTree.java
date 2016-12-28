@@ -143,7 +143,7 @@ public class PgnTree {
     }
 
     public String getTitle() {
-        return PgnItem.getTitle(pgn.getHeaders());
+        return PgnItem.getTitle(pgn.getHeaders(), pgn.index);
     }
 
     public Board getInitBoard() {

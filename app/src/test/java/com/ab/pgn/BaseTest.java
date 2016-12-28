@@ -1,7 +1,5 @@
 package com.ab.pgn;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -31,7 +29,7 @@ public class BaseTest {
 
     @BeforeClass
     public static void init() {
-        Config.initLogger(Level.FATAL);
+//        Config.initLogger(Level.FATAL);
         PgnItem.setRoot(new File(TEST_ROOT));
         File tmpTest = new File(TEST_TMP_ROOT);
         deleteDirectory(tmpTest);
@@ -216,7 +214,8 @@ public class BaseTest {
         trg.bKing.y = Config.BOARD_SIZE -1 - trg.bKing.y;
         trg.wKing = src.bKing.clone();
         trg.wKing.y = Config.BOARD_SIZE -1 - trg.wKing.y;
-
+        trg.flags = invertFlags(src.flags);
+/*
         trg.flags = src.flags;
         trg.flags ^= Config.FLAGS_BLACK_MOVE;
         trg.flags &= ~Config.INIT_POSITION_FLAGS;
@@ -232,7 +231,27 @@ public class BaseTest {
         if((src.flags & Config.FLAGS_B_QUEEN_OK) != 0) {
             trg.flags |= Config.FLAGS_W_QUEEN_OK;
         }
+*/
         return trg;
+    }
+
+    int invertFlags(int flags) {
+        int res = flags;
+        res ^= Config.FLAGS_BLACK_MOVE;
+        res &= ~Config.INIT_POSITION_FLAGS;
+        if((flags & Config.FLAGS_W_KING_OK) != 0) {
+            res |= Config.FLAGS_B_KING_OK;
+        }
+        if((flags & Config.FLAGS_B_KING_OK) != 0) {
+            res |= Config.FLAGS_W_KING_OK;
+        }
+        if((flags & Config.FLAGS_W_QUEEN_OK) != 0) {
+            res |= Config.FLAGS_B_QUEEN_OK;
+        }
+        if((flags & Config.FLAGS_B_QUEEN_OK) != 0) {
+            res |= Config.FLAGS_W_QUEEN_OK;
+        }
+        return res;
     }
 
     /**
@@ -303,14 +322,13 @@ public class BaseTest {
             invertedPgnMove.moveFlags &= ~Config.FLAGS_AMBIG;   // todo: verify
             String strInvertedPgnMove = invertedPgnMove.toString();
             invertedPgnMove = moveParser.parseMove(strInvertedPgnMove);
+            int invertedExpectedFlags = invertFlags(expectedFlags);
 
             if(expectedFlags != ERR) {
-                expectedFlags ^= Config.FLAGS_BLACK_MOVE;
                 res = pgnTree.addPgnMove(invertedPgnMove);
                 Assert.assertEquals(String.format("%s\n%s%s error!", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString()), true, res);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString(),
-                        invertedPgnMove.moveFlags, expectedFlags), expectedFlags, invertedPgnMove.moveFlags);
-                expectedFlags ^= Config.FLAGS_BLACK_MOVE;
+                        invertedPgnMove.moveFlags, invertedExpectedFlags), invertedExpectedFlags, invertedPgnMove.moveFlags);
             }
 
             // validate as user move
@@ -319,26 +337,26 @@ public class BaseTest {
             if (expectedFlags == ERR) {
                 Assert.assertEquals(String.format("%s must be error", invertedMove.toString()), false, res);
             } else {
-                expectedFlags ^= Config.FLAGS_BLACK_MOVE;
                 pgnTree.addUserMove(invertedMove);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), invertedMove.toString(),
-                        invertedMove.moveFlags, expectedFlags), expectedFlags, invertedMove.moveFlags);
+                        invertedMove.moveFlags, invertedExpectedFlags), invertedExpectedFlags, invertedMove.moveFlags);
             }
         }
     }
 
-    public static class MyLogger extends Logger {
+    public static class MyLogger {
+        String name;
         private MyLogger(String name) {
-            super(name);
+            this.name = name;
         }
 
         public static MyLogger getLogger(Class claz) {
             return new MyLogger(claz.getName());
         }
 
-        @Override
+//        @Override
         public void debug(Object message) {
-            System.out.println(message.toString());
+            System.out.println(String.format("%s - %s", name, message.toString()));
         }
     }
 }
