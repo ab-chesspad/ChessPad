@@ -1,7 +1,5 @@
 package com.ab.pgn;
 
-//import org.apache.log4j.Logger;
-
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -69,13 +67,13 @@ public abstract class PgnItem {
         }
     }
 
+    final static PgnLogger logger = PgnLogger.getLogger(PgnItem.class);
+
     private static File root = new File("/");
 
     protected PgnItem parent;
     protected File self;
     protected int index = -1;
-
-//    final Logger logger = Logger.getLogger(this.getClass());
 
     public abstract List<PgnItem> getChildrenNames() throws IOException;
 
@@ -778,7 +776,7 @@ clone:      for(Pair<String, String> header : this.headers) {
                 tmpFile.renameTo(oldFile);
             } else {
                 tmpFile.delete();
-//                logger.debug(String.format("deleting %s", oldFile.getAbsoluteFile()));
+                logger.debug(String.format("deleting %s", oldFile.getAbsoluteFile()));
             }
         }
 

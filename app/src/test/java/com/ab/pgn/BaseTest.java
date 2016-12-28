@@ -25,7 +25,7 @@ public class BaseTest {
     public static final String MY_HEADER = "Final";
     public static final int ERR = -1;
 
-    final MyLogger logger = MyLogger.getLogger(this.getClass());
+    final PgnLogger logger = PgnLogger.getLogger(this.getClass(), true);
 
     @BeforeClass
     public static void init() {
@@ -344,19 +344,4 @@ public class BaseTest {
         }
     }
 
-    public static class MyLogger {
-        String name;
-        private MyLogger(String name) {
-            this.name = name;
-        }
-
-        public static MyLogger getLogger(Class claz) {
-            return new MyLogger(claz.getName());
-        }
-
-//        @Override
-        public void debug(Object message) {
-            System.out.println(String.format("%s - %s", name, message.toString()));
-        }
-    }
 }
