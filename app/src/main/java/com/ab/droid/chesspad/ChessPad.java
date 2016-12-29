@@ -279,6 +279,12 @@ public class ChessPad extends AppCompatActivity {
             writer.write(1, 1);
             setup.serialize(writer);
         }
+        if(nextPgnItem == null) {
+            writer.write(0, 1);
+        } else {
+            writer.write(1, 1);
+            nextPgnItem.serialize(writer);
+        }
         popups.serialize(writer);
         writer.close();
     }
@@ -292,6 +298,9 @@ public class ChessPad extends AppCompatActivity {
         pgnTree = new PgnTree(reader);
         if(reader.read(1) == 1) {
             setup = new Setup(reader);
+        }
+        if(reader.read(1) == 1) {
+            nextPgnItem = (PgnItem.Item)PgnItem.unserialize(reader);
         }
         popups.unserialize(reader);
     }
