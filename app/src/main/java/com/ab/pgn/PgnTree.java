@@ -168,7 +168,7 @@ public class PgnTree {
     }
 
     public void setComment(String newComment) {
-        logger.debug(newComment);
+//        logger.debug(newComment);
         Move move = currentMove;
         if (currentMove == null) {
             move = root;
@@ -322,7 +322,7 @@ public class PgnTree {
             board.flags |= Config.FLAGS_REPETITION;
         }
 
-        logger.debug(this.getBoard().toString());
+        logger.debug("\n" + this.getBoard().toString());
         if(startVariation) {
             Move lastVariation = currentMove.nextMove;
             variations.add(lastVariation);
