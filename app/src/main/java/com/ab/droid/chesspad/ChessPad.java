@@ -39,7 +39,6 @@ import java.util.List;
  */
 public class ChessPad extends AppCompatActivity {
     protected final String DEBUG_TAG = this.getClass().getName();
-    private static final int SERIALIZATION_VERSION = 2;         // igor - 7
 
     static final String
         STATUS_FILE_NAME = "ChessPad.status",
@@ -132,6 +131,7 @@ public class ChessPad extends AppCompatActivity {
     protected PgnItem.Item nextPgnItem;
 
     transient public String versionName;
+    transient public int versionCode;         // igor - 7
     transient public Resources resources;
     transient public int timeoutDelta = animationTimeout / 4;
     transient private AnimationHandler animationHandler;
@@ -152,6 +152,7 @@ public class ChessPad extends AppCompatActivity {
         try {
             PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
             versionName = pinfo.versionName;
+            versionCode = pinfo.versionCode;
         } catch (PackageManager.NameNotFoundException nnfe) {
             versionName = "0.0";
         }
@@ -209,13 +210,18 @@ public class ChessPad extends AppCompatActivity {
 
             if (fis != null) {
                 BitStream.Reader reader = new BitStream.Reader(fis);
-                unserialize(reader);
+                try {
+                    unserialize(reader);
+                } catch( IOException e) {
+                    Log.w(DEBUG_TAG, e.getMessage());
+                    fis = null;
+                }
             }
         } catch (Throwable t) {
             Log.e(DEBUG_TAG, "onResume()", t);
             StringWriter sw = new StringWriter();
             t.printStackTrace(new PrintWriter(sw));
-            popups.dlgMessage(Popups.DialogType.About, sw.toString(), Popups.DialogButton.Ok);
+            popups.dlgMessage(Popups.DialogType.About, sw.toString(), R.drawable.exclamation, Popups.DialogButton.Ok);
             // start from scratch
             fis = null;
 /*
@@ -263,7 +269,7 @@ public class ChessPad extends AppCompatActivity {
     }
 
     private void serialize(BitStream.Writer writer) throws IOException {
-        writer.write(SERIALIZATION_VERSION, 4);
+        writer.write(versionCode, 4);
         writer.write(mode.getValue(), 2);
         currentPath.serialize(writer);
         pgnTree.serialize(writer);
@@ -278,7 +284,7 @@ public class ChessPad extends AppCompatActivity {
     }
 
     private void unserialize(BitStream.Reader reader) throws IOException {
-        if(SERIALIZATION_VERSION != reader.read(4)) {
+        if(versionCode != reader.read(4)) {
             throw new IOException("Old serialization ignored");
         }
         mode = Mode.value(reader.read(2));
@@ -430,7 +436,7 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case Delete:
-                    popups.launchDialog(Popups.DialogType.Delete);
+                    popups.launchDialog(Popups.DialogType.DeleteYesNo);
                     break;
 
                 case Append:

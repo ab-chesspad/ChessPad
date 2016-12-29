@@ -18,6 +18,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -56,7 +57,7 @@ public class Popups {
         Append(++j),
         Headers(++j),
         SaveModified(++j),
-        Delete(++j),
+//        Delete(++j),
         ;
 
         private final int value;
@@ -204,12 +205,14 @@ public class Popups {
                 launchDialog(dialogType, new CPArrayAdapter(chessPad.getMenuItems(), -1));
                 break;
 
+/*
             case DeleteYesNo:
                 dlgMessage(dialogType, getResources().getString(R.string.msg_del_move), DialogButton.YesNo);
                 break;
+*/
 
             case About:
-                dlgMessage(dialogType, String.format(getResources().getString(R.string.about), chessPad.versionName), DialogButton.Ok);
+                dlgMessage(dialogType, String.format(getResources().getString(R.string.about), chessPad.versionName), 0, DialogButton.Ok);
                 break;
 
             case Append:
@@ -226,30 +229,30 @@ public class Popups {
                         } else {
                             adapter = new CPHeaderListAdapter(editHeaders);
                         }
-                        launchDialog(dialogType, null, adapter, DialogButton.OkCancel);
+                        launchDialog(dialogType, null, 0, adapter, DialogButton.OkCancel);
                     }
                 } else {
                     if (editHeaders == null) {
                         editHeaders = PgnItem.cloneHeaders(chessPad.setup.getHeaders());
                     }
                     CPHeaderListAdapter adapter = new CPHeaderListAdapter(editHeaders);
-                    launchDialog(dialogType, null, adapter, DialogButton.OkCancel);
+                    launchDialog(dialogType, null, 0, adapter, DialogButton.OkCancel);
                 }
                 break;
 
-            case Delete:
+            case DeleteYesNo:
                 if (chessPad.isFirstMove()) {
-                    dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_game), Popups.DialogButton.YesNo);
+                    dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_game), R.drawable.exclamation, Popups.DialogButton.YesNo);
                 } else if (chessPad.pgnTree.isEnd()) {
                     chessPad.pgnTree.delCurrentMove();
                     chessPad.chessPadView.invalidate();
                 } else {
-                    dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_move), Popups.DialogButton.YesNo);
+                    dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_move), 0, Popups.DialogButton.YesNo);
                 }
                 break;
 
             case SaveModified:
-                dlgMessage(Popups.DialogType.SaveModified, getResources().getString(R.string.msg_save), Popups.DialogButton.YesNoCancel);
+                dlgMessage(Popups.DialogType.SaveModified, getResources().getString(R.string.msg_save), R.drawable.exclamation, Popups.DialogButton.YesNoCancel);
                 break;
         }
 
@@ -420,16 +423,16 @@ public class Popups {
         this.dialogType = DialogType.None;
     }
 
-    void dlgMessage(final DialogType dialogType, String msg, DialogButton button) {
-        launchDialog(dialogType, msg, null, button);
+    void dlgMessage(final DialogType dialogType, String msg, int icon, DialogButton button) {
+        launchDialog(dialogType, msg, icon, null, button);
     }
 
     private void launchDialog(final DialogType dialogType, final CPArrayAdapter arrayAdapter) {
-        launchDialog(dialogType, null, arrayAdapter, DialogButton.None);
+        launchDialog(dialogType, null, 0, arrayAdapter, DialogButton.None);
     }
 
     // todo: fix sizes
-    private void launchDialog(final DialogType dialogType, String msg, final CPArrayAdapter arrayAdapter, DialogButton button) {
+    private void launchDialog(final DialogType dialogType, String msg, int icon, final CPArrayAdapter arrayAdapter, DialogButton button) {
         EditText editText;  // fictitious view to enable keyboard display for CPHeadersAdapter
         if (currentAlertDialog != null) {
             return;
@@ -451,7 +454,17 @@ public class Popups {
         AlertDialog.Builder builder = new AlertDialog.Builder(chessPad);
 
         if (msg != null) {
-            builder.setMessage(msg).setIcon(R.drawable.exclamation);
+//            ImageView imageView = new ImageView(chessPad);
+//            imageView.setImageResource(R.drawable.exclamation);
+//            builder.setView(imageView);
+//            builder.setMessage(msg);
+            TextView textView = new TextView(chessPad);
+            textView.setText(msg);
+            textView.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0);
+            builder.setView(textView);
+
+//            builder.setTitle("Question");
+//            builder.setMessage(msg).setIcon(R.drawable.exclamation);
         }
         if (arrayAdapter != null) {
             builder.setSingleChoiceItems(
