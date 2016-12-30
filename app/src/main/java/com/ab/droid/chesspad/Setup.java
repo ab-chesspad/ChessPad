@@ -5,6 +5,7 @@ import android.util.Log;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
+import com.ab.pgn.Pack;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnItem;
 import com.ab.pgn.PgnTree;
@@ -40,7 +41,8 @@ public class Setup implements ChessPadView.ChangeObserver {
     }
 
     public void serialize(BitStream.Writer writer) throws IOException {
-        board.serialize(writer);
+//        board.serialize(writer);    // does not work for invalid positions
+        serializeSetupBoard(writer);
         PgnItem.serialize(writer, headers);
         enPass.serialize(writer);
         hmClock.serialize(writer);
@@ -48,11 +50,52 @@ public class Setup implements ChessPadView.ChangeObserver {
     }
 
     public Setup(BitStream.Reader reader) throws IOException {
-        this.board = new Board(reader);
+//        this.board = new Board(reader);
+        this.board = unserializeSetupBoard(reader);
         this.headers = PgnItem.unserializeHeaders(reader);
         this.enPass = new ChessPadView.StringWrapper(reader, this);
         this.hmClock = new ChessPadView.StringWrapper(reader, this);
         this.moveNum = new ChessPadView.StringWrapper(reader, this);
+    }
+
+    private void serializeSetupBoard(BitStream.Writer writer) throws IOException {
+        Pack.packBoard(board, writer);
+        List<Square> wKings = new LinkedList<>();
+        List<Square> bKings = new LinkedList<>();
+        for (int x = 0; x < Config.BOARD_SIZE; x++) {
+            for (int y = 0; y < Config.BOARD_SIZE; y++) {
+                int piece = board.getPiece(x, y);
+                if(piece == Config.WHITE_KING) {
+                    wKings.add(new Square(x, y));
+                }
+                if(piece == Config.BLACK_KING) {
+                    bKings.add(new Square(x, y));
+                }
+            }
+        }
+        writer.write(wKings.size(), 6);
+        for(Square sq : wKings) {
+            sq.serialize(writer);
+        }
+        writer.write(bKings.size(), 6);
+        for(Square sq : bKings) {
+            sq.serialize(writer);
+        }
+    }
+
+    private Board unserializeSetupBoard(BitStream.Reader reader) throws IOException {
+        Board board = Pack.unpackBoard(reader);
+        int n = reader.read(6);
+        for(int i = 0; i < n; ++i) {
+            Square sq = new Square(reader);
+            board.setPiece(sq, Config.WHITE_KING);
+        }
+        n = reader.read(6);
+        for(int i = 0; i < n; ++i) {
+            Square sq = new Square(reader);
+            board.setPiece(sq, Config.BLACK_KING);
+        }
+        return board;
     }
 
     public void setChessPadView(ChessPadView chessPadView) {
