@@ -54,7 +54,7 @@ public class Pack {
         }
     }
 
-    public static void pack(Board board, BitStream.Writer writer) throws IOException {
+    public static void packBoard(Board board, BitStream.Writer writer) throws IOException {
         List<Integer> values = new LinkedList<>();
         int val = 0;
         int factor = 1;
@@ -84,13 +84,16 @@ public class Pack {
         for(int v : values) {
             writer.write(v, 10);    // copy 3-decimal-digits number in 10-bit array
         }
+        writer.write(board.flags & Config.POSITION_FLAGS, 6);
+    }
 
+    public static void pack(Board board, BitStream.Writer writer) throws IOException {
+        packBoard(board, writer);
         writer.write(board.wKing.x, 3);
         writer.write(board.wKing.y, 3);
         writer.write(board.bKing.x, 3);
         writer.write(board.bKing.y, 3);
         writer.write(board.enpass, 3);
-        writer.write(board.flags & Config.POSITION_FLAGS, 6);
     }
 
     public long[] getBits() {
@@ -117,7 +120,7 @@ public class Pack {
         return unpack(reader);
     }
 
-    public static Board unpack(BitStream.Reader reader) throws IOException {
+    public static Board unpackBoard(BitStream.Reader reader) throws IOException {
         Board board = new Board();
         board.toEmpty();
 
@@ -147,6 +150,12 @@ public class Pack {
             }
         }
 
+        board.flags = reader.read(6);
+        return board;
+    }
+
+    public static Board unpack(BitStream.Reader reader) throws IOException {
+        Board board = unpackBoard(reader);
         board.wKing.x = reader.read(3);
         board.wKing.y = reader.read(3);
         board.setPiece(board.wKing, Config.WHITE_KING);
@@ -155,7 +164,6 @@ public class Pack {
         board.setPiece(board.bKing, Config.BLACK_KING);
 
         board.enpass = reader.read(3);
-        board.flags = reader.read(6);
         return board;
     }
 
