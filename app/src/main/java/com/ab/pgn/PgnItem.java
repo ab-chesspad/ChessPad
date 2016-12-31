@@ -121,10 +121,11 @@ public abstract class PgnItem {
     }
 
     public PgnItem(PgnItem parent, String name) {
-        this.parent = parent;
         if (parent == null) {
-            this.self = new File(name);
+//            this.self = new File(name);
+            this.init(name);
         } else {
+            this.parent = parent;
             this.self = new File(parent.self.getAbsoluteFile(), name);
         }
     }
@@ -536,13 +537,12 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         public void save() throws IOException, Config.PGNException {
-            if(this.getParent() == null || !(this.getParent() instanceof Pgn)) {
+            final PgnItem parent = this.getParent();
+            if(parent == null || !(parent instanceof Pgn)) {
                 throw new Config.PGNException(String.format("%s - invalid item type or invalid data", this.toString()));
             }
 
-            final Pgn parent = (Pgn)this.getParent();
-            if (parent == null || parent.getParent() == null ||
-                    !Dir.class.isAssignableFrom(parent.getParent().getClass())) {
+            if (parent.getParent() == null || !Dir.class.isAssignableFrom(parent.getParent().getClass())) {
                 throw new Config.PGNException(String.format("%s - invalid grandparent type", this.toString()));
             }
             Dir grandParent = (Dir)parent.getParent();
@@ -581,27 +581,10 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         public List<Pair<String, String>> cloneHeaders(String... skip) {
             return cloneHeaders(this.headers, skip);
-/*
-            List<Pair<String, String>> headers = new ArrayList<>();
-
-clone:      for(Pair<String, String> header : this.headers) {
-                if(skip != null) {
-                    for(String e : skip) {
-                        if (header.first.equals(e)) {
-                            continue clone;
-                        }
-                    }
-                }
-                headers.add(new Pair<>(header.first, header.second));
-            }
-            return headers;
-*/
         }
     }
 
     public static class Pgn extends PgnItem {
-        List<Item> items = new LinkedList<>();
-
         public Pgn(String name) {
             init(name);
         }
