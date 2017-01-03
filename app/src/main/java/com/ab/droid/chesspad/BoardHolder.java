@@ -13,4 +13,6 @@ public interface BoardHolder {
     boolean onSquareClick(Square clicked);
     boolean onFling(Square clicked);
     int[] getBGResources();
+    void setReversed(boolean reversed);
+    boolean isReversed();
 }

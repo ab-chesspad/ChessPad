@@ -129,6 +129,7 @@ public class ChessPad extends AppCompatActivity {
     protected Mode mode = Mode.Game;
     protected Setup setup;
     protected PgnItem.Item nextPgnItem;
+    private boolean reversed;
 
     transient public String versionName;
     transient public int versionCode;         // igor - 7
@@ -285,6 +286,11 @@ public class ChessPad extends AppCompatActivity {
             writer.write(1, 1);
             nextPgnItem.serialize(writer);
         }
+        if(reversed) {
+            writer.write(1, 1);
+        } else {
+            writer.write(0, 1);
+        }
         popups.serialize(writer);
         writer.close();
     }
@@ -302,6 +308,7 @@ public class ChessPad extends AppCompatActivity {
         if(reader.read(1) == 1) {
             nextPgnItem = (PgnItem.Item)PgnItem.unserialize(reader);
         }
+        reversed = reader.read(1) == 1;
         popups.unserialize(reader);
     }
 
@@ -312,6 +319,14 @@ public class ChessPad extends AppCompatActivity {
         chessPadView.redraw();
     }
 */
+
+    public void setReversed(boolean reversed) {
+        this.reversed = reversed;
+    }
+
+    public boolean isReversed() {
+        return reversed;
+    }
 
     @Override
     public boolean onTouchEvent(MotionEvent event){
@@ -433,7 +448,8 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case Reverse:
-                    chessPadView.reverseBoard();
+                    reversed = !reversed;
+                    chessPadView.invalidate();
                     break;
 
                 case ShowGlyphs:

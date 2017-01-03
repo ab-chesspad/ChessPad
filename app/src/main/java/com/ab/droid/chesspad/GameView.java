@@ -36,6 +36,7 @@ public class GameView {
     private TextView glyph, move;
     private ChessPadView.CpEditText comment;
     boolean navigationEnabled = true;
+    private BoardHolder mainBoardHolder;
 
     private ChessPadView.CpImageButton[] imageButtons = new ChessPadView.CpImageButton[ChessPad.Command.total()];
 
@@ -71,7 +72,7 @@ public class GameView {
         }
         y = Metrics.titleHeight + Metrics.ySpacing;
 
-        boardView = ChessPadView.drawBoardView(chessPad, relativeLayoutMain, x, y, new BoardHolder() {
+        mainBoardHolder = new BoardHolder() {
             @Override
             public Board getBoard() {
                 return chessPad.getBoard();
@@ -80,6 +81,16 @@ public class GameView {
             @Override
             public int[] getBGResources() {
                 return new int[] {R.drawable.bsquare, R.drawable.wsquare};
+            }
+
+            @Override
+            public void setReversed(boolean reversed) {
+                chessPad.setReversed(reversed);
+            }
+
+            @Override
+            public boolean isReversed() {
+                return chessPad.isReversed();
             }
 
             @Override
@@ -93,7 +104,8 @@ public class GameView {
                 Log.d(DEBUG_TAG, String.format("board onFling (%s)", clicked.toString()));
                 return chessPad.onFling(clicked);
             }
-        });
+        };
+        boardView = ChessPadView.drawBoardView(chessPad, relativeLayoutMain, x, y, mainBoardHolder);
 
         // next line/column - navigator + reverseBoard
         if (Metrics.isVertical) {
@@ -274,8 +286,15 @@ public class GameView {
         imageButtons[indx].setEnabled(enable);
     }
 
+/*
     public void reverse() {
         boardView.reverse();
         boardView.invalidate();
     }
+
+    public boolean isReversed() {
+        return boardView.isReversed();
+    }
+*/
+
 }
