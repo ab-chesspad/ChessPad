@@ -30,7 +30,7 @@ public class BoardView extends View {
 
     private static Bitmap[] pieces;
     private int squareSize, margin = 0;
-    private boolean reversed = false;
+//    private boolean reversed = false;
     private Square selected = new Square();
     private BoardHolder boardHolder;
     private Bitmap[] bgBitmaps;
@@ -91,14 +91,16 @@ public class BoardView extends View {
         this.selected = selected;
     }
 
+/*
     public void reverse() {
         reversed = !reversed;
     }
+*/
 
     // translate board coords to local screen coords
     protected Point board2screen(int x, int y) {
         Point res = new Point();
-        if (reversed) {
+        if (boardHolder.isReversed()) {
             int xSize = boardHolder.getBoard().getXSize();
             res.x = margin + (xSize - 1 - x) * squareSize;
             res.y = margin + y * squareSize;
@@ -113,7 +115,7 @@ public class BoardView extends View {
     // translate local screen coords to board coords
     protected Square screen2board(int x, int y) {
         Square res = new Square();
-        if (reversed) {
+        if (boardHolder.isReversed()) {
             res.x = boardHolder.getBoard().getXSize() - 1 - (x - margin) / squareSize;
             res.y = (y - margin) / squareSize;
         } else {

@@ -87,6 +87,15 @@ public class SetupView {
             }
 
             @Override
+            public void setReversed(boolean reversed) {
+            }
+
+            @Override
+            public boolean isReversed() {
+                return false;
+            }
+
+            @Override
             public boolean onSquareClick(Square clicked) {
                 Log.d(DEBUG_TAG, String.format("board onSquareClick (%s)", clicked.toString()));
                 if(selectedPiece > 0) {
@@ -316,6 +325,15 @@ public class SetupView {
             @Override
             public int[] getBGResources() {
                 return new int[] {R.drawable.btn_disabled};
+            }
+
+            @Override
+            public void setReversed(boolean reversed) {
+            }
+
+            @Override
+            public boolean isReversed() {
+                return false;
             }
 
             @Override

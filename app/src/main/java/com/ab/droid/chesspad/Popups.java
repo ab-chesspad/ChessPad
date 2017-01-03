@@ -460,6 +460,7 @@ public class Popups {
 //            builder.setMessage(msg);
             TextView textView = new TextView(chessPad);
             textView.setText(msg);
+            textView.setTextSize(16);
             textView.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0);
             builder.setView(textView);
 
@@ -579,12 +580,11 @@ public class Popups {
             public void onClick(View v) {
                 fileListShown = true;
                 listView.setVisibility(View.VISIBLE);
-                int selectedPgnItem;
                 PgnItem pgnItem = chessPad.pgnTree.getPgn();
                 if (pgnItem != null) {
                     try {
-                        selectedPgnItem = pgnItem.parentIndex(chessPad.currentPath);
-                        final CPPgnItemListAdapter mAdapter = new CPPgnItemListAdapter(chessPad.currentPath, selectedPgnItem);
+                        int selectedIndex = pgnItem.parentIndex(chessPad.currentPath);
+                        final CPPgnItemListAdapter mAdapter = new CPPgnItemListAdapter(chessPad.currentPath, selectedIndex);
                         listView.setAdapter(mAdapter);
                         listView.setFastScrollEnabled(true);
                         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -595,6 +595,8 @@ public class Popups {
                                 if (newPath instanceof PgnItem.Pgn) {
                                     fileListShown = false;
                                     listView.setVisibility(View.GONE);
+                                } else if (newPath instanceof PgnItem.Item) {
+                                    Log.e(DEBUG_TAG, String.format("Invalid selection %s", newPath.toString()));
                                 } else {
                                     chessPad.currentPath = newPath;
                                     try {
