@@ -134,10 +134,7 @@ public class Sample {
                 "23.Rd2 Qh4 24.h3 Nf6 25.Qe1 Qg5 26.Ne4 Nxe4 27.Qxe4 f5 28.Qxe5 Rae8 29.h4 Qxh4\n" +
                 "30.Qc3 Re4 31.d6 Qg5 32.f3 Re3 33.Qxa5 Rfe8 34.Rf2 Qf6 35.Rd1 R3e5 36.d7  1-0";
 
-            File dir = new File(chessPad.root, "ChessPad");
-            dir.mkdirs();
-
-            String pgnName = dir.getAbsolutePath() + File.separator + "sample.pgn";
+            String pgnName = chessPad.currentPath.getAbsolutePath() + File.separator + "sample.pgn";
             FileOutputStream fos = new FileOutputStream(pgnName);
 
             byte[] buf = pgn.getBytes("UTF-8");

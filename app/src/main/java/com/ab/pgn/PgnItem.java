@@ -88,14 +88,20 @@ public abstract class PgnItem {
     protected PgnItem() {}
 
     protected void init(String name) {
-        this.self = new File(name);
-
-        if(this.self.getAbsolutePath().equals(root.getAbsolutePath())) {
+        if(name.equals(root.getAbsolutePath())) {
+            this.self = new File(name);
             return;
+        }
+        if(this.self == null) {
+            if(name.startsWith(root.getAbsolutePath())) {
+                this.self = new File(name);
+            } else {
+                this.self = new File(root.getAbsolutePath(), name);
+            }
         }
         File parentFile = self.getParentFile();
         if(parentFile == null) {
-            return;         // relative path?
+            parentFile = root;
         }
 
         if(this instanceof Pgn) {
@@ -169,30 +175,21 @@ public abstract class PgnItem {
         return getAbsolutePath().equals(item.getAbsolutePath());
     }
 
-    public int parentIndex(PgnItem item) throws IOException {
-        PgnItem thisItem = null;
-        PgnItem thisItemParent = this;
-        while(!thisItemParent.self.equals(root)) {
-            if(thisItemParent.equals(item)) {
-                if(thisItem.getIndex() == -1) {
-                    List<PgnItem> siblings = thisItemParent.getChildrenNames();
-                    for(int i = 0; i < siblings.size(); ++i) {
-                        PgnItem sibling = siblings.get(i);
-                        if(sibling.equals(thisItem)) {
-                            thisItem.setIndex(i);
-                            break;
-                        }
-                    }
-                }
-                return thisItem.getIndex();
-            }
-            thisItem = thisItemParent;
-            thisItemParent = thisItemParent.getParent();
-            if(thisItemParent == null) {  // sanity check
-                return -1;
+    public int parentIndex(PgnItem parent) throws IOException {
+        String myPath = getAbsolutePath();
+        if(!myPath.startsWith(parent.getAbsolutePath())) {
+            return -1;
+        }
+        int offset = parent.getAbsolutePath().length() + 1;
+        List<PgnItem> siblings = parent.getChildrenNames();
+        for(int i = 0; i < siblings.size(); ++i) {
+            PgnItem sibling = siblings.get(i);
+            String siblingName = sibling.getName() + "/";
+            if(myPath.substring(offset).startsWith(siblingName)) {
+                return i;
             }
         }
-        return -1;
+        return -1;      // should not be here;
     }
 
     protected void serializeBase(BitStream.Writer writer) throws IOException {
@@ -581,6 +578,19 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         public List<Pair<String, String>> cloneHeaders(String... skip) {
             return cloneHeaders(this.headers, skip);
+        }
+
+        @Override
+        public int parentIndex(PgnItem parent) throws IOException {
+            Pgn thisParent = (Pgn) this.getParent();
+            if(thisParent == null ||
+                    !thisParent.getAbsolutePath().startsWith(parent.getAbsolutePath())) {
+                return -1;
+            }
+            if(thisParent.getAbsolutePath().equals(parent.getAbsolutePath())) {
+                return index;
+            }
+            return super.parentIndex(parent);
         }
     }
 
