@@ -512,8 +512,8 @@ public class Popups {
 
     private String getTruncatedPath(PgnItem pgnItem) {
         String path = pgnItem.getAbsolutePath();
-        if (path.startsWith(chessPad.root.getAbsolutePath())) {
-            path = path.substring(chessPad.root.getAbsolutePath().length());
+        if (path.startsWith(PgnItem.getRoot().getAbsolutePath())) {
+            path = path.substring(PgnItem.getRoot().getAbsolutePath().length());
         }
         return path;
     }
@@ -566,7 +566,7 @@ public class Popups {
                     String fileName = textView.getText().toString();
                     Log.d(DEBUG_TAG, String.format("onClick: %s", DialogType.Append.toString()));
                     try {
-                        File appendToFile = new File(chessPad.root, fileName);
+                        File appendToFile = new File(PgnItem.getRoot(), fileName);
                         returnFromDiaqlog(DialogType.Append, appendToFile.getAbsoluteFile(), 0);
                     } catch (IOException e) {
                         Log.e(DEBUG_TAG, String.format("onClick: %s", DialogType.Append.toString()), e);

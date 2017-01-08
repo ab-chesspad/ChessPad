@@ -42,6 +42,7 @@ public class ChessPad extends AppCompatActivity {
 
     static final String
         STATUS_FILE_NAME = "ChessPad.status",
+        DEFAULT_DIRECTORY = "ChessPad",
         str_dummy = null;
 
     private static int i = -1;
@@ -138,7 +139,7 @@ public class ChessPad extends AppCompatActivity {
     transient private AnimationHandler animationHandler;
     transient protected ChessPadView chessPadView;
     transient private GestureDetectorCompat gestureDetector;
-    transient protected File root;
+//    transient protected File root;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -146,9 +147,11 @@ public class ChessPad extends AppCompatActivity {
         Log.d(DEBUG_TAG, "onCreate()");
 
         popups = new Popups(this);
-        root = Environment.getExternalStorageDirectory();
-        currentPath = new PgnItem.Dir(null, root.getAbsolutePath());
+        File root = Environment.getExternalStorageDirectory();
         PgnItem.setRoot(root);
+        currentPath = new PgnItem.Dir(DEFAULT_DIRECTORY);
+        File dir = new File(currentPath.getAbsolutePath());
+        dir.mkdirs();
 
         try {
             PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
