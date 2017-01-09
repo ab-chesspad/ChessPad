@@ -42,6 +42,12 @@ public class PgnLogger {
         }
     }
 
+    public void debug(Object message, Throwable t) {
+        StringWriter sw = new StringWriter();
+        t.printStackTrace(new PrintWriter(sw));
+        System.out.println(String.format("D/%s: %s\n%s", name, message.toString(), sw.toString()));
+    }
+
     public void error(Object message) {
         System.out.println(String.format("E/%s: %s", name, message.toString()));
     }
