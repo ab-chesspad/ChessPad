@@ -8,7 +8,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.support.v4.view.GestureDetectorCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -129,17 +128,15 @@ public class ChessPad extends AppCompatActivity {
     private Popups popups;
     protected Mode mode = Mode.Game;
     protected Setup setup;
-    protected PgnItem.Item nextPgnItem;
+    private PgnItem.Item nextPgnItem;
     private boolean reversed;
 
     transient public String versionName;
-    transient public int versionCode;         // igor - 7
+    transient public int versionCode;
     transient public Resources resources;
     transient public int timeoutDelta = animationTimeout / 4;
     transient private AnimationHandler animationHandler;
     transient protected ChessPadView chessPadView;
-    transient private GestureDetectorCompat gestureDetector;
-//    transient protected File root;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -228,14 +225,6 @@ public class ChessPad extends AppCompatActivity {
             popups.dlgMessage(Popups.DialogType.About, sw.toString(), R.drawable.exclamation, Popups.DialogButton.Ok);
             // start from scratch
             fis = null;
-/*
-            mode = Mode.Game;
-            try {
-                pgnTree = new PgnTree(new Board());
-            } catch (IOException e) {
-                Log.e(DEBUG_TAG, "onResume() 4", e);
-            }
-*/
         }
 
         if (fis == null) {
@@ -314,32 +303,12 @@ public class ChessPad extends AppCompatActivity {
         reversed = reader.read(1) == 1;
         popups.unserialize(reader);
     }
-
-/*
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        chessPadView.redraw();
-    }
-*/
-
     public void setReversed(boolean reversed) {
         this.reversed = reversed;
     }
 
     public boolean isReversed() {
         return reversed;
-    }
-
-    @Override
-    public boolean onTouchEvent(MotionEvent event){
-        if(gestureDetector != null) {
-            gestureDetector.onTouchEvent(event);
-        }
-        return super.onTouchEvent(event);
-    }
-    public void setGestureDetector(GestureDetectorCompat gestureDetector) {
-        this.gestureDetector = gestureDetector;
     }
 
     @Override
@@ -634,14 +603,14 @@ public class ChessPad extends AppCompatActivity {
             nextPgnItem = item;
             popups.launchDialog(Popups.DialogType.SaveModified);
         } else {
-            nextPgnItem = null;
             if (mode == Mode.Setup) {
                 pgnTree = setup.toPgnTree();
                 cancelSetup();
             } else {
-                pgnTree = new PgnTree(item);
+                pgnTree = new PgnTree(nextPgnItem);
                 chessPadView.redraw();
             }
+            nextPgnItem = null;
         }
     }
 

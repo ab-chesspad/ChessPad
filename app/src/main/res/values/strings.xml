@@ -3,7 +3,7 @@
     <string name="dummy_content">DUMMY\nCONTENT</string>
 
     <string name="app_name">ChessPad</string>
-	<string name="about">&#032;ChessPad %s\n PGN editor\n Solutions In Hand\n alexbootman@gmail.com
+	<string name="about">&#032;ChessPad %s\n PGN editor\n ab.chesspad@gmail.com
 	</string>
 
     <string name="err_empty_new_tag_name">New tag name is empty</string>
