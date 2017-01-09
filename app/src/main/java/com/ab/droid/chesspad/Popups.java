@@ -57,7 +57,6 @@ public class Popups {
         Append(++j),
         Headers(++j),
         SaveModified(++j),
-//        Delete(++j),
         ;
 
         private final int value;
@@ -100,7 +99,6 @@ public class Popups {
     private Dialog currentAlertDialog;
 
     private DialogType dialogType = DialogType.None;
-    //    private int dialogYesNoMsgRes;
     private String dialogMsg = null;
     private List<Pair<String, String>> editHeaders;
     private int topVisibleRow = 0;
@@ -205,12 +203,6 @@ public class Popups {
                 launchDialog(dialogType, new CPArrayAdapter(chessPad.getMenuItems(), -1));
                 break;
 
-/*
-            case DeleteYesNo:
-                dlgMessage(dialogType, getResources().getString(R.string.msg_del_move), DialogButton.YesNo);
-                break;
-*/
-
             case About:
                 dlgMessage(dialogType, String.format(getResources().getString(R.string.about), chessPad.versionName), 0, DialogButton.Ok);
                 break;
@@ -280,7 +272,7 @@ public class Popups {
                     try {
                         if(chessPad.isSaveable()) {
                             chessPad.pgnTree.save();
-                            chessPad.setPgnTree(chessPad.nextPgnItem);
+                            chessPad.setPgnTree(null);
                         } else {
                             dismissDlg();
                             launchDialog(DialogType.Append);
@@ -294,7 +286,7 @@ public class Popups {
                 case DialogInterface.BUTTON_NEGATIVE:
                     try {
                         chessPad.pgnTree.setModified(false);
-                        chessPad.setPgnTree(chessPad.nextPgnItem);
+                        chessPad.setPgnTree(null);
                     } catch (IOException e) {
                         Log.e(DEBUG_TAG, "dlgMessage()", e);
                     }
@@ -371,9 +363,7 @@ public class Popups {
                 chessPad.pgnTree.getPgn().setParent(pgn);
                 chessPad.pgnTree.getPgn().setIndex(-1);
                 chessPad.pgnTree.save();
-                if(chessPad.nextPgnItem != null) {
-                    chessPad.setPgnTree(chessPad.nextPgnItem);
-                }
+                chessPad.setPgnTree(null);
                 break;
 
             case Headers:
@@ -454,18 +444,11 @@ public class Popups {
         AlertDialog.Builder builder = new AlertDialog.Builder(chessPad);
 
         if (msg != null) {
-//            ImageView imageView = new ImageView(chessPad);
-//            imageView.setImageResource(R.drawable.exclamation);
-//            builder.setView(imageView);
-//            builder.setMessage(msg);
             TextView textView = new TextView(chessPad);
             textView.setText(msg);
-            textView.setTextSize(16);
+            textView.setTextSize(20);
             textView.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0);
             builder.setView(textView);
-
-//            builder.setTitle("Question");
-//            builder.setMessage(msg).setIcon(R.drawable.exclamation);
         }
         if (arrayAdapter != null) {
             builder.setSingleChoiceItems(
