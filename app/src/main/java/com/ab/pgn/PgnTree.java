@@ -168,7 +168,7 @@ public class PgnTree {
     }
 
     public void setComment(String newComment) {
-//        logger.debug(newComment);
+        logger.debug(newComment);
         Move move = currentMove;
         if (currentMove == null) {
             move = root;

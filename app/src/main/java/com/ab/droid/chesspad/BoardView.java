@@ -6,20 +6,13 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Point;
-import android.support.v4.view.GestureDetectorCompat;
 import android.support.v4.view.MotionEventCompat;
-import android.util.Log;
-import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
-import com.ab.pgn.Pair;
 import com.ab.pgn.Square;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * visual board
@@ -30,7 +23,6 @@ public class BoardView extends View {
 
     private static Bitmap[] pieces;
     private int squareSize, margin = 0;
-//    private boolean reversed = false;
     private Square selected = new Square();
     private BoardHolder boardHolder;
     private Bitmap[] bgBitmaps;
@@ -90,12 +82,6 @@ public class BoardView extends View {
     public void setSelected(Square selected) {
         this.selected = selected;
     }
-
-/*
-    public void reverse() {
-        reversed = !reversed;
-    }
-*/
 
     // translate board coords to local screen coords
     protected Point board2screen(int x, int y) {

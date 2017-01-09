@@ -76,18 +76,6 @@ public class ChessPadView extends View {
         }
     }
 
-/*
-    public void reverse() {
-        if(gameView != null) {
-            gameView.reverse();
-        }
-    }
-
-    public boolean isReversed() {
-        return gameView.isReversed();
-    }
-*/
-
     public void setSelected(Square selected) {
         if(gameView != null) {
             gameView.selected = selected;
