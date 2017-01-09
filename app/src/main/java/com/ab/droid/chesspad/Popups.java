@@ -512,8 +512,15 @@ public class Popups {
 
     private String getTruncatedPath(PgnItem pgnItem) {
         String path = pgnItem.getAbsolutePath();
-        if (path.startsWith(PgnItem.getRoot().getAbsolutePath())) {
-            path = path.substring(PgnItem.getRoot().getAbsolutePath().length());
+        String rootPath = PgnItem.getRoot().getAbsolutePath();
+        if(path.equals(rootPath)) {
+            return "";
+        }
+        if (path.startsWith(rootPath)) {
+            path = path.substring(rootPath.length() + 1);    // remove "/"
+        }
+        if(pgnItem.getClass().isAssignableFrom(PgnItem.Dir.class)) {
+            path += "/";
         }
         return path;
     }
@@ -580,11 +587,19 @@ public class Popups {
             public void onClick(View v) {
                 fileListShown = true;
                 listView.setVisibility(View.VISIBLE);
-                PgnItem pgnItem = chessPad.pgnTree.getPgn();
+                final PgnItem pgnItem = chessPad.pgnTree.getPgn();
                 if (pgnItem != null) {
                     try {
-                        int selectedIndex = pgnItem.parentIndex(chessPad.currentPath);
-                        final CPPgnItemListAdapter mAdapter = new CPPgnItemListAdapter(chessPad.currentPath, selectedIndex);
+
+                        PgnItem path = chessPad.currentPath;
+                        textView.setText(getTruncatedPath(path));
+                        while ((path instanceof PgnItem.Item) || (path instanceof PgnItem.Pgn)) {
+                            textView.setText(getTruncatedPath(path));
+                            path = path.getParent();
+                        }
+
+                        int selectedIndex = pgnItem.parentIndex(path);
+                        final CPPgnItemListAdapter mAdapter = new CPPgnItemListAdapter(path, selectedIndex);
                         listView.setAdapter(mAdapter);
                         listView.setFastScrollEnabled(true);
                         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -600,7 +615,8 @@ public class Popups {
                                 } else {
                                     chessPad.currentPath = newPath;
                                     try {
-                                        mAdapter.refresh(chessPad.currentPath, clicked);
+                                        int selectedIndex = pgnItem.parentIndex(newPath);
+                                        mAdapter.refresh(chessPad.currentPath, selectedIndex);
                                     } catch (IOException e) {
                                         Log.e(DEBUG_TAG, String.format("onClick 2: %s", DialogType.Append.toString()), e);
                                     }

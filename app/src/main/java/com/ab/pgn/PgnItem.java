@@ -697,7 +697,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                         try {
                             br = new BufferedReader(new FileReader(entry.self.getAbsoluteFile()), Config.MY_BUF_SIZE);
                         } catch (FileNotFoundException e) {
-                            e.printStackTrace();
+                            logger.debug(entry.self.getAbsoluteFile(), e);
                         }
                     } else if (name.toLowerCase().endsWith(EXT_ZIP)) {
                         entry = new Zip(Dir.this, name);
@@ -708,7 +708,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                     try {
                         handler.handle(entry, br);
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        logger.debug(entry.self.getAbsoluteFile(), e);
                         return false;
                     }
                     return false;    // drop it, save space
@@ -782,7 +782,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 FileReader fr = new FileReader(parent.self.getAbsoluteFile());
                 bufferedReader = new BufferedReader(fr, Config.MY_BUF_SIZE);
             } catch (Throwable t) {
-                t.printStackTrace();
+                logger.debug(parent.self.getAbsoluteFile(), t);
             }
             count += modifyItem(item, bufferedReader, fos);
             if(bufferedReader != null) {
@@ -827,7 +827,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 }
                 zipFile.close();
             } catch (Throwable t) {
-                t.printStackTrace();
+                logger.debug(self.getAbsoluteFile(), t);
             }
         }
 

@@ -634,6 +634,7 @@ public class ChessPad extends AppCompatActivity {
             nextPgnItem = item;
             popups.launchDialog(Popups.DialogType.SaveModified);
         } else {
+            nextPgnItem = null;
             if (mode == Mode.Setup) {
                 pgnTree = setup.toPgnTree();
                 cancelSetup();
