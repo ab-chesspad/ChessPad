@@ -607,7 +607,10 @@ public class ChessPad extends AppCompatActivity {
                 pgnTree = setup.toPgnTree();
                 cancelSetup();
             } else {
-                pgnTree = new PgnTree(nextPgnItem);
+                if(item == null) {
+                    item = nextPgnItem;
+                }
+                pgnTree = new PgnTree(item);
                 chessPadView.redraw();
             }
             nextPgnItem = null;
