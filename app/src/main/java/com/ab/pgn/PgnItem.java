@@ -128,7 +128,6 @@ public abstract class PgnItem {
 
     public PgnItem(PgnItem parent, String name) {
         if (parent == null) {
-//            this.self = new File(name);
             this.init(name);
         } else {
             this.parent = parent;

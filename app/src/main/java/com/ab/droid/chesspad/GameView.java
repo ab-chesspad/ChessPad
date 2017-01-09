@@ -285,16 +285,4 @@ public class GameView {
     void setButtonEnabled(int indx, boolean enable) {
         imageButtons[indx].setEnabled(enable);
     }
-
-/*
-    public void reverse() {
-        boardView.reverse();
-        boardView.invalidate();
-    }
-
-    public boolean isReversed() {
-        return boardView.isReversed();
-    }
-*/
-
 }

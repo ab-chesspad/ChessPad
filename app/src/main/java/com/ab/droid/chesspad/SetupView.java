@@ -405,13 +405,11 @@ public class SetupView {
 
         public void toggle() {
             pressed = !pressed;
-//            chessPad.setup.validate();
             invalidate();
         }
 
         public void setChecked( boolean pressed ) {
             this.pressed = pressed;
-//            chessPad.setup.validate();
             invalidate();
         }
 
