@@ -33,6 +33,7 @@ public abstract class PgnItem {
             EXT_PGN = ".pgn",
             EXT_ZIP = ".zip",
             EXT_TEMP = ".tmp",
+            COMMON_ITEM_NAME = "item",
 
             TAG_START = "[",
             TAG_END = "\"]",
@@ -149,6 +150,7 @@ public abstract class PgnItem {
 
     public void setParent(PgnItem parent) {
         this.parent = parent;
+        self = new File(parent.getAbsolutePath(), this.getName());
     }
 
     public int getIndex() {
@@ -260,7 +262,7 @@ public abstract class PgnItem {
                         entryHandler.handle(item, null);
                     }
                     sb.delete(0, sb.length());
-                    item = new Item(parent, "item");
+                    item = new Item(parent, COMMON_ITEM_NAME);
                     item.index = ++index;
                     inText = false;
                 }
@@ -590,6 +592,12 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 return index;
             }
             return super.parentIndex(parent);
+        }
+
+        @Override
+        public void setParent(PgnItem parent) {
+            this.parent = parent;
+            self = new File(parent.getAbsolutePath(), COMMON_ITEM_NAME);
         }
     }
 
