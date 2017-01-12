@@ -400,6 +400,7 @@ public abstract class PgnItem {
         if (item.index == -1) {
             byte[] buf = item.toString(false, true).getBytes("UTF-8");
             os.write(buf, 0, buf.length);
+            item.setIndex(count[0]);
             ++count[0];
         }
         return count[0];
