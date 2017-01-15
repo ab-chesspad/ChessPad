@@ -9,6 +9,7 @@ import java.util.List;
  * Created by Alexander Bootman on 8/6/16.
  */
 public class PgnTree {
+    public static boolean DEBUG = true;
     final static PgnLogger logger = PgnLogger.getLogger(PgnTree.class);
 
     protected Move root = new Move(Config.FLAGS_NULL_MOVE);    // fake move to store init board and comments

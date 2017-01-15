@@ -9,6 +9,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
@@ -362,11 +363,15 @@ public abstract class PgnItem {
     public static void copy(File src, File dst) throws IOException {
         FileInputStream inStream = new FileInputStream(src);
         FileOutputStream outStream = new FileOutputStream(dst);
+        copy(inStream, outStream);
+        inStream.close();
+        outStream.close();
+    }
+
+    public static void copy(FileInputStream inStream, FileOutputStream outStream) throws IOException {
         FileChannel inChannel = inStream.getChannel();
         FileChannel outChannel = outStream.getChannel();
         inChannel.transferTo(0, inChannel.size(), outChannel);
-        inStream.close();
-        outStream.close();
     }
 
     // returns resulting number of entries
