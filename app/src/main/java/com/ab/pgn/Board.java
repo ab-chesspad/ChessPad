@@ -8,6 +8,9 @@ import java.util.StringTokenizer;
  * Created by Alexander Bootman on 8/6g425g/16.
  */
 public class Board {
+    public static boolean DEBUG = true;
+    final static PgnLogger logger = PgnLogger.getLogger(Board.class);
+
     static final int[][] init = {
             {Config.WHITE_ROOK, Config.WHITE_KNIGHT, Config.WHITE_BISHOP, Config.WHITE_QUEEN, Config.WHITE_KING, Config.WHITE_BISHOP, Config.WHITE_KNIGHT, Config.WHITE_ROOK},
             {Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN},
@@ -54,11 +57,27 @@ public class Board {
 
     public Board(BitStream.Reader reader) throws IOException {
         Board tmp = Pack.unpack(reader);
+        tmp.validate(null);
         tmp.plyNum = reader.read(9);
         tmp.reversiblePlyNum = reader.read(9);
         copy(tmp, this);
     }
 
+    public void validate(Move move) {
+        if(DEBUG) {
+            int err = validateSetup();
+            if(err != 0) {
+                String s = "null";
+                if(move != null) {
+                    s = move.toString(true);
+                }
+                String msg = String.format("board error %s on $s:\n%s", err, s, toString());
+                logger.debug(msg);
+
+//                throw new Config.PGNException(msg);
+            }
+        }
+    }
     public int getXSize() {
         return board[0].length;
     }
@@ -532,6 +551,7 @@ public class Board {
 
         Board tmp = this.clone();
         tmp.doMove(move);
+        tmp.validate(move);
         move.snapshot = tmp;
 
         // 3. validate own king is checked
@@ -932,15 +952,15 @@ public class Board {
             this.flags &= ~(Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK);
         } else if (move.piece == Config.WHITE_ROOK) {
             if (move.from.x == 0) {
-                move.moveFlags &= ~Config.FLAGS_W_QUEEN_OK;
+                this.flags &= ~Config.FLAGS_W_QUEEN_OK;
             } else if (move.from.x == 7) {
-                move.moveFlags &= ~Config.FLAGS_W_KING_OK;
+                this.flags &= ~Config.FLAGS_W_KING_OK;
             }
         } else if (move.piece == Config.BLACK_ROOK) {
             if (move.from.x == 0) {
-                move.moveFlags &= ~Config.FLAGS_B_QUEEN_OK;
+                this.flags &= ~Config.FLAGS_B_QUEEN_OK;
             } else if (move.from.x == 7) {
-                move.moveFlags &= ~Config.FLAGS_B_KING_OK;
+                this.flags &= ~Config.FLAGS_B_KING_OK;
             }
         }
         if(move.getColorlessPiece() == Config.PAWN || move.pieceTaken != Config.EMPTY) {

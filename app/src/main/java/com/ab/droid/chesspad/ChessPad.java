@@ -26,9 +26,12 @@ import com.ab.pgn.Square;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -38,9 +41,13 @@ import java.util.List;
  */
 public class ChessPad extends AppCompatActivity {
     protected final String DEBUG_TAG = this.getClass().getName();
-
+//* uncomment this line to replay crash providing the correct file name
+    private final String CRASH_RESTORE = null;
+/*/
+    protected String CRASH_RESTORE = "cp-crash-2017-01-13_11-36-55";
+//*/
     static final String
-        STATUS_FILE_NAME = "ChessPad.status",
+        STATUS_FILE_NAME = "ChessPad.state",
         DEFAULT_DIRECTORY = "ChessPad",
         str_dummy = null;
 
@@ -130,6 +137,7 @@ public class ChessPad extends AppCompatActivity {
     protected Setup setup;
     private PgnItem.Item nextPgnItem;
     private boolean reversed;
+    protected Square selected;
 
     transient public String versionName;
     transient public int versionCode;
@@ -204,17 +212,19 @@ public class ChessPad extends AppCompatActivity {
             init();
 
             try {
-                fis = openFileInput(STATUS_FILE_NAME);
+                if(CRASH_RESTORE != null) {
+                    File inDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
+                    fis = new FileInputStream(new File(inDir.getAbsolutePath(), CRASH_RESTORE));
+                } else {
+                    fis = openFileInput(STATUS_FILE_NAME);
+                }
             } catch (FileNotFoundException e) {
                 Log.d(DEBUG_TAG, "onResume() 1", e);
             }
 
             if (fis != null) {
                 BitStream.Reader reader = new BitStream.Reader(fis);
-                try {
-                    unserialize(reader);
-                } catch( IOException e) {
-                    Log.w(DEBUG_TAG, e.getMessage());
+                if(!unserialize(reader)) {
                     fis = null;
                 }
             }
@@ -223,6 +233,16 @@ public class ChessPad extends AppCompatActivity {
             StringWriter sw = new StringWriter();
             t.printStackTrace(new PrintWriter(sw));
             popups.dlgMessage(Popups.DialogType.About, sw.toString(), R.drawable.exclamation, Popups.DialogButton.Ok);
+            if (fis != null) {
+                try {
+                    File outDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
+                    String ts = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
+                    FileOutputStream fos = new FileOutputStream(new File(outDir.getAbsolutePath(), "cp-crash-" + ts));
+                    PgnItem.copy(fis, fos);
+                } catch (IOException e) {
+                    Log.e(DEBUG_TAG, e.getMessage(), e);
+                }
+            }
             // start from scratch
             fis = null;
         }
@@ -283,13 +303,20 @@ public class ChessPad extends AppCompatActivity {
         } else {
             writer.write(0, 1);
         }
+        if (selected == null) {
+            writer.write(0, 1);
+        } else {
+            writer.write(1, 1);
+            selected.serialize(writer);
+        }
         popups.serialize(writer);
         writer.close();
     }
 
-    private void unserialize(BitStream.Reader reader) throws IOException {
+    private boolean unserialize(BitStream.Reader reader) throws IOException {
         if(versionCode != reader.read(4)) {
-            throw new IOException("Old serialization ignored");
+            return false;
+//            throw new IOException("Old serialization ignored");
         }
         mode = Mode.value(reader.read(2));
         currentPath = PgnItem.unserialize(reader);
@@ -301,7 +328,12 @@ public class ChessPad extends AppCompatActivity {
             nextPgnItem = (PgnItem.Item)PgnItem.unserialize(reader);
         }
         reversed = reader.read(1) == 1;
+        if (reader.read(1) == 1) {
+            selected = new Square(reader);
+            chessPadView.setSelected(selected);
+        }
         popups.unserialize(reader);
+        return true;
     }
     public void setReversed(boolean reversed) {
         this.reversed = reversed;
@@ -465,20 +497,20 @@ public class ChessPad extends AppCompatActivity {
     public boolean onSquareClick(Square clicked) {
         Log.d(DEBUG_TAG, String.format("board onSquareClick (%s)", clicked.toString()));
         int piece = pgnTree.getBoard().getPiece(clicked);
-        if(popups.selected == null) {
+        if(selected == null) {
             if(piece == Config.EMPTY || (pgnTree.getFlags() & Config.PIECE_COLOR) != (piece & Config.PIECE_COLOR) ) {
                 return false;
             }
-            popups.selected = clicked;
+            selected = clicked;
         } else {
             if((piece != Config.EMPTY && (pgnTree.getFlags() & Config.PIECE_COLOR) == (piece & Config.PIECE_COLOR)) ) {
-                popups.selected = clicked;
+                selected = clicked;
             } else {
-                Move newMove = new Move(pgnTree.getBoard().getPiece(popups.selected), popups.selected, clicked);
+                Move newMove = new Move(pgnTree.getBoard().getPiece(selected), selected, clicked);
                 if (!pgnTree.validateUserMove(newMove)) {
                     return false;
                 }
-                popups.selected = null;
+                selected = null;
                 if((newMove.moveFlags & Config.FLAGS_PROMOTION) != 0 ) {
                     popups.promotionMove = newMove;
                     try {
@@ -616,6 +648,7 @@ public class ChessPad extends AppCompatActivity {
                 chessPadView.redraw();
             }
             nextPgnItem = null;
+            selected = null;
         }
     }
 

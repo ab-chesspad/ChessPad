@@ -89,6 +89,7 @@ public class Move {
         pieceTaken = board.getPiece(to);    // todo: verify en passant
         snapshot = board.clone();
         snapshot.doMove(this);
+        snapshot.validate(this);
         pack = new Pack(snapshot);
     }
 

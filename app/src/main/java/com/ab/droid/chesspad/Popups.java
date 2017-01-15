@@ -93,7 +93,6 @@ public class Popups {
     private List<String> glyphs;
 
     private boolean fileListShown = false;
-    protected Square selected;
     protected Move promotionMove;
     private Dialog currentAlertDialog;
 
@@ -119,12 +118,6 @@ public class Popups {
             writer.write(1, 1);
             promotionMove.serialize(writer);
         }
-        if (selected == null) {
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            selected.serialize(writer);
-        }
         writer.write(dialogType.getValue(), 4);
         writer.writeString(dialogMsg);
         PgnItem.serialize(writer, editHeaders);
@@ -137,9 +130,6 @@ public class Popups {
             promotionMove = new Move(reader, chessPad.pgnTree.getBoard());
             promotionMove.snapshot = null;
         }
-        if (reader.read(1) == 1) {
-            selected = new Square(reader);
-        }
         this.dialogType = DialogType.value(reader.read(4));
         dialogMsg = reader.readString();
         if (dialogMsg == null || dialogMsg.isEmpty()) {
@@ -151,9 +141,6 @@ public class Popups {
     }
 
     private void afterUnserialize() {
-        if (selected != null) {
-            chessPad.chessPadView.setSelected(selected);
-        }
         try {
             launchDialog(this.dialogType);
         } catch (IOException e) {

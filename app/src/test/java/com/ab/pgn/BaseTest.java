@@ -302,7 +302,7 @@ public class BaseTest {
                 res = pgnTree.addPgnMove(pgnMove);
                 Assert.assertEquals(String.format("%s\n%s%s error!", entry.first, pgnTree.getBoard().toString(), pgnMove.toString()), true, res);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), pgnMove.toString(),
-                        pgnMove.moveFlags, expectedFlags), expectedFlags, pgnMove.moveFlags);
+                        pgnTree.getBoard().flags, expectedFlags), expectedFlags, pgnTree.getBoard().flags);
             }
 
             // validate as user move
@@ -313,7 +313,7 @@ public class BaseTest {
             } else {
                 pgnTree.addUserMove(move);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), pgnMove.toString(),
-                        pgnMove.moveFlags, expectedFlags), expectedFlags, pgnMove.moveFlags);
+                    pgnTree.getBoard().flags, expectedFlags), expectedFlags, pgnTree.getBoard().flags);
             }
 
             pgnTree.currentMove.snapshot = invertedBoard.clone();
@@ -328,7 +328,7 @@ public class BaseTest {
                 res = pgnTree.addPgnMove(invertedPgnMove);
                 Assert.assertEquals(String.format("%s\n%s%s error!", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString()), true, res);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString(),
-                        invertedPgnMove.moveFlags, invertedExpectedFlags), invertedExpectedFlags, invertedPgnMove.moveFlags);
+                        pgnTree.getBoard().flags, invertedExpectedFlags), invertedExpectedFlags, pgnTree.getBoard().flags);
             }
 
             // validate as user move
@@ -339,7 +339,7 @@ public class BaseTest {
             } else {
                 pgnTree.addUserMove(invertedMove);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), invertedMove.toString(),
-                        invertedMove.moveFlags, invertedExpectedFlags), invertedExpectedFlags, invertedMove.moveFlags);
+                        pgnTree.getBoard().flags, invertedExpectedFlags), invertedExpectedFlags, pgnTree.getBoard().flags);
             }
         }
     }
