@@ -77,6 +77,7 @@ public class ChessPadView extends View {
     }
 
     public void setSelected(Square selected) {
+        chessPad.selected = selected;
         if(gameView != null) {
             gameView.selected = selected;
         }
