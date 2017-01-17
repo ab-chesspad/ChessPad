@@ -649,6 +649,7 @@ public class ChessPad extends AppCompatActivity {
             }
             nextPgnItem = null;
             selected = null;
+            popups.promotionMove = null;
         }
     }
 

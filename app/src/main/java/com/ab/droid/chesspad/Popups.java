@@ -99,7 +99,7 @@ public class Popups {
     private DialogType dialogType = DialogType.None;
     private String dialogMsg = null;
     private List<Pair<String, String>> editHeaders;
-    private int topVisibleRow = 0;
+//    private int topVisibleRow = 0;
 
     public Popups(ChessPad chessPad) {
         this.chessPad = chessPad;
@@ -121,7 +121,7 @@ public class Popups {
         writer.write(dialogType.getValue(), 4);
         writer.writeString(dialogMsg);
         PgnItem.serialize(writer, editHeaders);
-        writer.write(topVisibleRow, 12);
+//        writer.write(topVisibleRow, 12);
     }
 
     public void unserialize(BitStream.Reader reader) throws IOException {
@@ -136,7 +136,7 @@ public class Popups {
             dialogMsg = null;
         }
         editHeaders = PgnItem.unserializeHeaders(reader);
-        topVisibleRow = reader.read(12);
+//        topVisibleRow = reader.read(12);
         afterUnserialize();
     }
 
