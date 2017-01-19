@@ -71,7 +71,7 @@ public class Board {
                 if(move != null) {
                     s = move.toString(true);
                 }
-                String msg = String.format("board error %s on $s:\n%s", err, s, toString());
+                String msg = String.format("board error %s on %s:\n%s", err, s, toString());
                 logger.debug(msg);
 
 //                throw new Config.PGNException(msg);

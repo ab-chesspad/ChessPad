@@ -138,6 +138,7 @@ public class ChessPad extends AppCompatActivity {
     private PgnItem.Item nextPgnItem;
     private boolean reversed;
     protected Square selected;
+    private int selectedPiece; // debug
 
     transient public String versionName;
     transient public int versionCode;
@@ -145,6 +146,7 @@ public class ChessPad extends AppCompatActivity {
     transient public int timeoutDelta = animationTimeout / 4;
     transient private AnimationHandler animationHandler;
     transient protected ChessPadView chessPadView;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -182,6 +184,12 @@ public class ChessPad extends AppCompatActivity {
 
     protected boolean isSaveable() {
         return pgnTree.isModified() && pgnTree.getPgn().getIndex() != -1;
+    }
+
+    public void setComment(String newComment) {
+        if(!isAnimationRunning()) {
+            pgnTree.setComment(newComment);
+        }
     }
 
     protected List<MenuItem> getMenuItems() {
@@ -343,6 +351,10 @@ public class ChessPad extends AppCompatActivity {
         return reversed;
     }
 
+    public boolean isAnimationRunning() {
+        return animationHandler != null;
+    }
+
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event)  {
         if ( keyCode == KeyEvent.KEYCODE_MENU ) {
@@ -360,10 +372,12 @@ public class ChessPad extends AppCompatActivity {
     }
 
     public void onButtonClick(Command command, Object param) {
+        Log.d(DEBUG_TAG, String.format("click %s\n%s", command.toString(), pgnTree.getBoard().toString()));
         try {
             switch (command) {
                 case Start:
-                    if (animationHandler == null) {
+                    selected = null;
+                    if (!isAnimationRunning()) {
                         pgnTree.toInit();
                         chessPadView.invalidate();
                     } else {
@@ -374,16 +388,28 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case Prev:
+                    if (isAnimationRunning()) {
+                        Log.e(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnTree.getBoard().toString()));
+                    }
+                    selected = null;
                     pgnTree.toPrev();
                     chessPadView.invalidate();
                     break;
 
                 case PrevVar:
+                    if (isAnimationRunning()) {
+                        Log.e(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnTree.getBoard().toString()));
+                    }
+                    selected = null;
                     pgnTree.toPrevVar();
                     chessPadView.invalidate();
                     break;
 
                 case Next:
+                    if (isAnimationRunning()) {
+                        Log.e(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnTree.getBoard().toString()));
+                    }
+                    selected = null;
                     List<Move> variations = pgnTree.getVariations();
                     if (variations == null) {
                         pgnTree.toNext();
@@ -395,11 +421,16 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case Stop:
+                    selected = null;
                     animationHandler.stop();
                     chessPadView.setButtonEnabled(ChessPad.Command.Stop.getValue(), false);
                     break;
 
                 case NextVar:
+                    if (isAnimationRunning()) {
+                        Log.e(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnTree.getBoard().toString()));
+                    }
+                    selected = null;
                     if (pgnTree.getVariations() == null) {
                         animationHandler = new AnimationHandler(animationTimeout, new TimeoutObserver() {
                             @Override
@@ -423,7 +454,8 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case End:
-                    if (animationHandler == null) {
+                    selected = null;
+                    if (!isAnimationRunning()) {
                         animationHandler = new AnimationHandler(animationTimeout, new TimeoutObserver() {
                             @Override
                             public boolean handle() {
@@ -457,7 +489,11 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case ShowGlyphs:
-                    popups.launchDialog(Popups.DialogType.Glyphs);
+                    if (!isAnimationRunning()) {
+                        if(pgnTree.okToSetGlyph()) {
+                            popups.launchDialog(Popups.DialogType.Glyphs);
+                        }
+                    }
                     break;
 
                 case Menu:
@@ -465,7 +501,9 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case Delete:
-                    popups.launchDialog(Popups.DialogType.DeleteYesNo);
+                    if (!isAnimationRunning()) {
+                        popups.launchDialog(Popups.DialogType.DeleteYesNo);
+                    }
                     break;
 
                 case Append:
@@ -473,7 +511,9 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case EditHeaders:
-                    popups.launchDialog(Popups.DialogType.Headers);
+                    if (!isAnimationRunning()) {
+                        popups.launchDialog(Popups.DialogType.Headers);
+                    }
                     break;
 
             }
@@ -495,22 +535,33 @@ public class ChessPad extends AppCompatActivity {
     }
 
     public boolean onSquareClick(Square clicked) {
-        Log.d(DEBUG_TAG, String.format("board onSquareClick (%s)", clicked.toString()));
+        if (isAnimationRunning()) {
+            return false;
+        }
+        Log.d(DEBUG_TAG, String.format("board onSquareClick (%s)\n%s", clicked.toString(), pgnTree.getBoard().toString()));
         int piece = pgnTree.getBoard().getPiece(clicked);
         if(selected == null) {
             if(piece == Config.EMPTY || (pgnTree.getFlags() & Config.PIECE_COLOR) != (piece & Config.PIECE_COLOR) ) {
                 return false;
             }
             selected = clicked;
+            selectedPiece = piece;
         } else {
             if((piece != Config.EMPTY && (pgnTree.getFlags() & Config.PIECE_COLOR) == (piece & Config.PIECE_COLOR)) ) {
                 selected = clicked;
+                selectedPiece = piece;
             } else {
+                piece = pgnTree.getBoard().getPiece(selected);
+                if(piece != selectedPiece) {
+                    Log.e(DEBUG_TAG, String.format("2nd click, piece changed %d != %d", piece, selectedPiece));
+                    return false;
+                }
                 Move newMove = new Move(pgnTree.getBoard().getPiece(selected), selected, clicked);
                 if (!pgnTree.validateUserMove(newMove)) {
                     return false;
                 }
                 selected = null;
+                selectedPiece = 0;
                 if((newMove.moveFlags & Config.FLAGS_PROMOTION) != 0 ) {
                     popups.promotionMove = newMove;
                     try {
