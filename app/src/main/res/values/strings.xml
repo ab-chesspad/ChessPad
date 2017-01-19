@@ -8,6 +8,7 @@
 
     <string name="err_empty_new_tag_name">New tag name is empty</string>
     <string name="err_tag_name_exists">Tag name exists already</string>
+    <string name="toast_err_file">Could not save the specified file, check if the name is valid</string>
 
     <string name="alert_append_title">Append / Save As</string>
     <string name="alert_append_label">Full Path to Pgn File:</string>

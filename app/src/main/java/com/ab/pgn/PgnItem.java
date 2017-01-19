@@ -759,7 +759,12 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         void saveGrandChild(Item item) throws IOException{
             File dir = new File(this.getAbsolutePath());
-            dir.mkdirs();
+            if(!dir.exists()) {
+                boolean ok = dir.mkdirs();
+                if(!ok) {
+                    throw new IOException(String.format("Cannot create %s directory", dir.getAbsoluteFile()));
+                }
+            }
             _saveGrandChild(item);
         }
 

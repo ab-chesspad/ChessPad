@@ -546,6 +546,7 @@ public class Popups {
                         returnFromDiaqlog(DialogType.Append, appendToFile.getAbsoluteFile(), 0);
                     } catch (IOException e) {
                         Log.e(DEBUG_TAG, String.format("onClick: %s", DialogType.Append.toString()), e);
+                        Toast.makeText(chessPad, R.string.toast_err_file, Toast.LENGTH_LONG).show();
                     }
                     mDialog.cancel();
                 }
