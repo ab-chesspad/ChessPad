@@ -166,7 +166,7 @@ public class GameView {
         glyph.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_UP && chessPad.pgnTree.okToSetGlyph()) {
+                if (event.getAction() == MotionEvent.ACTION_UP) {
                     chessPad.onButtonClick(ChessPad.Command.ShowGlyphs);
                 }
                 // true if the event was handled and should not be given further down to other views.
@@ -193,7 +193,7 @@ public class GameView {
             @Override
             public void afterTextChanged(Editable editable) {
                 // fix it: called on every character, I only need the final value
-                chessPad.pgnTree.setComment(editable.toString());
+                chessPad.setComment(editable.toString());
             }
         });
 
