@@ -41,13 +41,11 @@ public class SetupView {
     private TextView setupStatus;
 
     private Bitmap check;
-    private String[] setupErrs;
 
     public SetupView(ChessPad chessPad, RelativeLayout relativeLayoutMain) {
         this.chessPad = chessPad;
         this.relativeLayoutMain = relativeLayoutMain;
         check = BitmapFactory.decodeResource( chessPad.getResources(), R.drawable.chk );
-        setupErrs = chessPad.getResources().getStringArray(R.array.setup_errs);
     }
 
     public void draw() {
@@ -355,7 +353,7 @@ public class SetupView {
 
     public void setStatus(int errNum) {
         this.errNum = errNum;
-        setupStatus.setText(setupErrs[errNum].replaceAll("^\\d+ ", ""));
+        setupStatus.setText(chessPad.getSetupErr(errNum));
         if(errNum == 0) {
             setupStatus.setTextColor(Color.BLACK);
             setupStatus.setBackgroundColor(Color.GREEN);

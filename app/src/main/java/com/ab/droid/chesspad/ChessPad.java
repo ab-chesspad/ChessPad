@@ -145,7 +145,7 @@ public class ChessPad extends AppCompatActivity {
     transient public int timeoutDelta = animationTimeout / 4;
     transient private AnimationHandler animationHandler;
     transient protected ChessPadView chessPadView;
-
+    transient private String[] setupErrs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -167,6 +167,7 @@ public class ChessPad extends AppCompatActivity {
             versionName = "0.0";
         }
         resources = getResources();
+        setupErrs = resources.getStringArray(R.array.setup_errs);
 //        sample();       // initially create a sample pgn
     }
 
@@ -605,6 +606,12 @@ public class ChessPad extends AppCompatActivity {
         return null;
     }
 
+    public String getSetupErr(int errNum) {
+        if(errNum >= 0 && errNum < setupErrs.length) {
+            return setupErrs[errNum].replaceAll("^\\d+ ", "");
+        }
+        return "";
+    }
 
     private void beforeAnimationStart() {
         chessPadView.enableNavigation(false);
@@ -693,11 +700,15 @@ public class ChessPad extends AppCompatActivity {
                     item = nextPgnItem;
                 }
                 if(item != null) {
-                    try {
-                        pgnTree = new PgnTree(item);
-                    } catch (Config.PGNException e) {
-                        Log.e(DEBUG_TAG, e.getMessage());
-                        popups.dlgMessage(Popups.DialogType.ShowMessage, e.getMessage(), R.drawable.exclamation, Popups.DialogButton.Ok);
+                    pgnTree = new PgnTree(item);
+                    String parsingError = pgnTree.getParsingError();
+                    if(parsingError != null) {
+                        popups.dlgMessage(Popups.DialogType.ShowMessage, parsingError, R.drawable.exclamation, Popups.DialogButton.Ok);
+                    } else {
+                        int parsingErrorNum = pgnTree.getParsingErrorNum();
+                        if(parsingErrorNum != 0) {
+                            popups.dlgMessage(Popups.DialogType.ShowMessage, getSetupErr(parsingErrorNum), R.drawable.exclamation, Popups.DialogButton.Ok);
+                        }
                     }
                 }
                 chessPadView.redraw();
