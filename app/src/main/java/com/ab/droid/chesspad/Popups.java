@@ -4,6 +4,7 @@ import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.support.v7.app.AlertDialog;
 import android.text.Editable;
 import android.text.InputType;
@@ -28,7 +29,6 @@ import com.ab.pgn.Config;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnItem;
-import com.ab.pgn.Square;
 
 import java.io.File;
 import java.io.IOException;
@@ -51,7 +51,7 @@ public class Popups {
         DeleteYesNo(++j),
         Promotion(++j),
         Menu(++j),
-        About(++j),
+        ShowMessage(++j),
         Load(++j),
         Append(++j),
         Headers(++j),
@@ -189,7 +189,7 @@ public class Popups {
                 launchDialog(dialogType, new CPArrayAdapter(chessPad.getMenuItems(), -1));
                 break;
 
-            case About:
+            case ShowMessage:
                 dlgMessage(dialogType, String.format(getResources().getString(R.string.about), chessPad.versionName), 0, DialogButton.Ok);
                 break;
 
@@ -294,7 +294,7 @@ public class Popups {
             return;
         }
         switch (dialogType) {
-            case About:
+            case ShowMessage:
                 dismissDlg();
                 break;
 
@@ -433,6 +433,7 @@ public class Popups {
             TextView textView = new TextView(chessPad);
             textView.setText(msg);
             textView.setTextSize(20);
+            textView.setTypeface(Typeface.MONOSPACE);
             textView.setCompoundDrawablesWithIntrinsicBounds(icon, 0, 0, 0);
             builder.setView(textView);
         }
