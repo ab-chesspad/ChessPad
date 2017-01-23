@@ -9,7 +9,7 @@ import java.util.List;
  * Created by Alexander Bootman on 8/6/16.
  */
 public class PgnTree {
-    public static boolean DEBUG = true;
+    public static boolean DEBUG = false;    // todo: config
     final static PgnLogger logger = PgnLogger.getLogger(PgnTree.class);
 
     protected Move root = new Move(Config.FLAGS_NULL_MOVE);    // fake move to store init board and comments
@@ -19,6 +19,8 @@ public class PgnTree {
 
     transient private boolean startVariation;                     // flag for pgn parsing
     transient private List<Move> variations = new LinkedList<>(); // stack for pgn parsing
+    transient private String parsingError;
+    transient private int parsingErrorNum;
 
     public PgnTree() {
         init();
@@ -34,6 +36,8 @@ public class PgnTree {
         pgn = new PgnItem.Item("dummy");
         setSTR();
         modified = false;
+        parsingError = null;
+        parsingErrorNum = 0;
     }
 
     private void setSTR() {
@@ -49,12 +53,28 @@ public class PgnTree {
             root.snapshot = new Board();
         } else {
             root.snapshot = new Board(fen);
+            parsingErrorNum = root.snapshot.validateSetup();
         }
-        root.pack = new Pack(root.snapshot);
 
-        new MoveParser(this).parse(item.getMoveText());
+        if(parsingErrorNum == 0) {
+            root.pack = new Pack(root.snapshot);
+            try {
+                new MoveParser(this).parse(item.getMoveText());
+            } catch (Config.PGNException e) {
+                logger.error(e.getMessage());
+                parsingError = e.getMessage();
+            }
+        }
         setSTR();
         modified = false;
+    }
+
+    public String getParsingError() {
+        return parsingError;
+    }
+
+    public int getParsingErrorNum() {
+        return parsingErrorNum;
     }
 
     public void serialize(BitStream.Writer writer) throws IOException {
@@ -178,7 +198,9 @@ public class PgnTree {
             oldComment = "";
         }
         if (!newComment.equals(oldComment)) {
-            logger.debug(String.format("comment %s -> %s\n%s", currentMove.toString(), newComment, this.getBoard().toString()));
+            if(DEBUG) {
+                logger.debug(String.format("comment %s -> %s\n%s", currentMove.toString(), newComment, this.getBoard().toString()));
+            }
             move.comment = newComment;
             if (move.comment.isEmpty()) {
                 move.comment = null;
@@ -323,7 +345,9 @@ public class PgnTree {
             board.flags |= Config.FLAGS_REPETITION;
         }
 
-        logger.debug("\n" + this.getBoard().toString());
+        if(DEBUG) {
+            logger.debug("\n" + this.getBoard().toString());
+        }
         if(startVariation) {
             Move lastVariation = currentMove.nextMove;
             variations.add(lastVariation);
@@ -338,7 +362,9 @@ public class PgnTree {
         currentMove = move;
         startVariation = false;
         modified = true;
-        logger.debug(String.format("addMove %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("addMove %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     // complete move, needs validation
@@ -420,7 +446,9 @@ public class PgnTree {
             }
         }
         board.flags ^= Config.FLAGS_BLACK_MOVE;
-        logger.debug(String.format("addUserMove %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("addUserMove %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public void openVariation(boolean takeBack) {
@@ -430,7 +458,9 @@ public class PgnTree {
 
     public void closeVariation() {
         currentMove = variations.remove(variations.size() - 1);
-        logger.debug(String.format("closeVariation %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("closeVariation %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public boolean isRepetition(Move move) {
@@ -459,12 +489,16 @@ public class PgnTree {
             return; // error?
         }
         currentMove = currentMove.prevMove;
-        logger.debug(String.format("takeBack %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("takeBack %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public void toInit() {
         currentMove = root;
-        logger.debug(String.format("toInit %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("toInit %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public boolean isInit() {
@@ -485,7 +519,9 @@ public class PgnTree {
         if(currentMove.nextMove != null) {
             currentMove = currentMove.nextMove;
         }
-        logger.debug(String.format("toNext %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("toNext %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
     public List<Move> getVariations() {
         if(currentMove.nextMove == null) {
@@ -515,14 +551,18 @@ public class PgnTree {
             }
             variation = variation.variation;
         } while(variation != null);
-        logger.debug(String.format("toVariation %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("toVariation %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public void toPrev() {
         if(currentMove.prevMove != null) {
             currentMove = currentMove.prevMove;
         }
-        logger.debug(String.format("toPrev %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("toPrev %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public void toPrevVar() {
@@ -532,7 +572,9 @@ public class PgnTree {
                 break;
             }
         } while(currentMove.prevMove != null);
-        logger.debug(String.format("toPrevVar %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("toPrevVar %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public String getCurrentMove() {
@@ -564,7 +606,9 @@ public class PgnTree {
             variation.variation = currentMove.variation;
         }
         currentMove = prevMove;
-        logger.debug(String.format("delCurrentMove %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        if(DEBUG) {
+            logger.debug(String.format("delCurrentMove %s\n%s", currentMove.toString(), this.getBoard().toString()));
+        }
     }
 
     public String toPgn() {
