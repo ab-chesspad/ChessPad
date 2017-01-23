@@ -11,7 +11,6 @@ import android.os.Message;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.KeyEvent;
-import android.view.MotionEvent;
 import android.widget.Toast;
 
 import com.ab.pgn.BitStream;
@@ -177,7 +176,7 @@ public class ChessPad extends AppCompatActivity {
             chessPadView = new ChessPadView(this);
             sample();       // initially create a sample pgn
         } catch (Throwable t) {
-//dlgMessage(DialogType.About, t.toString(), DIALOG_BUTTON_OK);
+//dlgMessage(DialogType.ShowMessage, t.toString(), DIALOG_BUTTON_OK);
             Log.e(DEBUG_TAG, t.toString(), t);
         }
     }
@@ -240,7 +239,7 @@ public class ChessPad extends AppCompatActivity {
             Log.e(DEBUG_TAG, "onResume()", t);
             StringWriter sw = new StringWriter();
             t.printStackTrace(new PrintWriter(sw));
-            popups.dlgMessage(Popups.DialogType.About, sw.toString(), R.drawable.exclamation, Popups.DialogButton.Ok);
+            popups.dlgMessage(Popups.DialogType.ShowMessage, sw.toString(), R.drawable.exclamation, Popups.DialogButton.Ok);
             if (fis != null) {
                 try {
                     File outDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
@@ -644,7 +643,7 @@ public class ChessPad extends AppCompatActivity {
                 break;
 
             case About:
-                popups.launchDialog(Popups.DialogType.About);
+                popups.launchDialog(Popups.DialogType.ShowMessage);
                 break;
 
             case Save:
@@ -694,7 +693,12 @@ public class ChessPad extends AppCompatActivity {
                     item = nextPgnItem;
                 }
                 if(item != null) {
-                    pgnTree = new PgnTree(item);
+                    try {
+                        pgnTree = new PgnTree(item);
+                    } catch (Config.PGNException e) {
+                        Log.e(DEBUG_TAG, e.getMessage());
+                        popups.dlgMessage(Popups.DialogType.ShowMessage, e.getMessage(), R.drawable.exclamation, Popups.DialogButton.Ok);
+                    }
                 }
                 chessPadView.redraw();
             }

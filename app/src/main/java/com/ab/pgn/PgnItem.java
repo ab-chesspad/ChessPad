@@ -249,11 +249,12 @@ public abstract class PgnItem {
 
     public static void parsePgnItems(PgnItem parent, BufferedReader br, EntryHandler entryHandler) throws IOException, Config.PGNException {
         final String nameValueSep = " \"";
-        Item item = null;
-        StringBuilder sb = new StringBuilder(Config.STRING_BUF_SIZE);
-        boolean inText = true;
-        String line;
         int index = -1;
+        Item item = new Item(parent, COMMON_ITEM_NAME);
+        item.index = ++index;
+        StringBuilder sb = new StringBuilder(Config.STRING_BUF_SIZE);
+        boolean inText = false;
+        String line;
         while ((line = br.readLine()) != null) {
             line = line.trim();
             if (line.startsWith(TAG_START) && line.endsWith(TAG_END)) {
@@ -300,8 +301,8 @@ public abstract class PgnItem {
 
     public static String getTitle(List<Pair<String, String>> headers, int index) {
         StringBuilder sb = new StringBuilder();
-        if(index > 0) {
-            sb.append(String.format("%s. ", index));
+        if(index >= 0) {
+            sb.append(String.format("%s. ", index + 1));
         }
         String sep = "";
         for (String h : Config.titleHeaders) {
