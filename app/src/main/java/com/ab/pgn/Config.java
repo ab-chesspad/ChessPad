@@ -80,6 +80,7 @@ public class Config {
             FLAGS_CASTLE		= 0x2000,
             FLAGS_ENPASSANT		= 0x4000,
             FLAGS_NULL_MOVE		= 0x8000,	        // any move
+            MOVE_FLAGS          = (FLAGS_BLACK_MOVE | FLAGS_CURRENT_MOVE | FLAGS_REPETITION | FLAGS_AMBIG |FLAGS_CHECK | FLAGS_CHECKMATE | FLAGS_PROMOTION | FLAGS_CASTLE | FLAGS_ENPASSANT | FLAGS_NULL_MOVE),
 
             // validate move options:
             VALIDATE_PGN_MOVE			= 0x0001,

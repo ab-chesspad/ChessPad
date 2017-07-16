@@ -356,7 +356,7 @@ public class Board {
     }
 
     public Move newMove() {
-        return new Move(this.flags & Config.POSITION_FLAGS);
+        return new Move(0);
     }
 
     public int validateSetup() {

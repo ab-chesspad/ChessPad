@@ -20,8 +20,14 @@ import java.util.List;
  * Created by Alexander Bootman on 8/7/16.
  */
 public class BaseTest {
+    /* comment for AndroidStudio prior to 2.3.3?
     public static final String TEST_ROOT = "../etc/test/";
     public static final String TEST_TMP_ROOT = "../etc/test_tmp/";
+    /*/
+    public static final String TEST_ROOT = "etc/test/";
+    public static final String TEST_TMP_ROOT = "etc/test_tmp/";
+    //*/
+
     public static final String MY_HEADER = "Final";
     public static final int ERR = -1;
 
@@ -285,16 +291,22 @@ public class BaseTest {
         Board invertedBoard = invert(board);
         MoveParser moveParser;
         for (Pair<String, Integer> entry : moves) {
+            int expectedFlags = entry.second;
             pgnTree.currentMove.snapshot = board.clone();
             moveParser = new MoveParser(pgnTree);
             Move move = moveParser.parseMove(entry.first);
+            move.moveFlags &= ~Config.FLAGS_AMBIG;   // todo: verify
+            if(expectedFlags != ERR) {
+                if((board.flags & Config.FLAGS_BLACK_MOVE) != 0) {
+                    move.moveFlags |= Config.FLAGS_BLACK_MOVE;
+                }
+            }
             Move invertedMove = invert(move);
             Move pgnMove = move.clone();
-            pgnMove.moveFlags &= ~Config.FLAGS_AMBIG;   // todo: verify
+//            pgnMove.moveFlags &= ~Config.FLAGS_AMBIG;   // todo: verify
             String strPgnMove = pgnMove.toString();
             pgnMove = moveParser.parseMove(strPgnMove);
 
-            int expectedFlags = entry.second;
             boolean res;
 
             // validate as pgn move
@@ -302,7 +314,7 @@ public class BaseTest {
                 res = pgnTree.addPgnMove(pgnMove);
                 Assert.assertEquals(String.format("%s\n%s%s error!", entry.first, pgnTree.getBoard().toString(), pgnMove.toString()), true, res);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), pgnMove.toString(),
-                        pgnTree.getBoard().flags, expectedFlags), expectedFlags, pgnTree.getBoard().flags);
+                        pgnTree.getBoard().flags, expectedFlags & Config.POSITION_FLAGS), expectedFlags & Config.POSITION_FLAGS, pgnTree.getBoard().flags);
             }
 
             // validate as user move
@@ -313,9 +325,14 @@ public class BaseTest {
             } else {
                 pgnTree.addUserMove(move);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), pgnMove.toString(),
-                    pgnTree.getBoard().flags, expectedFlags), expectedFlags, pgnTree.getBoard().flags);
+                    pgnTree.getBoard().flags, expectedFlags & Config.POSITION_FLAGS), expectedFlags & Config.POSITION_FLAGS, pgnTree.getBoard().flags);
+                int moveFlags = (move.moveFlags & Config.MOVE_FLAGS) ^ Config.FLAGS_BLACK_MOVE;
+                int _expectedFlags = expectedFlags & Config.MOVE_FLAGS;
+                Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), move.toString(),
+                        moveFlags, _expectedFlags), _expectedFlags, moveFlags);
             }
 
+            // test inverted board:
             pgnTree.currentMove.snapshot = invertedBoard.clone();
             moveParser = new MoveParser(pgnTree);
             Move invertedPgnMove = invertedMove.clone();
@@ -328,7 +345,7 @@ public class BaseTest {
                 res = pgnTree.addPgnMove(invertedPgnMove);
                 Assert.assertEquals(String.format("%s\n%s%s error!", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString()), true, res);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), invertedPgnMove.toString(),
-                        pgnTree.getBoard().flags, invertedExpectedFlags), invertedExpectedFlags, pgnTree.getBoard().flags);
+                        pgnTree.getBoard().flags, invertedExpectedFlags & Config.POSITION_FLAGS), invertedExpectedFlags & Config.POSITION_FLAGS, pgnTree.getBoard().flags);
             }
 
             // validate as user move
@@ -339,7 +356,11 @@ public class BaseTest {
             } else {
                 pgnTree.addUserMove(invertedMove);
                 Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), invertedMove.toString(),
-                        pgnTree.getBoard().flags, invertedExpectedFlags), invertedExpectedFlags, pgnTree.getBoard().flags);
+                        pgnTree.getBoard().flags, invertedExpectedFlags & Config.POSITION_FLAGS), invertedExpectedFlags & Config.POSITION_FLAGS, pgnTree.getBoard().flags);
+                int moveFlags = (invertedMove.moveFlags & Config.MOVE_FLAGS) ^ Config.FLAGS_BLACK_MOVE;
+                int _invertedExpectedFlags = invertedExpectedFlags & Config.MOVE_FLAGS;
+                Assert.assertEquals(String.format("%s\n%s%s flags 0x%04x != 0x%04x", entry.first, pgnTree.getBoard().toString(), move.toString(),
+                        moveFlags, _invertedExpectedFlags), _invertedExpectedFlags, moveFlags);
             }
         }
     }
