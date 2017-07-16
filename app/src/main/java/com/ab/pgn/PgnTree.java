@@ -369,7 +369,9 @@ public class PgnTree {
 
     // complete move, needs validation
     public boolean validateUserMove(Move newMove) {
-        newMove.moveFlags = getFlags();
+        // 7/14/17
+//        newMove.moveFlags = getFlags();
+        newMove.moveFlags |= getFlags() & (Config.FLAGS_BLACK_MOVE | Config.FLAGS_ENPASSANT_OK);
         int piece = newMove.getColorlessPiece();
         if(piece == Config.KING) {
             if(!getBoard().validateKingMove(newMove)) {
@@ -393,8 +395,7 @@ public class PgnTree {
                                 }
                                 if(test.from.x != newMove.from.x) {
                                     newMove.moveFlags |= Config.FLAGS_X_AMBIG;
-                                }
-                                if(test.from.y != newMove.from.y) {
+                                } else if(test.from.y != newMove.from.y) {
                                     newMove.moveFlags |= Config.FLAGS_Y_AMBIG;
                                 }
                             }
@@ -439,6 +440,8 @@ public class PgnTree {
         }
         Move checkMove;
         if((checkMove = board.findAttack(target, null)) != null) {
+            checkMove.moveFlags &= ~Config.FLAGS_BLACK_MOVE;
+            checkMove.moveFlags |= board.flags & Config.FLAGS_BLACK_MOVE;
             if(board.validateCheckmate(checkMove)) {
                 move.moveFlags |= Config.FLAGS_CHECKMATE;
             } else {
