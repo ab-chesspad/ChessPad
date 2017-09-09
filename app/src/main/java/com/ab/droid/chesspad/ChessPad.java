@@ -497,7 +497,9 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case Menu:
-                    popups.launchDialog(Popups.DialogType.Menu);
+                    if (!isAnimationRunning()) {
+                        popups.launchDialog(Popups.DialogType.Menu);
+                    }
                     break;
 
                 case Delete:
@@ -506,9 +508,9 @@ public class ChessPad extends AppCompatActivity {
                     }
                     break;
 
-                case Append:
-                    Log.d(DEBUG_TAG, String.format("Append %s", param.toString()));
-                    break;
+//                case Append:
+//                    Log.d(DEBUG_TAG, String.format("Append %s", param.toString()));
+//                    break;
 
                 case EditHeaders:
                     if (!isAnimationRunning()) {
@@ -623,12 +625,14 @@ public class ChessPad extends AppCompatActivity {
         chessPadView.setButtonEnabled(ChessPad.Command.NextVar.getValue(), false);
         chessPadView.setButtonEnabled(ChessPad.Command.End.getValue(), true);
         chessPadView.setButtonEnabled(ChessPad.Command.Delete.getValue(), false);
+        chessPadView.enableCommentEdit(false);
     }
 
     private void afterAnimationEnd() {
         animationHandler = null;
         chessPadView.setButtonEnabled(ChessPad.Command.Stop.getValue(), false);
         chessPadView.enableNavigation(true);
+        chessPadView.enableCommentEdit(true);
         chessPadView.invalidate();
     }
 

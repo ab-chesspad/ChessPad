@@ -285,4 +285,8 @@ public class GameView {
     void setButtonEnabled(int indx, boolean enable) {
         imageButtons[indx].setEnabled(enable);
     }
+
+    public void enableCommentEdit(boolean enable) {
+        comment.setEnabled(enable);
+    }
 }
