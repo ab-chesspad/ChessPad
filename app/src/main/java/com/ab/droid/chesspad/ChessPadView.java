@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.support.v7.widget.AppCompatEditText;
+import android.support.v7.widget.AppCompatImageButton;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -324,7 +325,13 @@ public class ChessPadView extends View {
         return editText;
     }
 
-    public static class CpImageButton extends ImageButton {
+    public void enableCommentEdit(boolean enable) {
+        if(gameView != null) {
+            gameView.enableCommentEdit(enable);
+        }
+    }
+
+    public static class CpImageButton extends AppCompatImageButton {
         public CpImageButton(Context context, int resource) {
             super(context);
             setBackgroundResource(R.drawable.btn_background);
