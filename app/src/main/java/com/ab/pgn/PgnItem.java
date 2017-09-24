@@ -9,7 +9,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
@@ -76,8 +75,10 @@ public abstract class PgnItem {
     protected PgnItem parent;
     protected File self;
     protected int index = -1;
+    protected long length = 0;
+    protected transient long offset = 0;
 
-    public abstract List<PgnItem> getChildrenNames() throws IOException;
+    public abstract List<PgnItem> getChildrenNames(OffsetHandler offsetHandler) throws IOException;
 
     public static void setRoot(File root) {
         PgnItem.root = root;
@@ -100,6 +101,7 @@ public abstract class PgnItem {
             } else {
                 this.self = new File(root.getAbsolutePath(), name);
             }
+//            length = self.length();
         }
         File parentFile = self.getParentFile();
         if(parentFile == null) {
@@ -137,6 +139,17 @@ public abstract class PgnItem {
         }
     }
 
+    public long getLength() {
+        if(this.length == 0) {
+            this.length = self.length();
+        }
+        return this.length;
+    }
+
+    public long getOffset() {
+        return this.offset;
+    }
+
     public String getName() {
         return self.getName();
     }
@@ -152,6 +165,7 @@ public abstract class PgnItem {
     public void setParent(PgnItem parent) {
         this.parent = parent;
         self = new File(parent.getAbsolutePath(), this.getName());
+//        length = self.length();
     }
 
     public int getIndex() {
@@ -183,7 +197,7 @@ public abstract class PgnItem {
             return -1;
         }
         int offset = parent.getAbsolutePath().length() + 1;
-        List<PgnItem> siblings = parent.getChildrenNames();
+        List<PgnItem> siblings = parent.getChildrenNames(null);
         for(int i = 0; i < siblings.size(); ++i) {
             PgnItem sibling = siblings.get(i);
             String siblingName = sibling.getName() + "/";
@@ -256,6 +270,7 @@ public abstract class PgnItem {
         boolean inText = false;
         String line;
         while ((line = br.readLine()) != null) {
+            entryHandler.addOffset(line.length() + 1);
             line = line.trim();
             if (line.startsWith(TAG_START) && line.endsWith(TAG_END)) {
                 if (inText) {
@@ -342,6 +357,7 @@ public abstract class PgnItem {
         if (!Dir.class.isAssignableFrom(parent.getParent().getClass())) {
             throw new Config.PGNException(String.format("%s - invalid grandparent type", item.toString()));
         }
+        parent.offset = 0;
         Dir grandParent = (Dir)parent.getParent();
         grandParent.walkThroughGrandChildren(parent, new EntryHandler() {
             @Override
@@ -357,6 +373,11 @@ public abstract class PgnItem {
             @Override
             public boolean getMoveText(PgnItem entry) {
                 return entry.index == item.index;
+            }
+
+            @Override
+            public void addOffset(int length) {
+                parent.offset += length;
             }
         });
     }
@@ -381,6 +402,7 @@ public abstract class PgnItem {
         if(bufferedReader == null) {
             item.index = -1;
         } else {
+            item.getParent().offset = 0;
             parsePgnItems(item.getParent(), bufferedReader, new EntryHandler() {
                 @Override
                 public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws IOException {
@@ -399,6 +421,11 @@ public abstract class PgnItem {
                 @Override
                 public boolean getMoveText(PgnItem entry) {
                     return true;
+                }
+
+                @Override
+                public void addOffset(int length) {
+                    item.getParent().offset += length;
                 }
             });
         }
@@ -453,10 +480,15 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         return headers;
     }
 
+    public interface OffsetHandler {
+        void setOffset(long offset);
+    }
+
     public interface EntryHandler {
         // return false to break iteration
         boolean handle(PgnItem entry, BufferedReader bufferedReader) throws IOException;
         boolean getMoveText(PgnItem entry);
+        void addOffset(int length);
     }
 
     public static class Item extends PgnItem {
@@ -537,7 +569,12 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
-        public List<PgnItem> getChildrenNames() {
+        public long getLength() {
+            return length;
+        }
+
+        @Override
+        public List<PgnItem> getChildrenNames(OffsetHandler offsetHandler) {
             throw new RuntimeException("Pgn Item cannot contain children");
         }
 
@@ -631,8 +668,14 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             super(reader);
         }
 
+//        @Override
+//        public long getLength() {
+//            return this.length;
+//        }
+
         @Override
-        public List<PgnItem> getChildrenNames() throws IOException {
+        public List<PgnItem> getChildrenNames(final OffsetHandler offsetHandler) throws IOException {
+            this.offset = 0;
             final List<PgnItem> items = new LinkedList<>();
             ((Dir)getParent()).walkThroughGrandChildren(this, new EntryHandler() {
                 @Override
@@ -645,10 +688,22 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 public boolean getMoveText(PgnItem entry) {
                     return false;
                 }
+
+                @Override
+                public void addOffset(int length) {
+                    Pgn.this.offset += length;
+                    if(offsetHandler != null) {
+                        offsetHandler.setOffset(Pgn.this.offset);
+//                        try {
+//                            Thread.sleep(1);
+//                        } catch (InterruptedException e) {
+//                            e.printStackTrace();
+//                        }
+                    }
+                }
             });
             return items;
         }
-
     }
 
     public static class Dir extends PgnItem {
@@ -675,8 +730,16 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             return PgnItemType.Dir;
         }
 
+/*
         @Override
-        public List<PgnItem> getChildrenNames() throws IOException {
+        public long getLength() {
+            return this.length;
+        }
+
+*/
+        @Override
+        public List<PgnItem> getChildrenNames(OffsetHandler offsetHandler) throws IOException {
+//            this.offset = 0;
             final List<PgnItem> fileList = new ArrayList<>();
             walkThroughChildren(new EntryHandler() {
                 @Override
@@ -688,6 +751,12 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 @Override
                 public boolean getMoveText(PgnItem entry) {
                     return false;
+                }
+
+                @Override
+                public void addOffset(int length) {
+                    logger.debug(String.format("Dir addOffset %d", length));
+//                    Dir.this.offset += length;
                 }
             }, true);
             return fileList;
@@ -731,6 +800,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         public void walkThroughGrandChildren(final Pgn gChild, final EntryHandler entryHandler) throws IOException {
+            this.offset = 0;
             walkThroughChildren(new EntryHandler() {
                 @Override
                 public boolean handle(PgnItem entry, BufferedReader br) throws IOException {
@@ -750,6 +820,11 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 @Override
                 public boolean getMoveText(PgnItem entry) {
                     return entry.index == gChild.index;
+                }
+
+                @Override
+                public void addOffset(int length) {
+                    Dir.this.offset += length;
                 }
             }, true);
         }
@@ -838,6 +913,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                         continue;
                     }
                     Pgn item = new Pgn(Zip.this, ze.getName());
+                    item.length = ze.getSize();
                     item.index = index;
                     BufferedReader br = new BufferedReader(new InputStreamReader(zipFile.getInputStream(ze)), Config.MY_BUF_SIZE);
                     if (!zipEntryHandler.handle(item, br)) {
@@ -874,6 +950,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             final char data[] = new char[Config.MY_BUF_SIZE];
             final boolean[] found = {false};
             final int[] count = {0};
+            Zip.this.offset = 0;
 
             walkThroughChildren(new EntryHandler() {
                 @Override
@@ -906,6 +983,11 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 @Override
                 public boolean getMoveText(PgnItem entry) {
                     return false;
+                }
+
+                @Override
+                public void addOffset(int length) {
+                    Zip.this.offset += length;
                 }
             }, false);
             if(!found[0]) {

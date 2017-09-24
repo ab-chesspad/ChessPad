@@ -5,6 +5,7 @@ import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.os.AsyncTask;
 import android.support.v7.app.AlertDialog;
 import android.text.Editable;
 import android.text.InputType;
@@ -37,7 +38,7 @@ import java.util.List;
 
 /**
  * various dialogs for ChessPad
- * Created by alex on 10/30/16.
+ * Created by Alexander Bootman on 10/30/16.
  */
 public class Popups {
     protected final String DEBUG_TAG = this.getClass().getName();
@@ -697,24 +698,76 @@ public class Popups {
             refresh(parentItem, initSelection);
         }
 
-        public void refresh(PgnItem parentItem, int initSelection) throws IOException {
+        public void refresh(final PgnItem parentItem, int initSelection) throws IOException {
+            Log.d(DEBUG_TAG, "thread " + Thread.currentThread().getName());
             this.parentItem = parentItem;
             if (parentItem != null && parentItem.getParent() != null && initSelection >= 0) {
                 ++initSelection;
             }
             init(null, null, initSelection);
             if (parentItem != null) {
-                pgnItemList = parentItem.getChildrenNames();
-                Log.d(DEBUG_TAG, String.format("Child list id %s items long", pgnItemList.size()));
-                if (parentItem.getParent() != null) {
-                    pgnItemList.add(0, parentItem.getParent());
-                }
-                notifyDataSetChanged();
+                chessPad.chessPadView.updateProgress(0);
+                new AsyncTask<Void, Integer, Void>() {
+                    @Override
+                    protected void onPreExecute() {
+                        super.onPreExecute();
+                        chessPad.chessPadView.showProgress(true);
+                    }
+
+                    @Override
+                    protected void onPostExecute(Void param) {
+                        super.onPostExecute(param);
+                        Log.e(DEBUG_TAG, String.format("Child list %d items long, thread %s", pgnItemList.size(), Thread.currentThread().getName()));
+                        if (parentItem.getParent() != null) {
+                            pgnItemList.add(0, parentItem.getParent());
+                        }
+                        chessPad.chessPadView.showProgress(false);
+                        notifyDataSetChanged();
+                    }
+
+                    @Override
+                    protected Void doInBackground(Void... params) {
+                        try {
+                            Log.e(DEBUG_TAG, String.format("parentItem.getChildrenNames start, thread %s", Thread.currentThread().getName()));
+                            pgnItemList = parentItem.getChildrenNames(new PgnItem.OffsetHandler() {
+                                long oldOffset = 0;
+                                @Override
+                                public void setOffset(long offset) {
+                                    long totalLength = parentItem.getLength();
+                                    Log.e(DEBUG_TAG, String.format("setOffset %d, thread %s", totalLength, Thread.currentThread().getName()));
+                                    if(totalLength == 0) {
+                                        return;
+                                    }
+                                    long newOffset = parentItem.getOffset();
+                                    long percent = (newOffset - oldOffset) * 100 / totalLength;
+                                    if(percent >= 5) {
+                                        percent = newOffset * 100 / totalLength;
+                                        Log.e(DEBUG_TAG, String.format("publishProgress %d, thread %s", percent, Thread.currentThread().getName()));
+                                        publishProgress((int)percent);
+                                        oldOffset = newOffset;
+                                    }
+                                }
+                            });
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        Log.e(DEBUG_TAG, String.format("parentItem.getChildrenNames end, thread %s", Thread.currentThread().getName()));
+                        return null;
+                    }
+
+                    @Override
+                    protected void onProgressUpdate(Integer... values) {
+                        super.onProgressUpdate(values);
+                        Log.e(DEBUG_TAG, String.format("onProgressUpdate %d, thread %s", values[0], Thread.currentThread().getName()));
+                        chessPad.chessPadView.updateProgress(values[0]);
+                    }
+                }.execute();
             }
         }
 
         @Override
         public int getCount() {
+            Log.d(DEBUG_TAG, "thread " + Thread.currentThread().getName());
             if (pgnItemList != null) {
                 return pgnItemList.size();
             }
@@ -887,4 +940,11 @@ public class Popups {
             }
         }
     }
+
+/*
+    private interface CPExecutor {
+        void execute() throws IOException;
+    }
+*/
+
 }

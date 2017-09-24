@@ -177,6 +177,11 @@ public class BaseTest {
             public boolean getMoveText(PgnItem entry) {
                 return true;
             }
+
+            @Override
+            public void addOffset(int length) {
+
+            }
         });
 
         for (PgnItem item : items) {
@@ -283,6 +288,11 @@ public class BaseTest {
             @Override
             public boolean getMoveText(PgnItem entry) {
                 return true;
+            }
+
+            @Override
+            public void addOffset(int length) {
+
             }
         });
         Assert.assertEquals(items.size(), 1);
