@@ -22,11 +22,11 @@ public class PgnItemTest extends BaseTest {
     public void testDir() throws Exception {
         int testItemIndex = 1;
         PgnItem dir = new PgnItem.Dir(TEST_ROOT);
-        List<PgnItem> list = dir.getChildrenNames();
+        List<PgnItem> list = dir.getChildrenNames(null);
         for (PgnItem item : list) {
             logger.debug(String.format("%s, %s", item.getClass().toString(), item.getName()));
             if (item instanceof PgnItem.Pgn || item instanceof PgnItem.Zip) {
-                List<PgnItem> items = item.getChildrenNames();
+                List<PgnItem> items = item.getChildrenNames(null);
                 for (PgnItem p : items) {
                     logger.debug(String.format("\t%s", p.toString()));
                     if (p instanceof PgnItem.Item) {
@@ -37,7 +37,7 @@ public class PgnItemTest extends BaseTest {
                         }
                     } else if (p instanceof PgnItem.Pgn) {
                         // zip
-                        List<PgnItem> children = p.getChildrenNames();
+                        List<PgnItem> children = p.getChildrenNames(null);
                         for (PgnItem c : children) {
                             logger.debug(String.format("\t\t%s", c.toString()));
                             if (c.index == testItemIndex) {
@@ -56,10 +56,10 @@ public class PgnItemTest extends BaseTest {
     public void testZip() throws Exception {
         int testItemIndex = 1;
         PgnItem zip = new PgnItem.Zip(TEST_ROOT + "books1.zip");
-        List<PgnItem> list = zip.getChildrenNames();
+        List<PgnItem> list = zip.getChildrenNames(null);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames();
+            List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem item : items) {
                 if (item.index == testItemIndex) {
                     PgnItem.getPgnItem((PgnItem.Item) item);
@@ -137,6 +137,11 @@ public class PgnItemTest extends BaseTest {
             public boolean getMoveText(PgnItem entry) {
                 return true;
             }
+
+            @Override
+            public void addOffset(int length) {
+
+            }
         });
 
         for (PgnItem p : items) {
@@ -153,10 +158,10 @@ public class PgnItemTest extends BaseTest {
         PgnItem.copy(origFile, testFile);
 
         PgnItem zip = new PgnItem.Zip(testFile.getAbsolutePath());
-        List<PgnItem> list = zip.getChildrenNames();
+        List<PgnItem> list = zip.getChildrenNames(null);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames();
+            List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem src : items) {
                 PgnItem.Item item = (PgnItem.Item)src;
                 PgnItem.getPgnItem(item);
@@ -178,16 +183,16 @@ public class PgnItemTest extends BaseTest {
 
         int testItemIndex = 1;
         PgnItem dir = new PgnItem.Dir(root.getAbsolutePath());
-        List<PgnItem> list = dir.getChildrenNames();
+        List<PgnItem> list = dir.getChildrenNames(null);
         for (PgnItem item : list) {
             logger.debug(String.format("%s, %s", item.getClass().toString(), item.getName()));
             if (item instanceof PgnItem.Pgn || item instanceof PgnItem.Zip) {
-                List<PgnItem> items = item.getChildrenNames();
+                List<PgnItem> items = item.getChildrenNames(null);
                 for (PgnItem p : items) {
                     logger.debug(String.format("\t%s", p.toString()));
                     if (p instanceof PgnItem.Pgn) {
                         // zip
-                        List<PgnItem> children = p.getChildrenNames();
+                        List<PgnItem> children = p.getChildrenNames(null);
                         for (PgnItem c : children) {
                             logger.debug(String.format("\t\t%s", c.toString()));
                             if (c.index == testItemIndex) {

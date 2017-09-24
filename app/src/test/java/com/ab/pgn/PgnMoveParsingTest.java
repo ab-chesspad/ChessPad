@@ -278,10 +278,10 @@ public class PgnMoveParsingTest extends BaseTest {
             return null;
         }
         PgnItem zip = new PgnItem.Zip(path);
-        List<PgnItem> list = zip.getChildrenNames();
+        List<PgnItem> list = zip.getChildrenNames(null);
         Assert.assertEquals("Zip file unsuitable for this test, must contain a single pgn file", list.size(), 1);
         PgnItem pgn = list.get(0);
-        return pgn.getChildrenNames();
+        return pgn.getChildrenNames(null);
     }
 
     @Test
@@ -323,7 +323,7 @@ public class PgnMoveParsingTest extends BaseTest {
             return null;
         }
         PgnItem pgn = new PgnItem.Pgn(path);
-        return pgn.getChildrenNames();
+        return pgn.getChildrenNames(null);
     }
 
     @Test
@@ -334,10 +334,10 @@ public class PgnMoveParsingTest extends BaseTest {
         File testFile = new File(String.format("%s/test.zip", root));
         PgnItem.copy(new File(TEST_ROOT + "adams.zip"), testFile);
         PgnItem zip = new PgnItem.Zip(testFile.getAbsolutePath());
-        List<PgnItem> list = zip.getChildrenNames();
+        List<PgnItem> list = zip.getChildrenNames(null);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames();
+            List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem item : items) {
                 logger.debug(item.toString());
                 PgnTree pgnTree = new PgnTree((PgnItem.Item) item);
@@ -363,6 +363,11 @@ public class PgnMoveParsingTest extends BaseTest {
             public boolean getMoveText(PgnItem entry) {
                 return true;
             }
+
+            @Override
+            public void addOffset(int length) {
+
+            }
         });
 
         for(PgnItem item : items) {
@@ -381,10 +386,10 @@ public class PgnMoveParsingTest extends BaseTest {
         File testFile = new File(String.format("%s/test.zip", root));
         PgnItem.copy(new File(TEST_ROOT + "newyork1924.zip"), testFile);
         PgnItem zip = new PgnItem.Zip(testFile.getAbsolutePath());
-        List<PgnItem> list = zip.getChildrenNames();
+        List<PgnItem> list = zip.getChildrenNames(null);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames();
+            List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem item : items) {
                 logger.debug(item.toString());
                 PgnTree pgnTree = new PgnTree((PgnItem.Item) item);

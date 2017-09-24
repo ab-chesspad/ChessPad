@@ -14,8 +14,8 @@ import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
@@ -33,6 +33,7 @@ public class ChessPadView extends View {
 
     private final ChessPad chessPad;
     RelativeLayout relativeLayoutMain;
+    protected CpProgressBar cpProgressBar;
 
     private GameView gameView;
     private SetupView setupView;
@@ -53,6 +54,7 @@ public class ChessPadView extends View {
                 RelativeLayout.LayoutParams.MATCH_PARENT);
         relativeLayoutMain.setBackgroundColor(Color.BLACK);
         chessPad.setContentView(relativeLayoutMain, rlp);
+//        cpProgressBar = new CpProgressBar(chessPad, relativeLayoutMain);
     }
 
     public void redraw() {
@@ -68,7 +70,24 @@ public class ChessPadView extends View {
             setupView = new SetupView(chessPad, relativeLayoutMain);
             setupView.draw();
         }
+        cpProgressBar = new CpProgressBar(chessPad, relativeLayoutMain);
         invalidate();
+
+    }
+
+    public void showProgress(boolean show) {
+        if(cpProgressBar != null) {
+            if(show) {
+                cpProgressBar.update(0);
+            }
+            cpProgressBar.show(show);
+        }
+    }
+
+    public void updateProgress(int progress) {
+        if(cpProgressBar != null) {
+            cpProgressBar.update(progress);
+        }
     }
 
     public void enableNavigation(boolean enable) {
@@ -341,6 +360,55 @@ public class ChessPadView extends View {
             setPadding(1, 1, 1, 1);
             setScaleType(ImageView.ScaleType.FIT_START);
             setAdjustViewBounds(true);
+        }
+    }
+
+    public static class CpProgressBar {
+        private ProgressBar progressBar;
+        private TextView progressText;
+
+        public CpProgressBar(Context context, RelativeLayout relativeLayout) {
+            int x, y, h, w;
+            w = Metrics.boardViewSize;
+            x = (Metrics.screenWidth - w) / 2;
+            h = Metrics.titleHeight;
+            y = Metrics.titleHeight * 2;
+            progressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
+            progressBar.setMinimumHeight(h);
+            progressBar.setVisibility(View.GONE);
+            progressBar.setMax(100);
+            ChessPadView.addView(relativeLayout, progressBar, x, y, w, h);
+
+            w = Metrics.maxMoveWidth;
+            x = (Metrics.screenWidth - w) / 2;
+            y += h + Metrics.ySpacing;
+            h = Metrics.titleHeight;
+            progressText = new TextView(context);
+            progressText.setSingleLine();
+            progressText.setBackgroundColor(Color.CYAN);
+            progressText.setTextColor(Color.RED);
+            progressText.setGravity(Gravity.CENTER | Gravity.CENTER);
+            progressText.setText("Wait...");
+            progressText.setVisibility(View.GONE);
+            ChessPadView.addView(relativeLayout, progressText, x, y, w, h);
+        }
+
+        public void show(boolean bShow) {
+            if(progressBar == null) {
+                return;
+            }
+            if(bShow) {
+                progressBar.setVisibility(View.VISIBLE);
+                progressText.setVisibility(View.VISIBLE);
+            } else {
+                progressBar.setVisibility(View.GONE);
+                progressText.setVisibility(View.GONE);
+            }
+        }
+
+        public void update(int progress) {
+            progressBar.setProgress(progress);
+            progressText.setText(String.format("%s%%", progress));
         }
     }
 
