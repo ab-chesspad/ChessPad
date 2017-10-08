@@ -2,7 +2,7 @@ package com.ab.droid.chesspad;
 
 /**
  * screen metrics to calculate widget sizes
- * Created by alex on 11/27/16.
+ * Created by Alexander Bootman on 11/27/16.
  */
 
 public class Metrics {

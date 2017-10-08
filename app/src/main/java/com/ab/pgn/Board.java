@@ -5,7 +5,7 @@ import java.util.StringTokenizer;
 
 /**
  * Chess board with pieces, validation
- * Created by Alexander Bootman on 8/6g425g/16.
+ * Created by Alexander Bootman on 8/6/16.
  */
 public class Board {
     public static boolean DEBUG = true;
@@ -136,6 +136,27 @@ public class Board {
         }
         res += "   a b c d e f g h\n";
         return res;
+    }
+
+    @Override
+    public boolean equals(Object that) {
+        if (!(that instanceof Board)) {
+            return false;
+        }
+        Pack thisPack, thatPack;
+        try {
+            thisPack = new Pack(this);
+        } catch (IOException e) {
+            logger.error(String.format("Position invalid for packing %s", this.toString()), e);
+            return false;
+        }
+        try {
+            thatPack = new Pack((Board) that);
+            return thisPack.equals(thatPack);
+        } catch (IOException e) {
+            logger.error(String.format("Position invalid for packing %s", that.toString()), e);
+            return false;
+        }
     }
 
     @Override

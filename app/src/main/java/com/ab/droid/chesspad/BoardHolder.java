@@ -5,7 +5,7 @@ import com.ab.pgn.Square;
 
 /**
  *
- * Created by alex on 11/27/16.
+ * Created by Alexander Bootman on 11/27/16.
  */
 
 public interface BoardHolder {

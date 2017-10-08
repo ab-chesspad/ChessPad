@@ -20,7 +20,6 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.ab.pgn.BitStream;
-import com.ab.pgn.Square;
 
 import java.io.IOException;
 
@@ -54,7 +53,6 @@ public class ChessPadView extends View {
                 RelativeLayout.LayoutParams.MATCH_PARENT);
         relativeLayoutMain.setBackgroundColor(Color.BLACK);
         chessPad.setContentView(relativeLayoutMain, rlp);
-//        cpProgressBar = new CpProgressBar(chessPad, relativeLayoutMain);
     }
 
     public void redraw() {
@@ -72,34 +70,11 @@ public class ChessPadView extends View {
         }
         cpProgressBar = new CpProgressBar(chessPad, relativeLayoutMain);
         invalidate();
-
-    }
-
-    public void showProgress(boolean show) {
-        if(cpProgressBar != null) {
-            if(show) {
-                cpProgressBar.update(0);
-            }
-            cpProgressBar.show(show);
-        }
-    }
-
-    public void updateProgress(int progress) {
-        if(cpProgressBar != null) {
-            cpProgressBar.update(progress);
-        }
     }
 
     public void enableNavigation(boolean enable) {
         if(gameView != null) {
             gameView.navigationEnabled = enable;
-        }
-    }
-
-    public void setSelected(Square selected) {
-        chessPad.selected = selected;
-        if(gameView != null) {
-            gameView.selected = selected;
         }
     }
 
@@ -374,19 +349,18 @@ public class ChessPadView extends View {
             h = Metrics.titleHeight;
             y = Metrics.titleHeight * 2;
             progressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
-            progressBar.setMinimumHeight(h);
             progressBar.setVisibility(View.GONE);
             progressBar.setMax(100);
             ChessPadView.addView(relativeLayout, progressBar, x, y, w, h);
 
-            w = Metrics.maxMoveWidth;
+            w = Metrics.maxMoveWidth / 2;
             x = (Metrics.screenWidth - w) / 2;
             y += h + Metrics.ySpacing;
             h = Metrics.titleHeight;
             progressText = new TextView(context);
             progressText.setSingleLine();
-            progressText.setBackgroundColor(Color.CYAN);
-            progressText.setTextColor(Color.RED);
+            progressText.setBackgroundColor(Color.RED);
+            progressText.setTextColor(Color.WHITE);
             progressText.setGravity(Gravity.CENTER | Gravity.CENTER);
             progressText.setText("Wait...");
             progressText.setVisibility(View.GONE);

@@ -147,14 +147,16 @@ public class PgnTree {
         return pgn;
     }
 
-    public void save() throws IOException {
+    public void save(boolean updateMoves, PgnItem.OffsetHandler offsetHandler) throws IOException {
         if (pgn != null) {
-            if(!this.getInitBoard().equals(new Board()) && pgn.getHeader(Config.HEADER_FEN) == null) {
-                String fen = getInitBoard().toFEN();
-                pgn.headers.add(new Pair<String, String>(Config.HEADER_FEN, fen));
+            if(updateMoves) {
+                if (!this.getInitBoard().equals(new Board()) && pgn.getHeader(Config.HEADER_FEN) == null) {
+                    String fen = getInitBoard().toFEN();
+                    pgn.headers.add(new Pair<String, String>(Config.HEADER_FEN, fen));
+                }
+                pgn.setMoveText(this.toPgn());
             }
-            pgn.setMoveText(this.toPgn());
-            pgn.save();
+            pgn.save(offsetHandler);
             modified = false;
         }
     }
@@ -369,8 +371,6 @@ public class PgnTree {
 
     // complete move, needs validation
     public boolean validateUserMove(Move newMove) {
-        // 7/14/17
-//        newMove.moveFlags = getFlags();
         newMove.moveFlags |= getFlags() & (Config.FLAGS_BLACK_MOVE | Config.FLAGS_ENPASSANT_OK);
         int piece = newMove.getColorlessPiece();
         if(piece == Config.KING) {

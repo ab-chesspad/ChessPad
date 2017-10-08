@@ -23,8 +23,8 @@ public class Sample {
             String pgn =
                 "[White \"white\\\\repetition, promotion\"]\n" +
                 "[Black \"black \\\"black\\\"\"]\n" +
-                "[FEN \"r3kbnr/pPp2p1p/4p3/3pP3/8/5P2/P1PP2pP/RNBQK2R w KQkq d6 92 3\"]\n" +
-                "1. Nc3 Bd6 2. Nb1 Bf8 3. Nc3 Bd6 4. Nb1 {Sample to test ChessPad. 4. ... Bf8 creates 50 moves situation. 5. Nc3 creates 3-fold repetition.}" +
+                "[FEN \"r3kbnr/pPp2p1p/4p3/3pP3/8/5P2/P1PP2pP/RNBQK2R w KQkq - 92 3\"]\n" +
+                "1. Nc3 Bd6 2. Nb1 Bf8 3. Nc3 Bd6 4. Nb1 {Sample to test ChessPad. 4. ... Be7 creates 50 moves situation. 4. ... Bf8 creates 3-fold repetition.}" +
                 "\n" +
                 "\n" +
 
@@ -38,6 +38,7 @@ public class Sample {
                 "[Black \"H. Yusupov\"]\n" +
                 "[Date \"1981.??.??\"]\n" +
                 "[FEN \"8/pp6/5qpp/1Q2Np1k/5P2/P5PK/1Pr4P/8 b - - 0 1\"]\n" +
+                "1.Qa6 {Blunder, forced checkmate in 4}" +
                 "\n" +
 
                 "[Event \"Amsterdam\"]\n" +
@@ -134,7 +135,14 @@ public class Sample {
                 "9.d3 Nb6 10.Qb3 Bf5 11.Re1 h6 12.a4 Nfd7 13.Be3 a5 14.Nd4 Nxc4 15.dxc4 Nc5\n" +
                 "16.Qa3 Nd3 17.Nxf5 gxf5 18.Red1 Ne5 19.b3 Ng4 20.Qc1 f4 21.Bd4 Bxd4 22.Rxd4 e5\n" +
                 "23.Rd2 Qh4 24.h3 Nf6 25.Qe1 Qg5 26.Ne4 Nxe4 27.Qxe4 f5 28.Qxe5 Rae8 29.h4 Qxh4\n" +
-                "30.Qc3 Re4 31.d6 Qg5 32.f3 Re3 33.Qxa5 Rfe8 34.Rf2 Qf6 35.Rd1 R3e5 36.d7  1-0";
+                "30.Qc3 Re4 31.d6 Qg5 32.f3 Re3 33.Qxa5 Rfe8 34.Rf2 Qf6 35.Rd1 R3e5 36.d7  1-0\n" +
+                "\n" +
+
+//                "[White \"Same position\"]\n" +
+//                "[Black \"after different moves\"]\n" +
+//                "1.e4 e5 2.Nf3 (2.Bc4 Nc6 3.Nf3 Nf6) 2. ... Nc6 3.Bc4 Nf6 4.c3" +
+                ""
+                ;
 
             File f = new File(new File(PgnItem.getRoot(), ChessPad.DEFAULT_DIRECTORY), "sample.pgn");
             FileOutputStream fos = new FileOutputStream(f);

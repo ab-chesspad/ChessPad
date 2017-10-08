@@ -254,7 +254,7 @@ public class PgnMoveParsingTest extends BaseTest {
         }
         PgnItem.Item item = (PgnItem.Item) items.get(testIndex);
         item.setIndex(-1);      // append
-        item.save();            // append with no moveText
+        item.save(null);            // append with no moveText
         ++count;
         List<PgnItem> items1 = getZipItems(testFile.getAbsolutePath());
         Assert.assertEquals(count, items1.size());
@@ -262,7 +262,7 @@ public class PgnMoveParsingTest extends BaseTest {
         item.setMoveText(null);
         item.setIndex(0);
         for(int i = 0; i < count; ++i) {
-            item.save();    // delete #0 since moveText is null
+            item.save(null);    // delete #0 since moveText is null
             items1 = getZipItems(testFile.getAbsolutePath());
             if(i == count - 1) {
                 Assert.assertNull(items1);
@@ -298,7 +298,7 @@ public class PgnMoveParsingTest extends BaseTest {
         }
         PgnItem.Item item = (PgnItem.Item) items.get(testIndex);
         item.setIndex(-1);      // append
-        item.save();            // append with no moveText
+        item.save(null);            // append with no moveText
         ++count;
         List<PgnItem> items1 = getPgnItems(testFile.getAbsolutePath());
         Assert.assertEquals(count, items1.size());
@@ -307,7 +307,7 @@ public class PgnMoveParsingTest extends BaseTest {
         item.setIndex(0);
         for(int i = 0; i < count; ++i) {
 //            logger.debug(String.format("delete %s", i));
-            item.save();    // delete #0 since moveText is null
+            item.save(null);    // delete #0 since moveText is null
             items1 = getPgnItems(testFile.getAbsolutePath());
             if(i == count - 1) {
                 Assert.assertNull(items1);
