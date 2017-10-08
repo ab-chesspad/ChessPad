@@ -137,7 +137,7 @@ public class ChessPad extends AppCompatActivity {
     private PgnItem.Item nextPgnItem;
     private boolean reversed;
     protected Square selected;
-    private int selectedPiece; // debug
+    private int selectedPiece;
 
     transient public String versionName;
     transient public int versionCode;
@@ -227,7 +227,7 @@ public class ChessPad extends AppCompatActivity {
                     fis = openFileInput(STATUS_FILE_NAME);
                 }
             } catch (FileNotFoundException e) {
-                Log.d(DEBUG_TAG, "onResume() 1", e);
+                Log.w(DEBUG_TAG, "onResume() 1", e);
             }
 
             if (fis != null) {
@@ -338,7 +338,7 @@ public class ChessPad extends AppCompatActivity {
         reversed = reader.read(1) == 1;
         if (reader.read(1) == 1) {
             selected = new Square(reader);
-            chessPadView.setSelected(selected);
+            selectedPiece = pgnTree.getBoard().getPiece(selected);
         }
         popups.unserialize(reader);
         return true;
@@ -508,10 +508,6 @@ public class ChessPad extends AppCompatActivity {
                     }
                     break;
 
-//                case Append:
-//                    Log.d(DEBUG_TAG, String.format("Append %s", param.toString()));
-//                    break;
-
                 case EditHeaders:
                     if (!isAnimationRunning()) {
                         popups.launchDialog(Popups.DialogType.Headers);
@@ -527,13 +523,18 @@ public class ChessPad extends AppCompatActivity {
     void delete() throws IOException {
         if(isFirstMove()) {
             pgnTree.getPgn().setMoveText(null);
-            pgnTree.getPgn().save();
-            pgnTree = new PgnTree(new Board());
-            currentPath = currentPath.getParent();
+            savePgnTree(false, new CPPostExecutor() {
+                @Override
+                public void onPostExecute() throws IOException {
+                    pgnTree = new PgnTree(new Board());
+                    currentPath = currentPath.getParent();
+                    chessPadView.invalidate();
+                }
+            });
         } else {
             pgnTree.delCurrentMove();
+            chessPadView.invalidate();
         }
-        chessPadView.invalidate();
     }
 
     public boolean onSquareClick(Square clicked) {
@@ -648,8 +649,6 @@ public class ChessPad extends AppCompatActivity {
         Log.d(DEBUG_TAG, String.format("menu %s", menuCommand.toString()));
         switch (menuCommand) {
             case Load:
-                // todo: background
-//                Toast.makeText(this, R.string.alert_msg_wait, Toast.LENGTH_LONG).show();
                 popups.launchDialog(Popups.DialogType.Load);
                 break;
 
@@ -658,7 +657,7 @@ public class ChessPad extends AppCompatActivity {
                 break;
 
             case Save:
-                pgnTree.save();
+                savePgnTree(true, null);
                 break;
 
             case Append:
@@ -721,6 +720,35 @@ public class ChessPad extends AppCompatActivity {
             selected = null;
             popups.promotionMove = null;
         }
+    }
+
+    public void savePgnTree(final boolean updateMoves, final CPPostExecutor cpPostExecutor) throws IOException {
+        new CPAsyncTask(chessPadView.cpProgressBar, new CPExecutor() {
+            @Override
+            public void onPostExecute() throws IOException {
+                Log.d(DEBUG_TAG, String.format("savePgnTree onPostExecute, thread %s", Thread.currentThread().getName()));
+                if(cpPostExecutor != null) {
+                    cpPostExecutor.onPostExecute();
+                }
+            }
+
+            @Override
+            public void doInBackground(final ProgressPublisher progressPublisher) throws IOException {
+                Log.d(DEBUG_TAG, String.format("savePgnTree start, thread %s", Thread.currentThread().getName()));
+                pgnTree.save(updateMoves, new PgnItem.OffsetHandler() {
+                    @Override
+                    public void setOffset(int offset) {
+                        int totalLength = pgnTree.getPgn().getParent().getLength();
+                        Log.d(DEBUG_TAG, String.format("setOffset %d, total %d, thread %s", offset, totalLength, Thread.currentThread().getName()));
+                        if(totalLength == 0) {
+                            return;
+                        }
+                        int percent = offset * 100 / totalLength;
+                        progressPublisher.publishProgress(percent);
+                    }
+                });
+            }
+        }).execute();
     }
 
     public Board getBoard() {

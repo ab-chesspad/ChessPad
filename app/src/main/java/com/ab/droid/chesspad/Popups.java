@@ -97,10 +97,10 @@ public class Popups {
     protected Move promotionMove;
     private Dialog currentAlertDialog;
 
-    private DialogType dialogType = DialogType.None;
+    protected DialogType dialogType = DialogType.None;
     private String dialogMsg = null;
     private List<Pair<String, String>> editHeaders;
-//    private int topVisibleRow = 0;
+    private CPPgnItemListAdapter cpPgnItemListAdapter;
 
     public Popups(ChessPad chessPad) {
         this.chessPad = chessPad;
@@ -122,7 +122,6 @@ public class Popups {
         writer.write(dialogType.getValue(), 4);
         writer.writeString(dialogMsg);
         PgnItem.serialize(writer, editHeaders);
-//        writer.write(topVisibleRow, 12);
     }
 
     public void unserialize(BitStream.Reader reader) throws IOException {
@@ -137,16 +136,32 @@ public class Popups {
             dialogMsg = null;
         }
         editHeaders = PgnItem.unserializeHeaders(reader);
-//        topVisibleRow = reader.read(12);
         afterUnserialize();
     }
 
-    private void afterUnserialize() {
-        try {
-            launchDialog(this.dialogType);
-        } catch (IOException e) {
-            Log.e(DEBUG_TAG, "onResume() 4", e);
-        }
+    protected void afterUnserialize() {
+        // let UI be redrawn, otherwise ProgressBar will not show up
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... params) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Log.e(DEBUG_TAG, "sleep", e);
+                }
+                return null;
+            }
+
+            @Override
+            protected void onPostExecute(Void param) {
+                super.onPostExecute(param);
+                try {
+                    launchDialog(Popups.this.dialogType);
+                } catch (IOException e) {
+                    Log.e(DEBUG_TAG, "onResume() 4", e);
+                }
+            }
+        }.execute((Void)null);
     }
 
     private Resources getResources() {
@@ -183,7 +198,7 @@ public class Popups {
                 if (pgnItem != null) {
                     selectedPgnItem = pgnItem.parentIndex(chessPad.currentPath);
                 }
-                launchDialog(dialogType, new CPPgnItemListAdapter(chessPad.currentPath, selectedPgnItem));
+                launchDialog(dialogType, getPgnItemListAdapter(chessPad.currentPath, selectedPgnItem));
                 break;
 
             case Menu:
@@ -258,8 +273,12 @@ public class Popups {
                 case DialogInterface.BUTTON_POSITIVE:
                     try {
                         if(chessPad.isSaveable()) {
-                            chessPad.pgnTree.save();
-                            chessPad.setPgnTree(null);
+                            chessPad.savePgnTree(true, new CPPostExecutor() {
+                                @Override
+                                public void onPostExecute() throws IOException {
+                                    chessPad.setPgnTree(null);
+                                }
+                            });
                         } else {
                             dismissDlg();
                             launchDialog(DialogType.Append);
@@ -331,13 +350,35 @@ public class Popups {
                 if (selectedValue instanceof PgnItem.Item) {
                     Log.d(DEBUG_TAG, String.format("selected %s", selectedValue.toString()));
                     dismissDlg();
-                    PgnItem.Item actualItem = (PgnItem.Item) selectedValue;
-                    try {
-                        PgnItem.getPgnItem(actualItem);
-                        chessPad.setPgnTree(actualItem);
-                    } catch (IOException e) {
-                        Log.e(DEBUG_TAG, String.format("selected %s", selectedValue.toString()), e);
-                    }
+                    final PgnItem.Item actualItem = (PgnItem.Item) selectedValue;
+                    new CPAsyncTask(chessPad.chessPadView.cpProgressBar, new CPExecutor() {
+                        @Override
+                        public void onPostExecute() {
+                            Log.d(DEBUG_TAG, String.format("getPgnItem end, thread %s", Thread.currentThread().getName()));
+                            try {
+                                chessPad.setPgnTree(actualItem);
+                            } catch (IOException e) {
+                                Log.e(DEBUG_TAG, String.format("actualItem %s", actualItem.toString()), e);
+                            }
+                        }
+
+                        @Override
+                        public void doInBackground(final ProgressPublisher progressPublisher) throws IOException {
+                            Log.d(DEBUG_TAG, String.format("getPgnItem start, thread %s", Thread.currentThread().getName()));
+                            PgnItem.getPgnItem(actualItem, new PgnItem.OffsetHandler() {
+                                @Override
+                                public void setOffset(int offset) {
+                                    int totalLength = actualItem.getOffset();
+                                    Log.e(DEBUG_TAG, String.format("setOffset %d, total %d, thread %s", offset, totalLength, Thread.currentThread().getName()));
+                                    if(totalLength == 0) {
+                                        return;
+                                    }
+                                    int percent = offset * 100 / totalLength;
+                                    progressPublisher.publishProgress(percent);
+                                }
+                            });
+                        }
+                    }).execute();
                 } else {
                     chessPad.currentPath = (PgnItem) selectedValue;
                     dismissDlg();
@@ -349,8 +390,12 @@ public class Popups {
                 PgnItem.Pgn pgn = new PgnItem.Pgn(selectedValue.toString());
                 chessPad.pgnTree.getPgn().setParent(pgn);
                 chessPad.pgnTree.getPgn().setIndex(-1);
-                chessPad.pgnTree.save();
-                chessPad.setPgnTree(null);
+                chessPad.savePgnTree(true, new CPPostExecutor() {
+                    @Override
+                    public void onPostExecute() throws IOException {
+                        chessPad.setPgnTree(null);
+                    }
+                });
                 break;
 
             case Headers:
@@ -441,7 +486,7 @@ public class Popups {
         if (arrayAdapter != null) {
             builder.setSingleChoiceItems(
                     arrayAdapter,
-                    arrayAdapter.getInitSelection(),
+                    arrayAdapter.getSelectedIndex(),
                     new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
@@ -571,7 +616,7 @@ public class Popups {
                         }
 
                         int selectedIndex = pgnItem.parentIndex(path);
-                        final CPPgnItemListAdapter mAdapter = new CPPgnItemListAdapter(path, selectedIndex);
+                        final CPPgnItemListAdapter mAdapter = getPgnItemListAdapter(path, selectedIndex);
                         listView.setAdapter(mAdapter);
                         listView.setFastScrollEnabled(true);
                         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -606,30 +651,39 @@ public class Popups {
         mDialog.show();
     }
 
+    private CPPgnItemListAdapter getPgnItemListAdapter(PgnItem parentItem, int initSelection) throws IOException {
+        if(cpPgnItemListAdapter == null || cpPgnItemListAdapter.isChanged(parentItem)) {
+            cpPgnItemListAdapter = new CPPgnItemListAdapter(parentItem, initSelection);
+        }
+        cpPgnItemListAdapter.setSelectedIndex(initSelection);
+        return cpPgnItemListAdapter;
+    }
+
     private class CPArrayAdapter extends ArrayAdapter<Object> {
         protected List<?> values;
         protected int[] resources;
-        protected int initSelection;
+        protected int selectedIndex;
+        protected int selectedIndexAdjustment = 0;
         protected LayoutInflater layoutInflater;
 
         protected CPArrayAdapter() {
             super(chessPad, 0);
         }
 
-        public CPArrayAdapter(int[] resources, int initSelection) {
+        public CPArrayAdapter(int[] resources, int selectedIndex) {
             super(chessPad, 0);
-            init(null, resources, initSelection);
+            init(null, resources, selectedIndex);
         }
 
-        public CPArrayAdapter(List<?> values, int initSelection) {
+        public CPArrayAdapter(List<?> values, int selectedIndex) {
             super(chessPad, 0);
-            init(values, null, initSelection);
+            init(values, null, selectedIndex);
         }
 
         protected void init(List<?> values, int[] resources, int initSelection) {
             this.values = values;
             this.resources = resources;
-            this.initSelection = initSelection;
+            this.selectedIndex = initSelection;
             layoutInflater = LayoutInflater.from(chessPad);
         }
 
@@ -640,7 +694,7 @@ public class Popups {
             }
             TextView textView = (TextView) convertView.findViewById(R.id.listViewRow);
             textView.setVisibility(View.VISIBLE);
-            if (position == initSelection) {
+            if (position == selectedIndex) {
                 textView.setBackgroundColor(Color.CYAN);
             } else {
                 textView.setBackgroundColor(Color.WHITE);
@@ -675,8 +729,12 @@ public class Popups {
             return 0;
         }
 
-        public int getInitSelection() {
-            return initSelection;
+        public int getSelectedIndex() {
+            return selectedIndex;
+        }
+
+        public void setSelectedIndex(int selectedIndex) {
+            this.selectedIndex = selectedIndex;
         }
 
         public Object getItem(int position) {
@@ -699,75 +757,46 @@ public class Popups {
         }
 
         public void refresh(final PgnItem parentItem, int initSelection) throws IOException {
-            Log.d(DEBUG_TAG, "thread " + Thread.currentThread().getName());
+            Log.d(DEBUG_TAG, "CPPgnItemListAdapter.refresh, thread " + Thread.currentThread().getName());
             this.parentItem = parentItem;
-            if (parentItem != null && parentItem.getParent() != null && initSelection >= 0) {
-                ++initSelection;
+            if (parentItem != null && parentItem.getParent() != null) {
+                selectedIndexAdjustment = 1;
             }
             init(null, null, initSelection);
             if (parentItem != null) {
-                chessPad.chessPadView.updateProgress(0);
-                new AsyncTask<Void, Integer, Void>() {
+                new CPAsyncTask(chessPad.chessPadView.cpProgressBar, new CPExecutor() {
                     @Override
-                    protected void onPreExecute() {
-                        super.onPreExecute();
-                        chessPad.chessPadView.showProgress(true);
-                    }
-
-                    @Override
-                    protected void onPostExecute(Void param) {
-                        super.onPostExecute(param);
-                        Log.e(DEBUG_TAG, String.format("Child list %d items long, thread %s", pgnItemList.size(), Thread.currentThread().getName()));
+                    public void onPostExecute() {
+                        Log.d(DEBUG_TAG, String.format("Child list %d items long, thread %s", pgnItemList.size(), Thread.currentThread().getName()));
                         if (parentItem.getParent() != null) {
                             pgnItemList.add(0, parentItem.getParent());
                         }
-                        chessPad.chessPadView.showProgress(false);
                         notifyDataSetChanged();
                     }
 
                     @Override
-                    protected Void doInBackground(Void... params) {
-                        try {
-                            Log.e(DEBUG_TAG, String.format("parentItem.getChildrenNames start, thread %s", Thread.currentThread().getName()));
-                            pgnItemList = parentItem.getChildrenNames(new PgnItem.OffsetHandler() {
-                                long oldOffset = 0;
-                                @Override
-                                public void setOffset(long offset) {
-                                    long totalLength = parentItem.getLength();
-                                    Log.e(DEBUG_TAG, String.format("setOffset %d, thread %s", totalLength, Thread.currentThread().getName()));
-                                    if(totalLength == 0) {
-                                        return;
-                                    }
-                                    long newOffset = parentItem.getOffset();
-                                    long percent = (newOffset - oldOffset) * 100 / totalLength;
-                                    if(percent >= 5) {
-                                        percent = newOffset * 100 / totalLength;
-                                        Log.e(DEBUG_TAG, String.format("publishProgress %d, thread %s", percent, Thread.currentThread().getName()));
-                                        publishProgress((int)percent);
-                                        oldOffset = newOffset;
-                                    }
+                    public void doInBackground(final ProgressPublisher progressPublisher) throws IOException {
+                        Log.d(DEBUG_TAG, String.format("parentItem.getChildrenNames start, thread %s", Thread.currentThread().getName()));
+                        pgnItemList = parentItem.getChildrenNames(new PgnItem.OffsetHandler() {
+                            @Override
+                            public void setOffset(int offset) {
+                                int totalLength = parentItem.getLength();
+                                Log.d(DEBUG_TAG, String.format("setOffset %d, total %d, thread %s", offset, totalLength, Thread.currentThread().getName()));
+                                if(totalLength == 0) {
+                                    return;
                                 }
-                            });
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        Log.e(DEBUG_TAG, String.format("parentItem.getChildrenNames end, thread %s", Thread.currentThread().getName()));
-                        return null;
+                                int percent = offset * 100 / totalLength;
+                                progressPublisher.publishProgress(percent);
+                            }
+                        });
                     }
-
-                    @Override
-                    protected void onProgressUpdate(Integer... values) {
-                        super.onProgressUpdate(values);
-                        Log.e(DEBUG_TAG, String.format("onProgressUpdate %d, thread %s", values[0], Thread.currentThread().getName()));
-                        chessPad.chessPadView.updateProgress(values[0]);
-                    }
-                }.execute();
+                }).execute();
             }
         }
 
         @Override
         public int getCount() {
-            Log.d(DEBUG_TAG, "thread " + Thread.currentThread().getName());
+            Log.d(DEBUG_TAG, "CPPgnItemListAdapter.getCount, thread " + Thread.currentThread().getName());
             if (pgnItemList != null) {
                 return pgnItemList.size();
             }
@@ -787,7 +816,7 @@ public class Popups {
             TextView textView = (TextView) convertView.findViewById(R.id.listViewRow);
             textView.setVisibility(View.VISIBLE);
             textView.setSingleLine();
-            if (position == initSelection) {
+            if (position == selectedIndex + selectedIndexAdjustment) {
                 textView.setBackgroundColor(Color.CYAN);
             } else {
                 textView.setBackgroundColor(Color.WHITE);
@@ -813,6 +842,13 @@ public class Popups {
             textView.setText(text);
             textView.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
             return convertView;
+        }
+
+        public boolean isChanged(PgnItem parentItem) {
+            if(this.parentItem.equals(parentItem)) {
+                return false;
+            }
+            return true;
         }
     }
 
@@ -940,11 +976,5 @@ public class Popups {
             }
         }
     }
-
-/*
-    private interface CPExecutor {
-        void execute() throws IOException;
-    }
-*/
 
 }

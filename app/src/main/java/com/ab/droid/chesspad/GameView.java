@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  *
- * Created by alex on 11/27/16.
+ * Created by Alexander Bootman on 11/27/16.
  */
 
 public class GameView {
@@ -31,7 +31,6 @@ public class GameView {
 
     private TextView title;
     private BoardView boardView;
-    Square selected;
 
     private TextView glyph, move;
     private ChessPadView.CpEditText comment;
@@ -241,11 +240,10 @@ public class GameView {
 
     public void invalidate() {
         title.setText(chessPad.pgnTree.getTitle());
-        if(this.selected == null) {
+        if(chessPad.selected == null) {
             boardView.setSelected(chessPad.pgnTree.getCurrentToSquare());
         } else {
-            boardView.setSelected(this.selected);
-            this.selected = null;
+            boardView.setSelected(chessPad.selected);
         }
 
         move.setText(chessPad.pgnTree.getCurrentMove());

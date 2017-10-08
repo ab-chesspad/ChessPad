@@ -17,7 +17,7 @@ import java.util.List;
 
 /**
  * Setup data
- * Created by alex on 11/26/16.
+ * Created by Alexander Bootman on 11/26/16.
  */
 
 public class Setup implements ChessPadView.ChangeObserver {

@@ -2,12 +2,16 @@ package com.ab.pgn;
 
 import junit.framework.Assert;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -32,7 +36,7 @@ public class PgnItemTest extends BaseTest {
                     if (p instanceof PgnItem.Item) {
                         if (p.index == testItemIndex) {
                             // pgn
-                            PgnItem.getPgnItem((PgnItem.Item) p);
+                            PgnItem.getPgnItem((PgnItem.Item)p, null);
                             logger.debug(String.format("\t%s", ((PgnItem.Item) p).getMoveText()));
                         }
                     } else if (p instanceof PgnItem.Pgn) {
@@ -41,7 +45,7 @@ public class PgnItemTest extends BaseTest {
                         for (PgnItem c : children) {
                             logger.debug(String.format("\t\t%s", c.toString()));
                             if (c.index == testItemIndex) {
-                                PgnItem.getPgnItem((PgnItem.Item) c);
+                                PgnItem.getPgnItem((PgnItem.Item)c, null);
                                 logger.debug(String.format("\t%s", ((PgnItem.Item) c).getMoveText()));
                             }
                         }
@@ -62,7 +66,7 @@ public class PgnItemTest extends BaseTest {
             List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem item : items) {
                 if (item.index == testItemIndex) {
-                    PgnItem.getPgnItem((PgnItem.Item) item);
+                    PgnItem.getPgnItem((PgnItem.Item)item, null);
                 }
                 logger.debug(item.toString());
             }
@@ -164,11 +168,11 @@ public class PgnItemTest extends BaseTest {
             List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem src : items) {
                 PgnItem.Item item = (PgnItem.Item)src;
-                PgnItem.getPgnItem(item);
+                PgnItem.getPgnItem(item, null);
                 String moveText = item.getMoveText().replaceAll("(?s)\\{.*?\\}", "");
                 if(!moveText.equals(item.getMoveText())) {
                     item.setMoveText(moveText);
-                    item.save();
+                    item.save(null);
                 }
                 logger.debug(String.format("\t%s", item.getMoveText()));
             }
@@ -196,11 +200,11 @@ public class PgnItemTest extends BaseTest {
                         for (PgnItem c : children) {
                             logger.debug(String.format("\t\t%s", c.toString()));
                             if (c.index == testItemIndex) {
-                                PgnItem.getPgnItem((PgnItem.Item) c);
-                                String moveText = ((PgnItem.Item) c).getMoveText().replaceAll("(?s)\\{.*?\\}", "");
+                                PgnItem.getPgnItem((PgnItem.Item)c, null);
+                                String moveText = ((PgnItem.Item)c).getMoveText().replaceAll("(?s)\\{.*?\\}", "");
                                 ((PgnItem.Item) c).setMoveText(moveText);
                                 logger.debug(String.format("\t%s", ((PgnItem.Item) c).getMoveText()));
-                                ((PgnItem.Item) c).save();
+                                ((PgnItem.Item) c).save(null);
                             }
                         }
                     }
@@ -279,5 +283,43 @@ public class PgnItemTest extends BaseTest {
         logger.debug(String.format("regex: %s, %s", s, s3));
         logger.debug("done");
 
+    }
+
+    @Test
+//    @Ignore("Just prints results")
+    public void testSort() {
+        List<PgnItem> list = new ArrayList<PgnItem>(Arrays.asList(
+
+                new PgnItem.Pgn("1.pgn"),
+                new PgnItem.Pgn("2.pgn"),
+                new PgnItem.Pgn("MaxLange-0.pgn"),
+                new PgnItem.Pgn("20170523.pgn"),
+
+                new PgnItem.Pgn("abc.pgn"),
+                new PgnItem.Pgn("xyz.pgn"),
+                new PgnItem.Pgn("3abc.pgn"),
+                new PgnItem.Pgn("12abc.pgn"),
+                new PgnItem.Pgn("3xyz.pgn"),
+                new PgnItem.Pgn("12xyz.pgn"),
+
+                new PgnItem.Dir("abc-dir"),
+                new PgnItem.Dir("xyz-dir"),
+                new PgnItem.Dir("3abc-dir"),
+                new PgnItem.Dir("12abc-dir"),
+                new PgnItem.Dir("3xyz-dir"),
+                new PgnItem.Dir("12xyz-dir"),
+
+                new PgnItem.Zip("abc.zip"),
+                new PgnItem.Zip("xyz.zip"),
+                new PgnItem.Zip("3abc.zip"),
+                new PgnItem.Zip("12abc.zip"),
+                new PgnItem.Zip("3xyz.zip"),
+                new PgnItem.Zip("12xyz.zip")
+        ));
+        Collections.sort(list);
+        for(PgnItem item : list) {
+            System.out.println(String.format("%s, %s", item.getClass().toString(), item.getName()));
+        }
+        logger.debug("done");
     }
 }
