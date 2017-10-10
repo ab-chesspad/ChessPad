@@ -40,62 +40,76 @@ public class Setup implements ChessPadView.ChangeObserver {
         onValueChanged(null);       // update status
     }
 
-    public void serialize(BitStream.Writer writer) throws IOException {
-//        board.serialize(writer);    // does not work for invalid positions
-        serializeSetupBoard(writer);
-        PgnItem.serialize(writer, headers);
-        enPass.serialize(writer);
-        hmClock.serialize(writer);
-        moveNum.serialize(writer);
+    public void serialize(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            serializeSetupBoard(writer);
+            PgnItem.serialize(writer, headers);
+            enPass.serialize(writer);
+            hmClock.serialize(writer);
+            moveNum.serialize(writer);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
-    public Setup(BitStream.Reader reader) throws IOException {
-//        this.board = new Board(reader);
-        this.board = unserializeSetupBoard(reader);
-        this.headers = PgnItem.unserializeHeaders(reader);
-        this.enPass = new ChessPadView.StringWrapper(reader, this);
-        this.hmClock = new ChessPadView.StringWrapper(reader, this);
-        this.moveNum = new ChessPadView.StringWrapper(reader, this);
+    public Setup(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            this.board = unserializeSetupBoard(reader);
+            this.headers = PgnItem.unserializeHeaders(reader);
+            this.enPass = new ChessPadView.StringWrapper(reader, this);
+            this.hmClock = new ChessPadView.StringWrapper(reader, this);
+            this.moveNum = new ChessPadView.StringWrapper(reader, this);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
-    private void serializeSetupBoard(BitStream.Writer writer) throws IOException {
-        Pack.packBoard(board, writer);
-        List<Square> wKings = new LinkedList<>();
-        List<Square> bKings = new LinkedList<>();
-        for (int x = 0; x < Config.BOARD_SIZE; x++) {
-            for (int y = 0; y < Config.BOARD_SIZE; y++) {
-                int piece = board.getPiece(x, y);
-                if(piece == Config.WHITE_KING) {
-                    wKings.add(new Square(x, y));
-                }
-                if(piece == Config.BLACK_KING) {
-                    bKings.add(new Square(x, y));
+    private void serializeSetupBoard(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            Pack.packBoard(board, writer);
+            List<Square> wKings = new LinkedList<>();
+            List<Square> bKings = new LinkedList<>();
+            for (int x = 0; x < Config.BOARD_SIZE; x++) {
+                for (int y = 0; y < Config.BOARD_SIZE; y++) {
+                    int piece = board.getPiece(x, y);
+                    if (piece == Config.WHITE_KING) {
+                        wKings.add(new Square(x, y));
+                    }
+                    if (piece == Config.BLACK_KING) {
+                        bKings.add(new Square(x, y));
+                    }
                 }
             }
-        }
-        writer.write(wKings.size(), 6);
-        for(Square sq : wKings) {
-            sq.serialize(writer);
-        }
-        writer.write(bKings.size(), 6);
-        for(Square sq : bKings) {
-            sq.serialize(writer);
+            writer.write(wKings.size(), 6);
+            for (Square sq : wKings) {
+                sq.serialize(writer);
+            }
+            writer.write(bKings.size(), 6);
+            for (Square sq : bKings) {
+                sq.serialize(writer);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
     }
 
-    private Board unserializeSetupBoard(BitStream.Reader reader) throws IOException {
-        Board board = Pack.unpackBoard(reader);
-        int n = reader.read(6);
-        for(int i = 0; i < n; ++i) {
-            Square sq = new Square(reader);
-            board.setPiece(sq, Config.WHITE_KING);
+    private Board unserializeSetupBoard(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            Board board = Pack.unpackBoard(reader);
+            int n = reader.read(6);
+            for (int i = 0; i < n; ++i) {
+                Square sq = new Square(reader);
+                board.setPiece(sq, Config.WHITE_KING);
+            }
+            n = reader.read(6);
+            for (int i = 0; i < n; ++i) {
+                Square sq = new Square(reader);
+                board.setPiece(sq, Config.BLACK_KING);
+            }
+            return board;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
-        n = reader.read(6);
-        for(int i = 0; i < n; ++i) {
-            Square sq = new Square(reader);
-            board.setPiece(sq, Config.BLACK_KING);
-        }
-        return board;
     }
 
     public void setChessPadView(ChessPadView chessPadView) {
@@ -126,7 +140,7 @@ public class Setup implements ChessPadView.ChangeObserver {
         return PgnItem.getTitle(headers, -1);
     }
 
-    public PgnTree toPgnTree() throws IOException {
+    public PgnTree toPgnTree() throws Config.PGNException {
         int err;
         if((err = validate()) != 0) {
             Log.e(DEBUG_TAG, String.format("Setup error %s\n%s", err, board.toString()));

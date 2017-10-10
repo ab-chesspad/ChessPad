@@ -162,13 +162,13 @@ public class BaseTest {
         return String.format("[%s \"%s\"]\n", MY_HEADER, fen);
     }
 
-    public List<PgnTree> parse(String pgn) throws IOException {
+    public List<PgnTree> parse(String pgn) throws Config.PGNException {
         List<PgnTree> res = new LinkedList<>();
         BufferedReader br = new BufferedReader(new StringReader(pgn));
         final List<PgnItem> items = new LinkedList<>();
         PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws IOException {
+            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
                 items.add(entry);
                 return true;
             }
@@ -274,13 +274,13 @@ public class BaseTest {
      * @throws IOException
      */
 
-    public void testMoves(String fen, Pair<String, Integer>[] moves) throws IOException {
+    public void testMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
         String pgn = String.format("[FEN \"%s\"]", fen);
         BufferedReader br = new BufferedReader(new StringReader(pgn));
         final List<PgnItem> items = new LinkedList<>();
         PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws IOException {
+            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
                 items.add(entry);
                 return true;
             }

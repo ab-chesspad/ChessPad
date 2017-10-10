@@ -2,14 +2,14 @@ package com.ab.droid.chesspad;
 
 import android.os.AsyncTask;
 import android.util.Log;
-
-import java.io.IOException;
+import com.ab.pgn.Config;
 
 /**
+ *
  * Created by Alexander Bootman on 10/1/17.
  */
 
-public class CPAsyncTask extends AsyncTask<Void, Integer, Void> implements ProgressPublisher {
+public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> implements ProgressPublisher {
     protected final String DEBUG_TAG = this.getClass().getName();
 
     private CPExecutor cpExecutor;
@@ -36,24 +36,29 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Void> implements Progr
     }
 
     @Override
-    protected void onPostExecute(Void param) {
+    protected void onPostExecute(Config.PGNException param) {
         super.onPostExecute(param);
         if(cpProgressBar != null) {
             cpProgressBar.show(false);
         }
         try {
-            cpExecutor.onPostExecute();
-        } catch (IOException e) {
+            if(param == null) {
+                cpExecutor.onPostExecute();
+            } else {
+                cpExecutor.onExecuteException(param);
+            }
+        } catch (Config.PGNException e) {
             Log.e(DEBUG_TAG, String.format("onPostExecute, thread %s", Thread.currentThread().getName()), e);
         }
     }
 
     @Override
-    protected Void doInBackground(Void... params) {
+    protected Config.PGNException doInBackground(Void... params) {
         try {
             cpExecutor.doInBackground(this);
-        } catch (IOException e) {
+        } catch (Config.PGNException e) {
             Log.e(this.DEBUG_TAG, String.format("doInBackground, thread %s", Thread.currentThread().getName()), e);
+            return e;
         }
         return null;
     }
@@ -81,10 +86,10 @@ interface ProgressPublisher {
 }
 
 interface CPPostExecutor {
-    void onPostExecute() throws IOException;
+    void onPostExecute() throws Config.PGNException;
+    void onExecuteException(Config.PGNException e) throws Config.PGNException;
 }
 
 interface CPExecutor extends CPPostExecutor{
-//    void onPostExecute();
-    void doInBackground(ProgressPublisher progressPublisher) throws IOException;
+    void doInBackground(ProgressPublisher progressPublisher) throws Config.PGNException;
 }

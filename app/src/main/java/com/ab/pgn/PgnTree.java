@@ -15,7 +15,7 @@ public class PgnTree {
     protected Move root = new Move(Config.FLAGS_NULL_MOVE);    // fake move to store init board and comments
     protected Move currentMove = root;
     protected PgnItem.Item pgn;                   // headers and moveText
-    private boolean modified;       // todo!
+    private boolean modified;
 
     transient private boolean startVariation;                     // flag for pgn parsing
     transient private List<Move> variations = new LinkedList<>(); // stack for pgn parsing
@@ -26,7 +26,7 @@ public class PgnTree {
         init();
     }
 
-    public PgnTree(Board initBoard) throws IOException {
+    public PgnTree(Board initBoard) throws Config.PGNException {
         init();
         root.snapshot = initBoard.clone();
         root.pack = new Pack(root.snapshot);
@@ -46,7 +46,7 @@ public class PgnTree {
         }
     }
 
-    public PgnTree(PgnItem.Item item) throws IOException {
+    public PgnTree(PgnItem.Item item) throws Config.PGNException {
         this.pgn = item;
         String fen = pgn.getHeader(Config.HEADER_FEN);
         if (fen == null) {
@@ -60,7 +60,7 @@ public class PgnTree {
             root.pack = new Pack(root.snapshot);
             try {
                 new MoveParser(this).parse(item.getMoveText());
-            } catch (Config.PGNException e) {
+            } catch (Exception e) {
                 logger.error(e.getMessage());
                 parsingError = e.getMessage();
             }
@@ -77,62 +77,78 @@ public class PgnTree {
         return parsingErrorNum;
     }
 
-    public void serialize(BitStream.Writer writer) throws IOException {
-        currentMove.moveFlags |= Config.FLAGS_CURRENT_MOVE;     // set
-        // 1. serialize root.snapshot
-        root.snapshot.serialize(writer);
+    public void serialize(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            currentMove.moveFlags |= Config.FLAGS_CURRENT_MOVE;     // set
+            // 1. serialize root.snapshot
+            root.snapshot.serialize(writer);
 
-        // 2. serialize tree of moves
-        writer.writeString(root.comment);
-        serializeTree(root.nextMove, writer);
+            // 2. serialize tree of moves
+            writer.writeString(root.comment);
+            serializeTree(root.nextMove, writer);
 
-        // 3. serialize headers, modified, reversed, animation
-        pgn.serialize(writer);
-        if (modified) {
-            writer.write(1, 1);
-        } else {
-            writer.write(0, 1);
-        }
-        currentMove.moveFlags &= ~Config.FLAGS_CURRENT_MOVE;    // clear
-    }
-
-    private void serializeTree(Move move, BitStream.Writer writer) throws IOException {
-        if (move == null) {
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            move.serialize(writer);
-            serializeTree(move.nextMove, writer);
-            serializeTree(move.variation, writer);
-        }
-    }
-
-    public PgnTree(BitStream.Reader reader) throws IOException {
-        root.snapshot = new Board(reader);
-        root.pack = new Pack(root.snapshot);
-
-        root.comment = reader.readString();
-        root.nextMove = unserializeTree(reader, root);
-
-        pgn = (PgnItem.Item) PgnItem.unserialize(reader);
-        if (reader.read(1) == 1) {
-            modified = true;
-        }
-    }
-
-    private Move unserializeTree(BitStream.Reader reader, Move prevMove) throws IOException {
-        if (reader.read(1) == 0) {
-            return null;
-        }
-        Move move = new Move(reader, prevMove.snapshot);
-        move.prevMove = prevMove;
-        if ((move.moveFlags & Config.FLAGS_CURRENT_MOVE) != 0) {
-            currentMove = move;
+            // 3. serialize headers, modified, reversed, animation
+            pgn.serialize(writer);
+            if (modified) {
+                writer.write(1, 1);
+            } else {
+                writer.write(0, 1);
+            }
             currentMove.moveFlags &= ~Config.FLAGS_CURRENT_MOVE;    // clear
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
-        move.nextMove = unserializeTree(reader, move);
-        move.variation = unserializeTree(reader, prevMove);
-        return move;
+    }
+
+    private void serializeTree(Move move, BitStream.Writer writer) throws Config.PGNException {
+        try {
+            if (move == null) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                move.serialize(writer);
+                serializeTree(move.nextMove, writer);
+                serializeTree(move.variation, writer);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public PgnTree(BitStream.Reader reader)  throws Config.PGNException {
+        try {
+            root.snapshot = new Board(reader);
+            root.pack = new Pack(root.snapshot);
+
+            root.comment = reader.readString();
+            root.nextMove = unserializeTree(reader, root);
+
+            pgn = (PgnItem.Item) PgnItem.unserialize(reader);
+            if (reader.read(1) == 1) {
+                modified = true;
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    private Move unserializeTree(BitStream.Reader reader, Move prevMove) throws Config.PGNException {
+        try {
+            if (reader.read(1) == 0) {
+                return null;
+            }
+            Move move = new Move(reader, prevMove.snapshot);
+            move.prevMove = prevMove;
+            if ((move.moveFlags & Config.FLAGS_CURRENT_MOVE) != 0) {
+                currentMove = move;
+                currentMove.moveFlags &= ~Config.FLAGS_CURRENT_MOVE;    // clear
+            }
+            move.nextMove = unserializeTree(reader, move);
+            move.variation = unserializeTree(reader, prevMove);
+            return move;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
     public boolean isModified() {
@@ -147,9 +163,9 @@ public class PgnTree {
         return pgn;
     }
 
-    public void save(boolean updateMoves, PgnItem.OffsetHandler offsetHandler) throws IOException {
+    public void save(boolean updateMoves, PgnItem.OffsetHandler offsetHandler) throws Config.PGNException {
         if (pgn != null) {
-            if(updateMoves) {
+            if (updateMoves) {
                 if (!this.getInitBoard().equals(new Board()) && pgn.getHeader(Config.HEADER_FEN) == null) {
                     String fen = getInitBoard().toFEN();
                     pgn.headers.add(new Pair<String, String>(Config.HEADER_FEN, fen));
@@ -253,7 +269,7 @@ public class PgnTree {
     }
 
     // incomplete move, find move.from
-    public boolean addPgnMove(Move newMove) throws IOException {
+    public boolean addPgnMove(Move newMove) throws Config.PGNException {
         newMove.moveFlags |= getFlags();
         if (newMove.isNullMove()) {
             addMove(newMove);       // no validation
@@ -330,7 +346,7 @@ public class PgnTree {
         return false;
     }
 
-    protected void addMove(Move move) throws IOException {
+    protected void addMove(Move move) throws Config.PGNException {
         Board board;
         if (move.snapshot == null) {
             board = getBoard().clone();
@@ -409,7 +425,7 @@ public class PgnTree {
         return false;
     }
 
-    public void addUserMove(Move move) throws IOException {
+    public void addUserMove(Move move)  throws Config.PGNException {
         // check nextMove != null and create variation if different
         Move sibling = currentMove.nextMove;
         if(sibling == null) {

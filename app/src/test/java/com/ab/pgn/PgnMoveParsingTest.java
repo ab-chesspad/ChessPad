@@ -18,7 +18,7 @@ public class PgnMoveParsingTest extends BaseTest {
     final static String version = Config.version;
 
 
-    private List<PgnTree> testParsing(String pgn) throws IOException {
+    private List<PgnTree> testParsing(String pgn) throws Config.PGNException {
         List<PgnTree> pgnTrees = parse(pgn);
         for (PgnTree pgnTree : pgnTrees) {
             logger.debug(pgnTree.getInitBoard().toFEN());
@@ -32,7 +32,7 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
-    public void testAmbig() throws IOException {
+    public void testAmbig() throws Config.PGNException {
         String pgn = "[Event \"1\"]\n" +
                 "[Site \"?\"]\n" +
                 "[Date \"2016.08.05\"]\n" +
@@ -50,7 +50,7 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
-    public void testParsingSimple() throws IOException {
+    public void testParsingSimple() throws Config.PGNException {
         String pgn = "[Event \"?\"]\n" +
                 "[Site \"Hastings\"]\n" +
                 "[Date \"1951.??.??\"]\n" +
@@ -70,7 +70,7 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
-    public void testParsingAnnotated() throws IOException {
+    public void testParsingAnnotated() throws Config.PGNException, IOException {
         String pgn =
                 "[Event \"23rd USSR ch\"]\n" +
                 "[Site \"\"]\n" +
@@ -156,7 +156,7 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
-    public void testRepetition() throws IOException {
+    public void testRepetition() throws Config.PGNException {
         String pgn =  "[White \"Fischer,M\"]\n" +
                 "[Black \"Petrosian\"]\n" +
                 "\n"+
@@ -169,7 +169,7 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
-    public void testTal0() throws IOException {
+    public void testTal0() throws Config.PGNException {
         String pgn = "[Event \"\"]\n" +
                 "[Site \"\"]\n" +
                 "[Date \"1956\"]\n" +
@@ -213,7 +213,7 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
-    public void testTal1() throws IOException {
+    public void testTal1() throws Config.PGNException {
         String pgn = "[Event \"Cambridge Springs\"]\n" +
                 "[Site \"?\"]\n" +
                 "[Date \"1904.??.??\"]\n" +
@@ -272,7 +272,7 @@ public class PgnMoveParsingTest extends BaseTest {
         }
     }
 
-    private List<PgnItem> getZipItems(String path) throws IOException {
+    private List<PgnItem> getZipItems(String path) throws Config.PGNException {
         File test = new File(path);
         if(!test.exists()) {
             return null;
@@ -317,7 +317,7 @@ public class PgnMoveParsingTest extends BaseTest {
         }
     }
 
-    private List<PgnItem> getPgnItems(String path) throws IOException {
+    private List<PgnItem> getPgnItems(String path) throws Config.PGNException {
         File test = new File(path);
         if(!test.exists()) {
             return null;
@@ -354,7 +354,7 @@ public class PgnMoveParsingTest extends BaseTest {
         final List<PgnItem> items = new LinkedList<>();
         PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws IOException {
+            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
                 items.add(entry);
                 return true;
             }
@@ -399,7 +399,7 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
-    public void testPgnParser() throws IOException {
+    public void testPgnParser() throws Config.PGNException {
         final String comment1 = "{{Active {King in the}} Ending}";
         final String comment2 = "{How to {save} the f-pawn?}";
         String pgn =
@@ -425,7 +425,7 @@ public class PgnMoveParsingTest extends BaseTest {
             }
 
             @Override
-            public void onMove(String moveText) throws IOException {
+            public void onMove(String moveText) throws Config.PGNException {
                 logger.debug(String.format("move %s", moveText));
             }
 
