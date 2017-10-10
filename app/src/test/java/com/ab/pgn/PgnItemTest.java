@@ -74,7 +74,7 @@ public class PgnItemTest extends BaseTest {
     }
 
     @Test
-    public void testParsePgnItems() throws IOException {
+    public void testParsePgnItems() throws Config.PGNException {
         String pgn = "[Event \"\\\"Lloyds Bank\\\" op\"]\n" +
                 "[Site \"London\"]\n" +
                 "[Date \"1984.??.??\"]\n" +
@@ -132,7 +132,7 @@ public class PgnItemTest extends BaseTest {
         final List<PgnItem> items = new LinkedList<>();
         PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws IOException {
+            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
                 items.add(entry);
                 return true;
             }

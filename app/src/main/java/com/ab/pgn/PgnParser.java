@@ -14,7 +14,7 @@ public class PgnParser {
             dummy_str = null;
 
 
-    public static void parseMoves(String moveText, MoveTextHandler moveTextHandler) throws IOException {
+    public static void parseMoves(String moveText, MoveTextHandler moveTextHandler) throws Config.PGNException {
         StringTokenizer st = new StringTokenizer(moveText, DELIMITERS, true);
         while (st.hasMoreTokens()) {
             String token = st.nextToken(DELIMITERS).trim();
@@ -67,7 +67,7 @@ public class PgnParser {
 
         void onGlyph(String value);
 
-        void onMove(String moveText) throws IOException;
+        void onMove(String moveText) throws Config.PGNException;
 
         void onVariantOpen();
 

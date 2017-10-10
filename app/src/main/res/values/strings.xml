@@ -39,6 +39,11 @@
     <string name="label_halfmove_clock">Halfmove clock: </string>
     <string name="label_move_num">Move number: </string>
 
+    <string name="crash_cannot_save">Cannot write file\nTry to select different directory.</string>
+    <string name="crash_cannot_delete">Cannot delete pgn</string>
+    <string name="crash_cannot_load">Cannot load pgn</string>
+    <string name="crash_cannot_list">Cannot list items</string>
+
     <string-array name="setup_errs">
         <item>0 Setup OK</item>
         <item>1 Invalid en passant format</item>

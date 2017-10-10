@@ -34,66 +34,78 @@ public class Pack {
 
     private long[] longs = new long[PACK_SIZE];
 
-    public Pack(Board board) throws IOException {
-        BitStream.Writer writer = new BitStream.Writer();
-        pack(board, writer);
-        byte[] buf = writer.getBits();
-        int longLen = 2;
-        longs = new long[longLen + 1];
+    public Pack(Board board) throws Config.PGNException {
+        try {
+            BitStream.Writer writer = new BitStream.Writer();
+            pack(board, writer);
+            byte[] buf = writer.getBits();
+            int longLen = 2;
+            longs = new long[longLen + 1];
 
-        int n = -1;
-        for (int i = 0; i < longs.length; ++i) {
-            longs[i] = 0;
-            int shift = 0;
-            for (int j = 0; j < 8; ++j) {
-                if(++n < buf.length) {
-                    longs[i] |= ((long) buf[n] & 0x0ff) << shift;
-                    shift += 8;
-                }
-            }
-        }
-    }
-
-    public static void packBoard(Board board, BitStream.Writer writer) throws IOException {
-        List<Integer> values = new LinkedList<>();
-        int val = 0;
-        int factor = 1;
-        for (int j = 0; j < Config.BOARD_SIZE; j++) {
-            int mask = 1;
-            int buf = 0;
-            for (int i = 0; i < Config.BOARD_SIZE; i++) {
-                int code = PACK_CODES[board.getPiece(i, j)];
-                if (code >= 0) {
-                    buf |= mask;
-                    val += factor * code;
-                    factor *= 10;
-                    if (factor == 1000) {
-                        values.add(val);    // store 3-decimal-digits number
-                        factor = 1;
-                        val = 0;
+            int n = -1;
+            for (int i = 0; i < longs.length; ++i) {
+                longs[i] = 0;
+                int shift = 0;
+                for (int j = 0; j < 8; ++j) {
+                    if (++n < buf.length) {
+                        longs[i] |= ((long) buf[n] & 0x0ff) << shift;
+                        shift += 8;
                     }
                 }
-                mask <<= 1;
             }
-            writer.write(buf, 8);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
-        if(factor != 1) {
-            values.add(val);
-        }
-
-        for(int v : values) {
-            writer.write(v, 10);    // copy 3-decimal-digits number in 10-bit array
-        }
-        writer.write(board.flags & Config.POSITION_FLAGS, 6);
     }
 
-    public static void pack(Board board, BitStream.Writer writer) throws IOException {
-        packBoard(board, writer);
-        writer.write(board.wKing.x, 3);
-        writer.write(board.wKing.y, 3);
-        writer.write(board.bKing.x, 3);
-        writer.write(board.bKing.y, 3);
-        writer.write(board.enpass, 3);
+    public static void packBoard(Board board, BitStream.Writer writer) throws Config.PGNException {
+        try {
+            List<Integer> values = new LinkedList<>();
+            int val = 0;
+            int factor = 1;
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                int mask = 1;
+                int buf = 0;
+                for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                    int code = PACK_CODES[board.getPiece(i, j)];
+                    if (code >= 0) {
+                        buf |= mask;
+                        val += factor * code;
+                        factor *= 10;
+                        if (factor == 1000) {
+                            values.add(val);    // store 3-decimal-digits number
+                            factor = 1;
+                            val = 0;
+                        }
+                    }
+                    mask <<= 1;
+                }
+                writer.write(buf, 8);
+            }
+            if (factor != 1) {
+                values.add(val);
+            }
+
+            for (int v : values) {
+                writer.write(v, 10);    // copy 3-decimal-digits number in 10-bit array
+            }
+            writer.write(board.flags & Config.POSITION_FLAGS, 6);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public static void pack(Board board, BitStream.Writer writer) throws Config.PGNException {
+        try {
+            packBoard(board, writer);
+            writer.write(board.wKing.x, 3);
+            writer.write(board.wKing.y, 3);
+            writer.write(board.bKing.x, 3);
+            writer.write(board.bKing.y, 3);
+            writer.write(board.enpass, 3);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
     public long[] getBits() {
@@ -104,67 +116,79 @@ public class Pack {
         this.longs = longs;
     }
 
-    public Board unpack() throws IOException {
-        byte[] bits = new byte[longs.length * 8];
-        for (int i = 0; i < longs.length; ++i) {
-            long one = longs[i];
-            int n = 8 * i - 1;
-            for (int j = 0; j < 8; ++j) {
-                ++n;
-                bits[n] = (byte) (one & 0x0ff);
-                one >>>= 8;
-            }
-        }
-
-        BitStream.Reader reader = new BitStream.Reader(bits);
-        return unpack(reader);
-    }
-
-    public static Board unpackBoard(BitStream.Reader reader) throws IOException {
-        Board board = new Board();
-        board.toEmpty();
-
-        byte[] pieceBits = new byte[Config.BOARD_SIZE];
-        for (int j = 0; j < Config.BOARD_SIZE; j++) {
-            pieceBits[j] = (byte)(reader.read(8) & 0x0ff);
-        }
-
-        int val = 0;
-        int factor = 3;
-        for (int j = 0; j < Config.BOARD_SIZE; j++) {
-            int mask = 1;
-            for (int i = 0; i < Config.BOARD_SIZE; i++) {
-                if((pieceBits[j] & mask) != 0) {
-                    if (factor == 3) {
-                        // copy 3-decimal-digits number in 10-bit array
-                        val = reader.read(10);
-                        factor = 0;
-                    }
-                    int code = val % 10;
-                    int piece = REVERSED_PACK_CODES[code];
-                    board.setPiece(i, j, piece);
-                    val /= 10;
-                    ++factor;
+    public Board unpack() throws Config.PGNException {
+        try {
+            byte[] bits = new byte[longs.length * 8];
+            for (int i = 0; i < longs.length; ++i) {
+                long one = longs[i];
+                int n = 8 * i - 1;
+                for (int j = 0; j < 8; ++j) {
+                    ++n;
+                    bits[n] = (byte) (one & 0x0ff);
+                    one >>>= 8;
                 }
-                mask <<= 1;
             }
-        }
 
-        board.flags = reader.read(6);
-        return board;
+            BitStream.Reader reader = new BitStream.Reader(bits);
+            return unpack(reader);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
-    public static Board unpack(BitStream.Reader reader) throws IOException {
-        Board board = unpackBoard(reader);
-        board.wKing.x = reader.read(3);
-        board.wKing.y = reader.read(3);
-        board.setPiece(board.wKing, Config.WHITE_KING);
-        board.bKing.x = reader.read(3);
-        board.bKing.y = reader.read(3);
-        board.setPiece(board.bKing, Config.BLACK_KING);
+    public static Board unpackBoard(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            Board board = new Board();
+            board.toEmpty();
 
-        board.enpass = reader.read(3);
-        return board;
+            byte[] pieceBits = new byte[Config.BOARD_SIZE];
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                pieceBits[j] = (byte) (reader.read(8) & 0x0ff);
+            }
+
+            int val = 0;
+            int factor = 3;
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                int mask = 1;
+                for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                    if ((pieceBits[j] & mask) != 0) {
+                        if (factor == 3) {
+                            // copy 3-decimal-digits number in 10-bit array
+                            val = reader.read(10);
+                            factor = 0;
+                        }
+                        int code = val % 10;
+                        int piece = REVERSED_PACK_CODES[code];
+                        board.setPiece(i, j, piece);
+                        val /= 10;
+                        ++factor;
+                    }
+                    mask <<= 1;
+                }
+            }
+
+            board.flags = reader.read(6);
+            return board;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public static Board unpack(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            Board board = unpackBoard(reader);
+            board.wKing.x = reader.read(3);
+            board.wKing.y = reader.read(3);
+            board.setPiece(board.wKing, Config.WHITE_KING);
+            board.bKing.x = reader.read(3);
+            board.bKing.y = reader.read(3);
+            board.setPiece(board.bKing, Config.BLACK_KING);
+
+            board.enpass = reader.read(3);
+            return board;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
     @Override

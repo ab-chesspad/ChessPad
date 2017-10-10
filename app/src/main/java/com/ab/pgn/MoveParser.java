@@ -16,7 +16,7 @@ public class MoveParser implements PgnParser.MoveTextHandler {
         this.pgnTree = pgnTree;
     }
 
-    public void parse(String moveText) throws IOException {
+    public void parse(String moveText) throws Config.PGNException {
         PgnParser.parseMoves(moveText, this);
 
     }
@@ -31,7 +31,7 @@ public class MoveParser implements PgnParser.MoveTextHandler {
         pgnTree.setGlyph(Integer.valueOf(value.substring(1)));
     }
 
-    protected Move parseMove(String _moveText) {
+    protected Move parseMove(String _moveText) throws Config.PGNException {
         Move newMove = pgnTree.getBoard().newMove();
         if (_moveText.equals(Config.PGN_NULL_MOVE) || _moveText.equals(Config.PGN_NULL_MOVE_ALT)) {
             newMove.setNullMove();
@@ -132,7 +132,7 @@ public class MoveParser implements PgnParser.MoveTextHandler {
     }
 
     @Override
-    public void onMove(String _moveText) throws IOException {
+    public void onMove(String _moveText) throws Config.PGNException {
         if(DEBUG) {
             logger.debug(_moveText);
         }

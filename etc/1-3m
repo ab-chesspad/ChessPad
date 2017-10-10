@@ -1,0 +1,127 @@
+:Monkey: seed=2 count=1000000
+:AllowPackage: com.ab.droid.chesspad
+:IncludeCategory: android.intent.category.LAUNCHER
+:IncludeCategory: android.intent.category.MONKEY
+// Event percentages:
+//   0: 15.0%
+//   1: 10.0%
+//   2: 15.0%
+//   3: 25.0%
+//   4: 15.0%
+//   5: 2.0%
+//   6: 2.0%
+//   7: 1.0%
+//   8: 15.0%
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10000000;component=com.ab.droid.chesspad/.ChessPad;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.ab.droid.chesspad/.ChessPad } in package com.ab.droid.chesspad
+:Sending Pointer ACTION_MOVE x=4.0 y=-2.0
+:Sending Pointer ACTION_MOVE x=3.0 y=3.0
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10000000;component=com.ab.droid.chesspad/.ChessPad;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.ab.droid.chesspad/.ChessPad } in package com.ab.droid.chesspad
+:Sending Pointer ACTION_MOVE x=4.0 y=1.0
+:Sending Pointer ACTION_DOWN x=370.0 y=487.0
+:Sending Pointer ACTION_UP x=370.0 y=487.0
+:Sending Pointer ACTION_DOWN x=366.0 y=589.0
+:Sending Pointer ACTION_UP x=366.0 y=589.0
+:Sending Pointer ACTION_DOWN x=257.0 y=589.0
+:Sending Pointer ACTION_UP x=257.0 y=589.0
+:Sending Pointer ACTION_DOWN x=462.0 y=135.0
+:Sending Pointer ACTION_UP x=466.0 y=121.0
+:Sending Pointer ACTION_DOWN x=71.0 y=622.0
+:Sending Pointer ACTION_UP x=72.0 y=622.0
+:Sending Pointer ACTION_MOVE x=1.0 y=2.0
+    // Rejecting start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] cmp=com.sec.android.app.twlauncher/.Launcher } in package com.sec.android.app.twlauncher
+    //[calendar_time:2017-01-15 13:30:31.779  system_uptime:164058]
+    // Sending event #100
+    //[calendar_time:2017-01-15 13:30:31.780  system_uptime:164059]
+    // Sending event #100
+:Sending Pointer ACTION_DOWN x=163.0 y=544.0
+:Sending Pointer ACTION_UP x=163.0 y=544.0
+:Sending Pointer ACTION_DOWN x=366.0 y=12.0
+:Sending Pointer ACTION_UP x=366.0 y=12.0
+:Sending Pointer ACTION_DOWN x=150.0 y=725.0
+:Sending Pointer ACTION_UP x=95.0 y=719.0
+:Sending Pointer ACTION_MOVE x=-2.0 y=1.0
+:Sending Pointer ACTION_DOWN x=328.0 y=146.0
+:Sending Pointer ACTION_UP x=338.0 y=144.0
+:Sending Pointer ACTION_MOVE x=-4.0 y=-4.0
+:Sending Flip keyboardOpen=false
+:Sending Pointer ACTION_DOWN x=385.0 y=411.0
+:Sending Pointer ACTION_UP x=385.0 y=411.0
+:Sending Pointer ACTION_DOWN x=150.0 y=224.0
+:Sending Pointer ACTION_UP x=146.0 y=231.0
+:Sending Pointer ACTION_MOVE x=2.0 y=-5.0
+    //[calendar_time:2017-01-15 13:30:36.171  system_uptime:168450]
+    // Sending event #200
+:Sending Pointer ACTION_DOWN x=20.0 y=640.0
+:Sending Pointer ACTION_UP x=20.0 y=640.0
+:Sending Pointer ACTION_DOWN x=313.0 y=293.0
+:Sending Pointer ACTION_UP x=313.0 y=293.0
+:Sending Pointer ACTION_DOWN x=8.0 y=731.0
+:Sending Pointer ACTION_UP x=8.0 y=731.0
+:Sending Flip keyboardOpen=true
+:Sending Pointer ACTION_MOVE x=1.0 y=-4.0
+:Sending Pointer ACTION_UP x=0.0 y=0.0
+:Sending Pointer ACTION_MOVE x=2.0 y=-2.0
+:Sending Pointer ACTION_UP x=0.0 y=0.0
+:Sending Pointer ACTION_MOVE x=-3.0 y=-3.0
+:Sending Pointer ACTION_DOWN x=470.0 y=683.0
+:Sending Pointer ACTION_UP x=470.0 y=683.0
+:Sending Pointer ACTION_DOWN x=454.0 y=32.0
+:Sending Pointer ACTION_UP x=454.0 y=32.0
+:Sending Pointer ACTION_DOWN x=21.0 y=326.0
+:Sending Pointer ACTION_UP x=21.0 y=326.0
+:Sending Pointer ACTION_DOWN x=291.0 y=14.0
+:Sending Pointer ACTION_UP x=291.0 y=14.0
+    //[calendar_time:2017-01-15 13:30:41.552  system_uptime:173831]
+    // Sending event #300
+:Sending Pointer ACTION_DOWN x=133.0 y=711.0
+:Sending Pointer ACTION_UP x=133.0 y=711.0
+:Switch: #Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;launchFlags=0x10000000;component=com.ab.droid.chesspad/.ChessPad;end
+    // Allowing start of Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] cmp=com.ab.droid.chesspad/.ChessPad } in package com.ab.droid.chesspad
+:Sending Pointer ACTION_DOWN x=83.0 y=462.0
+:Sending Pointer ACTION_UP x=83.0 y=462.0
+:Sending Pointer ACTION_MOVE x=2.0 y=3.0
+    // activityResuming(com.sec.android.app.twlauncher)
+    // Rejecting resume of package com.sec.android.app.twlauncher
+:Sending Pointer ACTION_MOVE x=0.0 y=1.0
+:Sending Pointer ACTION_DOWN x=345.0 y=701.0
+:Sending Pointer ACTION_UP x=345.0 y=701.0
+:Sending Pointer ACTION_DOWN x=234.0 y=222.0
+:Sending Pointer ACTION_UP x=243.0 y=212.0
+:Sending Pointer ACTION_DOWN x=370.0 y=236.0
+:Sending Pointer ACTION_UP x=370.0 y=236.0
+:Sending Pointer ACTION_MOVE x=0.0 y=2.0
+:Sending Pointer ACTION_MOVE x=0.0 y=4.0
+    //[calendar_time:2017-01-15 13:30:46.045  system_uptime:178324]
+    // Sending event #400
+:Sending Pointer ACTION_DOWN x=370.0 y=446.0
+:Sending Pointer ACTION_UP x=370.0 y=446.0
+:Sending Pointer ACTION_MOVE x=-3.0 y=1.0
+:Sending Pointer ACTION_MOVE x=-2.0 y=-4.0
+:Sending Pointer ACTION_DOWN x=344.0 y=144.0
+:Sending Pointer ACTION_UP x=344.0 y=144.0
+:Sending Pointer ACTION_MOVE x=-2.0 y=0.0
+:Sending Pointer ACTION_DOWN x=211.0 y=681.0
+:Sending Pointer ACTION_UP x=216.0 y=686.0
+:Sending Pointer ACTION_DOWN x=34.0 y=67.0
+:Sending Pointer ACTION_UP x=41.0 y=75.0
+:Sending Pointer ACTION_MOVE x=-5.0 y=0.0
+:Sending Pointer ACTION_UP x=0.0 y=0.0
+:Sending Pointer ACTION_DOWN x=423.0 y=794.0
+:Sending Pointer ACTION_UP x=423.0 y=794.0
+    //[calendar_time:2017-01-15 13:30:53.954  system_uptime:186233]
+    // Sending event #500
+    //[calendar_time:2017-01-15 13:30:53.955  system_uptime:186234]
+    // Sending event #500
+:Sending Pointer ACTION_DOWN x=87.0 y=549.0
+:Sending Pointer ACTION_UP x=76.0 y=556.0
+:Sending Pointer ACTION_DOWN x=366.0 y=250.0
+:Sending Pointer ACTION_UP x=366.0 y=250.0
+:Sending Pointer ACTION_DOWN x=35.0 y=437.0
+:Sending Pointer ACTION_UP x=35.0 y=437.0
+:Sending Flip keyboardOpen=false
+:Sending Pointer ACTION_MOVE x=-4.0 y=1.0
+:Sending Pointer ACTION_DOWN x=353.0 y=473.0
+:Sending Pointer ACTION_UP x=356.0 y=482.0
+:Sending Pointer ACTION_MOVE x=-3.0 y=2.0

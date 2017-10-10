@@ -177,7 +177,6 @@ public class ChessPad extends AppCompatActivity {
             chessPadView = new ChessPadView(this);
             sample();       // initially create a sample pgn
         } catch (Throwable t) {
-//dlgMessage(DialogType.ShowMessage, t.toString(), DIALOG_BUTTON_OK);
             Log.e(DEBUG_TAG, t.toString(), t);
         }
     }
@@ -240,7 +239,7 @@ public class ChessPad extends AppCompatActivity {
             Log.e(DEBUG_TAG, "onResume()", t);
             StringWriter sw = new StringWriter();
             t.printStackTrace(new PrintWriter(sw));
-            popups.dlgMessage(Popups.DialogType.ShowMessage, sw.toString(), R.drawable.exclamation, Popups.DialogButton.Ok);
+            popups.crashAlert(sw.toString());
             if (fis != null) {
                 try {
                     File outDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
@@ -259,7 +258,7 @@ public class ChessPad extends AppCompatActivity {
             try {
                 mode = Mode.Game;
                 pgnTree = new PgnTree(new Board());
-            } catch (IOException e) {
+            } catch (Config.PGNException e) {
                 Log.e(DEBUG_TAG, "onResume() 3", e);
                 // will crash anyway
             }
@@ -279,7 +278,7 @@ public class ChessPad extends AppCompatActivity {
         try {
             BitStream.Writer writer = new BitStream.Writer(openFileOutput(STATUS_FILE_NAME, Context.MODE_PRIVATE));
             this.serialize(writer);
-        } catch (IOException e) {
+        } catch (Config.PGNException | IOException e) {
             Log.d(DEBUG_TAG, "onPause() 1", e);
         }
         popups.dismiss();
@@ -289,59 +288,67 @@ public class ChessPad extends AppCompatActivity {
         return mode;
     }
 
-    private void serialize(BitStream.Writer writer) throws IOException {
-        writer.write(versionCode, 4);
-        writer.write(mode.getValue(), 2);
-        currentPath.serialize(writer);
-        pgnTree.serialize(writer);
-        if(mode == Mode.Game) {
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            setup.serialize(writer);
+    private void serialize(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            writer.write(versionCode, 4);
+            writer.write(mode.getValue(), 2);
+            currentPath.serialize(writer);
+            pgnTree.serialize(writer);
+            if (mode == Mode.Game) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                setup.serialize(writer);
+            }
+            if (nextPgnItem == null) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                nextPgnItem.serialize(writer);
+            }
+            if (reversed) {
+                writer.write(1, 1);
+            } else {
+                writer.write(0, 1);
+            }
+            if (selected == null) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                selected.serialize(writer);
+            }
+            popups.serialize(writer);
+            writer.close();
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
-        if(nextPgnItem == null) {
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            nextPgnItem.serialize(writer);
-        }
-        if(reversed) {
-            writer.write(1, 1);
-        } else {
-            writer.write(0, 1);
-        }
-        if (selected == null) {
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            selected.serialize(writer);
-        }
-        popups.serialize(writer);
-        writer.close();
     }
 
-    private boolean unserialize(BitStream.Reader reader) throws IOException {
-        if(versionCode != reader.read(4)) {
-            return false;
-//            throw new IOException("Old serialization ignored");
+    private boolean unserialize(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            if (versionCode != reader.read(4)) {
+                return false;
+//            throw new Config.PGNException("Old serialization ignored");
+            }
+            mode = Mode.value(reader.read(2));
+            currentPath = PgnItem.unserialize(reader);
+            pgnTree = new PgnTree(reader);
+            if (reader.read(1) == 1) {
+                setup = new Setup(reader);
+            }
+            if (reader.read(1) == 1) {
+                nextPgnItem = (PgnItem.Item) PgnItem.unserialize(reader);
+            }
+            reversed = reader.read(1) == 1;
+            if (reader.read(1) == 1) {
+                selected = new Square(reader);
+                selectedPiece = pgnTree.getBoard().getPiece(selected);
+            }
+            popups.unserialize(reader);
+            return true;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
-        mode = Mode.value(reader.read(2));
-        currentPath = PgnItem.unserialize(reader);
-        pgnTree = new PgnTree(reader);
-        if(reader.read(1) == 1) {
-            setup = new Setup(reader);
-        }
-        if(reader.read(1) == 1) {
-            nextPgnItem = (PgnItem.Item)PgnItem.unserialize(reader);
-        }
-        reversed = reader.read(1) == 1;
-        if (reader.read(1) == 1) {
-            selected = new Square(reader);
-            selectedPiece = pgnTree.getBoard().getPiece(selected);
-        }
-        popups.unserialize(reader);
-        return true;
     }
     public void setReversed(boolean reversed) {
         this.reversed = reversed;
@@ -515,20 +522,26 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
             }
-        } catch (IOException e) {
+        } catch (Config.PGNException e) {
             Log.e(DEBUG_TAG, "ChessPad.onButtonClick", e);
         }
     }
 
-    void delete() throws IOException {
+    void delete() throws Config.PGNException {
         if(isFirstMove()) {
             pgnTree.getPgn().setMoveText(null);
             savePgnTree(false, new CPPostExecutor() {
                 @Override
-                public void onPostExecute() throws IOException {
+                public void onPostExecute() throws Config.PGNException {
                     pgnTree = new PgnTree(new Board());
                     currentPath = currentPath.getParent();
                     chessPadView.invalidate();
+                }
+
+                @Override
+                public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                    Log.e(DEBUG_TAG, "delete, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                    popups.crashAlert(R.string.crash_cannot_delete);
                 }
             });
         } else {
@@ -569,13 +582,13 @@ public class ChessPad extends AppCompatActivity {
                     popups.promotionMove = newMove;
                     try {
                         popups.launchDialog(Popups.DialogType.Promotion);
-                    } catch (IOException e) {
+                    } catch (Config.PGNException e) {
                         Log.e(DEBUG_TAG, e.toString(), e);
                     }
                 } else {
                     try {
                         pgnTree.addUserMove(newMove);
-                    } catch (IOException e) {
+                    } catch (Config.PGNException e) {
                         Log.e(DEBUG_TAG, e.toString(), e);
                     }
                     if((newMove.snapshot.flags & Config.FLAGS_REPETITION) != 0) {
@@ -645,7 +658,7 @@ public class ChessPad extends AppCompatActivity {
         return pgnTree.isEnd();
     }
 
-    protected void executeMenuCommand(MenuCommand menuCommand) throws IOException {
+    protected void executeMenuCommand(MenuCommand menuCommand) throws Config.PGNException {
         Log.d(DEBUG_TAG, String.format("menu %s", menuCommand.toString()));
         switch (menuCommand) {
             case Load:
@@ -675,7 +688,7 @@ public class ChessPad extends AppCompatActivity {
 
     }
 
-    private void switchToSetup() throws IOException {
+    private void switchToSetup() throws Config.PGNException {
         setup = new Setup(pgnTree, chessPadView);
         mode = Mode.Setup;
         chessPadView.redraw();
@@ -689,7 +702,7 @@ public class ChessPad extends AppCompatActivity {
     }
 
     // after loading a new item or ending setup
-    public void setPgnTree(PgnItem.Item item ) throws IOException {
+    public void setPgnTree(PgnItem.Item item ) throws Config.PGNException {
         if(pgnTree.isModified()) {
             Log.d(DEBUG_TAG, String.format("setPgnTree %s, old is modified", item));
             nextPgnItem = item;
@@ -722,10 +735,10 @@ public class ChessPad extends AppCompatActivity {
         }
     }
 
-    public void savePgnTree(final boolean updateMoves, final CPPostExecutor cpPostExecutor) throws IOException {
+    public void savePgnTree(final boolean updateMoves, final CPPostExecutor cpPostExecutor) throws Config.PGNException {
         new CPAsyncTask(chessPadView.cpProgressBar, new CPExecutor() {
             @Override
-            public void onPostExecute() throws IOException {
+            public void onPostExecute() throws Config.PGNException {
                 Log.d(DEBUG_TAG, String.format("savePgnTree onPostExecute, thread %s", Thread.currentThread().getName()));
                 if(cpPostExecutor != null) {
                     cpPostExecutor.onPostExecute();
@@ -733,7 +746,13 @@ public class ChessPad extends AppCompatActivity {
             }
 
             @Override
-            public void doInBackground(final ProgressPublisher progressPublisher) throws IOException {
+            public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                Log.e(DEBUG_TAG, "savePgnTree, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                popups.crashAlert(R.string.crash_cannot_save);
+            }
+
+            @Override
+            public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
                 Log.d(DEBUG_TAG, String.format("savePgnTree start, thread %s", Thread.currentThread().getName()));
                 pgnTree.save(updateMoves, new PgnItem.OffsetHandler() {
                     @Override

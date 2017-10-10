@@ -71,26 +71,30 @@ public class Move {
         }
     }
 
-    public Move(BitStream.Reader reader, Board board) throws IOException {
-        from = new Square(reader);
-        to = new Square(reader);
-        moveFlags = reader.read(16);
-        if(reader.read(1) == 1) {
-            piecePromoted = reader.read(3) | (moveFlags & Config.PIECE_COLOR);
-        }
-        if(reader.read(1) == 1) {
-            glyph = reader.read(8);
-        }
-        if(reader.read(1) == 1) {
-            comment = reader.readString();
-        }
+    public Move(BitStream.Reader reader, Board board) throws Config.PGNException {
+        try {
+            from = new Square(reader);
+            to = new Square(reader);
+            moveFlags = reader.read(16);
+            if (reader.read(1) == 1) {
+                piecePromoted = reader.read(3) | (moveFlags & Config.PIECE_COLOR);
+            }
+            if (reader.read(1) == 1) {
+                glyph = reader.read(8);
+            }
+            if (reader.read(1) == 1) {
+                comment = reader.readString();
+            }
 
-        piece = board.getPiece(from);
-        pieceTaken = board.getPiece(to);    // todo: verify en passant
-        snapshot = board.clone();
-        snapshot.doMove(this);
-        snapshot.validate(this);
-        pack = new Pack(snapshot);
+            piece = board.getPiece(from);
+            pieceTaken = board.getPiece(to);    // todo: verify en passant
+            snapshot = board.clone();
+            snapshot.doMove(this);
+            snapshot.validate(this);
+            pack = new Pack(snapshot);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
     public boolean equals(Move that) {

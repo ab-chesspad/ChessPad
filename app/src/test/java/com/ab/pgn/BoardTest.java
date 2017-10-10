@@ -23,7 +23,7 @@ public class BoardTest extends BaseTest {
     }
 
     @Test
-    public void testFEN() {
+    public void testFEN() throws Config.PGNException{
         String fen = "r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w - - 0 1";
         Board board = new Board(fen);
         logger.debug(board.toString());

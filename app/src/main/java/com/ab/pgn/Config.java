@@ -141,10 +141,14 @@ public class Config {
             HEADER_White, HEADER_Black, HEADER_Date, HEADER_Event, HEADER_Site,
     };
 
-    static public class PGNException extends RuntimeException {
+    static public class PGNException extends Exception {
         static final long serialVersionUID = 1989L;
 
         public PGNException(String t) {
+            super(t);
+        }
+
+        public PGNException(Throwable t) {
             super(t);
         }
     }

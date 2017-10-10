@@ -132,7 +132,7 @@ public class SetupView {
             if (event.getAction() == MotionEvent.ACTION_UP && errNum == 0) {
                 try {
                     chessPad.setPgnTree(null);
-                } catch (IOException e) {
+                } catch (Config.PGNException e) {
                     Log.e(DEBUG_TAG, String.format("endSetup failed"), e);
                 }
             }

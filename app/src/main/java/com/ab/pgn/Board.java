@@ -49,18 +49,26 @@ public class Board {
         this.board = board;
     }
 
-    public void serialize(BitStream.Writer writer) throws IOException {
-        Pack.pack(this, writer);
-        writer.write(this.plyNum, 9);
-        writer.write(this.reversiblePlyNum, 9);
+    public void serialize(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            Pack.pack(this, writer);
+            writer.write(this.plyNum, 9);
+            writer.write(this.reversiblePlyNum, 9);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
-    public Board(BitStream.Reader reader) throws IOException {
-        Board tmp = Pack.unpack(reader);
-        tmp.validate(null);
-        tmp.plyNum = reader.read(9);
-        tmp.reversiblePlyNum = reader.read(9);
-        copy(tmp, this);
+    public Board(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            Board tmp = Pack.unpack(reader);
+            tmp.validate(null);
+            tmp.plyNum = reader.read(9);
+            tmp.reversiblePlyNum = reader.read(9);
+            copy(tmp, this);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
     public void validate(Move move) {
@@ -146,14 +154,14 @@ public class Board {
         Pack thisPack, thatPack;
         try {
             thisPack = new Pack(this);
-        } catch (IOException e) {
+        } catch (Config.PGNException e) {
             logger.error(String.format("Position invalid for packing %s", this.toString()), e);
             return false;
         }
         try {
             thatPack = new Pack((Board) that);
             return thisPack.equals(thatPack);
-        } catch (IOException e) {
+        } catch (Config.PGNException e) {
             logger.error(String.format("Position invalid for packing %s", that.toString()), e);
             return false;
         }
@@ -181,7 +189,7 @@ public class Board {
     /**
      * @param fen described in http://en.wikipedia.org/wiki/Forsyth-Edwards_Notation
      */
-    public Board(String fen) {
+    public Board(String fen) throws Config.PGNException {
         this.toEmpty();
         StringTokenizer st = new StringTokenizer(fen, "/ ");
         for (int j = Config.BOARD_SIZE - 1; j >= 0; j--) {

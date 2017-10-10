@@ -12,14 +12,14 @@ import java.io.IOException;
 public class PackTest {
 
     @Test
-    public void testInit() throws IOException {
+    public void testInit() throws Config.PGNException {
         Board board = new Board();
         Board clone = new Pack(board).unpack();
         Assert.assertEquals(board.toFEN(), clone.toFEN());
     }
 
     @Test
-    public void testEmpty() throws IOException {
+    public void testEmpty() throws Config.PGNException {
         Board board = new Board();
         board.toEmpty();
         // Pack requires both kings to be on the board
@@ -30,7 +30,7 @@ public class PackTest {
     }
 
     @Test
-    public void testFEN() throws IOException {
+    public void testFEN() throws Config.PGNException {
         String[] fens = {"r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w - - 0 1",
                 "4k3/2R5/8/8/1KR3r1/8/7n/8 w - - 0 1",
                 "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
@@ -50,7 +50,7 @@ public class PackTest {
     }
 
     @Test
-    public void testPack() throws IOException {
+    public void testPack() throws Config.PGNException, IOException {
         String fen = "r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w - - 0 1";
         Board board = new Board(fen);
 
