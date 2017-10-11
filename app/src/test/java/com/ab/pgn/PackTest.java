@@ -14,7 +14,9 @@ public class PackTest {
     @Test
     public void testInit() throws Config.PGNException {
         Board board = new Board();
-        Board clone = new Pack(board).unpack();
+        Pack pack = new Pack(board);
+        Assert.assertEquals(pack.getNumberOfPieces(), 30);
+        Board clone = pack.unpack();
         Assert.assertEquals(board.toFEN(), clone.toFEN());
     }
 
@@ -25,7 +27,9 @@ public class PackTest {
         // Pack requires both kings to be on the board
         board.setPiece(0, 0, Config.WHITE_KING);
         board.setPiece(7, 0, Config.BLACK_KING);
-        Board clone = new Pack(board).unpack();
+        Pack pack = new Pack(board);
+        Assert.assertEquals(pack.getNumberOfPieces(), 0);
+        Board clone = pack.unpack();
         Assert.assertEquals(board.toFEN(), clone.toFEN());
     }
 
@@ -42,8 +46,13 @@ public class PackTest {
                 "6R1/p4p2/1p2q2p/8/6Pk/8/PP2r1PK/3Q4 w - - 0 1",
         };
         for (String fen : fens) {
+            int i = fen.indexOf(" ");
+            String onlyLetters = fen.substring(0, i).replaceAll("[^\\p{L}]", "");
+            int pieces = onlyLetters.length() - 2;  // without kings
             Board board = new Board(fen);
-            Board clone = new Pack(board).unpack();
+            Pack pack = new Pack(board);
+            Assert.assertEquals(pieces, pack.getNumberOfPieces());
+            Board clone = pack.unpack();
             Assert.assertEquals(fen, clone.toFEN());
             Assert.assertTrue(new Pack(board).equals(new Pack(clone)));
         }
