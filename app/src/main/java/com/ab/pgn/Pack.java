@@ -8,12 +8,13 @@ import java.util.List;
 /**
  * pack position into long[3] (byte[24])
  *   64 bit - 'index' array - 8 x 8 bits, 1 for a piece, 0 for empty
+ *    5 bit - 10/10/17 there is some space in longs array, so include number of pieces on the board
  *  100 bit - all pieces except kings:
  *           10 pieces (except kings) are packed with 3-number groups, each group into 10-bit array
  *   12 bit - both kings positions
  *    3 bit - en passant
  *    6 bit - position flags
- * =185 bit total
+ * =190 bit total
  *
  * <p/>
  *
@@ -60,6 +61,7 @@ public class Pack {
 
     public static void packBoard(Board board, BitStream.Writer writer) throws Config.PGNException {
         try {
+            int pieces = 0;
             List<Integer> values = new LinkedList<>();
             int val = 0;
             int factor = 1;
@@ -69,6 +71,7 @@ public class Pack {
                 for (int i = 0; i < Config.BOARD_SIZE; i++) {
                     int code = PACK_CODES[board.getPiece(i, j)];
                     if (code >= 0) {
+                        ++pieces;
                         buf |= mask;
                         val += factor * code;
                         factor *= 10;
@@ -82,14 +85,14 @@ public class Pack {
                 }
                 writer.write(buf, 8);
             }
+            writer.write(pieces, 5);
+            writer.write(board.flags & Config.POSITION_FLAGS, 6);
             if (factor != 1) {
                 values.add(val);
             }
-
             for (int v : values) {
                 writer.write(v, 10);    // copy 3-decimal-digits number in 10-bit array
             }
-            writer.write(board.flags & Config.POSITION_FLAGS, 6);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -106,6 +109,11 @@ public class Pack {
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
+    }
+
+    public int getNumberOfPieces() {
+        long pieces = longs[1] & 0x1f;
+        return (int)pieces;
     }
 
     public long[] getBits() {
@@ -145,6 +153,8 @@ public class Pack {
             for (int j = 0; j < Config.BOARD_SIZE; j++) {
                 pieceBits[j] = (byte) (reader.read(8) & 0x0ff);
             }
+            int pieces = reader.read(5);    // discard
+            board.flags = reader.read(6);
 
             int val = 0;
             int factor = 3;
@@ -166,8 +176,6 @@ public class Pack {
                     mask <<= 1;
                 }
             }
-
-            board.flags = reader.read(6);
             return board;
         } catch (IOException e) {
             throw new Config.PGNException(e);
