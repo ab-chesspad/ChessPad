@@ -298,7 +298,7 @@ public class PgnMoveParsingTest extends BaseTest {
         }
         PgnItem.Item item = (PgnItem.Item) items.get(testIndex);
         item.setIndex(-1);      // append
-        item.save(null);            // append with no moveText
+        item.save(null);        // append with no moveText
         ++count;
         List<PgnItem> items1 = getPgnItems(testFile.getAbsolutePath());
         Assert.assertEquals(count, items1.size());

@@ -522,7 +522,10 @@ public abstract class PgnItem implements Comparable<PgnItem> {
                         try {
                             Item src = (Item) entry;
                             if (item.index == src.index) {
-                                src.moveText = item.toString(false, true);
+                                if(item.moveText == null) {
+                                    return true;        // skip item - delete it
+                                }
+                                src.moveText = item.toString(false, true);    // the whole item
                             }
                             if (src.moveText != null) {
                                 byte[] buf = src.moveText.getBytes("UTF-8");
