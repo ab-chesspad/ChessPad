@@ -6,60 +6,103 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * pack position into long[3] (byte[24])
+ * pack position into int[6] (byte[24])
  *   64 bit - 'index' array - 8 x 8 bits, 1 for a piece, 0 for empty
- *    5 bit - 10/10/17 there is some space in longs array, so include number of pieces on the board
  *  100 bit - all pieces except kings:
  *           10 pieces (except kings) are packed with 3-number groups, each group into 10-bit array
  *   12 bit - both kings positions
  *    3 bit - en passant
- *    6 bit - position flags
- * =190 bit total
- *
+ *    7 bit - position flags
+ * =186 bit total
+ *  added 6-bit ply number to use in hashCode() but not in equalPosition()
+ *  assuming no variant merge after 64 moves
+ * 6 * 32 = 192 bit for int[6]
  * <p/>
  *
- * Used to validate 3-fold repetition and board serialization
+ * To validate 3-fold repetition, position identification, board serialization
  * https://en.wikipedia.org/wiki/Threefold_repetition
  * ... for a position to be considered the same, each player must have the same set of legal moves
  * each time, including the possible rights to castle and capture en passant.
  * Created by Alexander Bootman on 8/6/16.
  */
 public class Pack {
-    private static final int PACK_SIZE = 3;              // longs.length
+    private static final int
+        PACK_SIZE = 6,              // ints.length
+        PACK_PIECE_ADJUSTMENT = 4,  // wq->0, bq->1, wr->2, etc.
+        MOVE_NUMBER_LENGTH = 6,
+        MOVE_NUMBER_MASK = 0x03f,
+        dummy_int = 0;
 
-    //                                       .   K  Q  B  N  R  P  ?        k  q  b  n  r  p
-    //                                       0   1  2  3  4  5  6  7    8   9  a  b  c  d  e
-    public static final int[] PACK_CODES = {-1, -1, 0, 1, 2, 3, 4, -1, -1, -1, 5, 6, 7, 8, 9};
-    public static final int[] REVERSED_PACK_CODES = {Config.WHITE_QUEEN, Config.WHITE_BISHOP, Config.WHITE_KNIGHT, Config.WHITE_ROOK, Config.WHITE_PAWN,
-            Config.BLACK_QUEEN, Config.BLACK_BISHOP, Config.BLACK_KNIGHT, Config.BLACK_ROOK, Config.BLACK_PAWN};
+    private static int[] equalityMask = new int[PACK_SIZE];
+    static {
+        for(int i = 0; i < PACK_SIZE; ++i) {
+            if(i == 2) {
+                equalityMask[i] = ~MOVE_NUMBER_MASK;
+            } else {
+                equalityMask[i] = -1;
+            }
+        }
+    }
 
-    private long[] longs = new long[PACK_SIZE];
+    private int[] ints = new int[PACK_SIZE];
 
-    public Pack(Board board) throws Config.PGNException {
+    public Pack(int[] ints) {
+        this.ints = ints;
+    }
+
+    public Pack(Board board, int plyNum) throws Config.PGNException {
+        ints = pack(board, plyNum);
+    }
+
+    public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
-            BitStream.Writer writer = new BitStream.Writer();
-            pack(board, writer);
-            byte[] buf = writer.getBits();
-            int longLen = 2;
-            longs = new long[longLen + 1];
-
-            int n = -1;
-            for (int i = 0; i < longs.length; ++i) {
-                longs[i] = 0;
-                int shift = 0;
-                for (int j = 0; j < 8; ++j) {
-                    if (++n < buf.length) {
-                        longs[i] |= ((long) buf[n] & 0x0ff) << shift;
-                        shift += 8;
-                    }
-                }
+            for (int i = 0; i < ints.length; ++i) {
+                writer.write(ints[i], 32);
             }
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
     }
 
-    public static void packBoard(Board board, BitStream.Writer writer) throws Config.PGNException {
+    public Pack(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            for (int i = 0; i < ints.length; ++i) {
+                ints[i] = reader.read(32);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public int[] getPackData() {
+        return ints;
+    }
+
+    public static int[] pack(Board board, int plyNum) throws Config.PGNException {
+        try {
+            int[] ints = new int[PACK_SIZE];
+            BitStream.Writer writer = new BitStream.Writer();
+            pack(board, plyNum, writer);
+            byte[] buf = writer.getBits();
+
+            int n = -1;
+            for (int i = 0; i < ints.length; ++i) {
+                ints[i] = 0;
+                int shift = 0;
+                for (int j = 0; j < 4; ++j) {
+                    if (++n < buf.length) {
+                        ints[i] |= ((int) buf[n] & 0x0ff) << shift;
+                        shift += 8;
+                    }
+                }
+            }
+            return  ints;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public static void packBoard(Board board, int plyNum, BitStream.Writer writer) throws Config.PGNException {
         try {
             int pieces = 0;
             List<Integer> values = new LinkedList<>();
@@ -69,7 +112,7 @@ public class Pack {
                 int mask = 1;
                 int buf = 0;
                 for (int i = 0; i < Config.BOARD_SIZE; i++) {
-                    int code = PACK_CODES[board.getPiece(i, j)];
+                    int code = board.getPiece(i, j) - PACK_PIECE_ADJUSTMENT;
                     if (code >= 0) {
                         ++pieces;
                         buf |= mask;
@@ -85,11 +128,11 @@ public class Pack {
                 }
                 writer.write(buf, 8);
             }
-            writer.write(pieces, 5);
-            writer.write(board.flags & Config.POSITION_FLAGS, 6);
             if (factor != 1) {
                 values.add(val);
             }
+            writer.write(board.plyNum, MOVE_NUMBER_LENGTH);
+            writer.write(board.boardData, Board.BOARD_DATA_PACK_LENGTH);
             for (int v : values) {
                 writer.write(v, 10);    // copy 3-decimal-digits number in 10-bit array
             }
@@ -98,37 +141,33 @@ public class Pack {
         }
     }
 
-    public static void pack(Board board, BitStream.Writer writer) throws Config.PGNException {
-        try {
-            packBoard(board, writer);
-            writer.write(board.wKing.x, 3);
-            writer.write(board.wKing.y, 3);
-            writer.write(board.bKing.x, 3);
-            writer.write(board.bKing.y, 3);
-            writer.write(board.enpass, 3);
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
-        }
+    public static void pack(Board board, int plyNum, BitStream.Writer writer) throws Config.PGNException {
+        packBoard(board, plyNum, writer);
     }
 
     public int getNumberOfPieces() {
-        long pieces = longs[1] & 0x1f;
-        return (int)pieces;
+        return getNumberOfPieces(ints);
     }
 
-    public long[] getBits() {
-        return longs;
-    }
-
-    public Pack(long[] longs) {
-        this.longs = longs;
+    public static int getNumberOfPieces(int[] ints) {
+        long bits = ((long)ints[1] << 32) | ((long)ints[0] & 0x0ffffffffL);
+        int pieces = 0;
+        while(bits != 0) {
+            ++pieces;
+            bits &= bits - 1;
+        }
+        return pieces;
     }
 
     public Board unpack() throws Config.PGNException {
+        return unpack(ints);
+    }
+
+    public static Board unpack(int[] ints) throws Config.PGNException {
         try {
-            byte[] bits = new byte[longs.length * 8];
-            for (int i = 0; i < longs.length; ++i) {
-                long one = longs[i];
+            byte[] bits = new byte[ints.length * 4];
+            for (int i = 0; i < ints.length / 2; ++i) {
+                long one = ((long)ints[2 * i + 1] << 32) | ((long)ints[2 * i] & 0x0ffffffffL);
                 int n = 8 * i - 1;
                 for (int j = 0; j < 8; ++j) {
                     ++n;
@@ -153,8 +192,9 @@ public class Pack {
             for (int j = 0; j < Config.BOARD_SIZE; j++) {
                 pieceBits[j] = (byte) (reader.read(8) & 0x0ff);
             }
-            int pieces = reader.read(5);    // discard
-            board.flags = reader.read(6);
+
+            board.plyNum = reader.read(MOVE_NUMBER_LENGTH);
+            board.boardData = reader.read(Board.BOARD_DATA_PACK_LENGTH);
 
             int val = 0;
             int factor = 3;
@@ -168,7 +208,7 @@ public class Pack {
                             factor = 0;
                         }
                         int code = val % 10;
-                        int piece = REVERSED_PACK_CODES[code];
+                        int piece = code + PACK_PIECE_ADJUSTMENT;
                         board.setPiece(i, j, piece);
                         val /= 10;
                         ++factor;
@@ -183,20 +223,19 @@ public class Pack {
     }
 
     public static Board unpack(BitStream.Reader reader) throws Config.PGNException {
-        try {
-            Board board = unpackBoard(reader);
-            board.wKing.x = reader.read(3);
-            board.wKing.y = reader.read(3);
-            board.setPiece(board.wKing, Config.WHITE_KING);
-            board.bKing.x = reader.read(3);
-            board.bKing.y = reader.read(3);
-            board.setPiece(board.bKing, Config.BLACK_KING);
+        Board board = unpackBoard(reader);
+        board.setPiece(board.getWKing(), Config.WHITE_KING);
+        board.setPiece(board.getBKing(), Config.BLACK_KING);
+        return board;
+    }
 
-            board.enpass = reader.read(3);
-            return board;
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
+    public boolean equalPosition(Pack that) {
+        for (int i = 0; i < PACK_SIZE; ++i) {
+            if ((this.ints[i] & equalityMask[i]) != ((that).ints[i] & equalityMask[i])) {
+                return false;
+            }
         }
+        return true;
     }
 
     @Override
@@ -204,11 +243,11 @@ public class Pack {
         if (!(that instanceof Pack)) {
             return false;
         }
-        return Arrays.equals(this.longs, ((Pack) that).longs);
+        return Arrays.equals(this.ints, ((Pack) that).ints);
     }
 
     @Override
     public int hashCode() {
-        return Arrays.hashCode(longs);
+        return Arrays.hashCode(ints);
     }
 }

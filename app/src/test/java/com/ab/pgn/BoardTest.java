@@ -32,4 +32,30 @@ public class BoardTest extends BaseTest {
         String resFen = board.toFEN();
         Assert.assertEquals(fen, resFen);
     }
+
+    @Test
+    public void testFlags() {
+        Board board = new Board();
+        int flags = Config.INIT_POSITION_FLAGS;
+        board.setFlags(flags);
+        Assert.assertEquals(flags, board.getFlags());
+        int flags1 = flags;
+        flags &= ~(Config.FLAGS_W_QUEEN_OK | Config.FLAGS_W_KING_OK);
+        flags1 &= ~flags;
+        board.clearFlags(flags);
+        Assert.assertEquals(flags1, board.getFlags());
+
+        flags = board.getFlags();
+        board.invertFlags(Config.FLAGS_BLACK_MOVE);
+        Assert.assertEquals(flags ^ Config.FLAGS_BLACK_MOVE, board.getFlags());
+
+        board.raiseFlags(Config.FLAGS_ENPASSANT_OK);
+        Square enpass = new Square(2, 2);
+        board.setEnpassant(enpass);
+        Assert.assertEquals(enpass.getX(), board.getEnpassantX());
+        enpass = new Square(3, 2);
+        board.setEnpassant(enpass);
+        Assert.assertEquals(enpass.getX(), board.getEnpassantX());
+    }
+
 }

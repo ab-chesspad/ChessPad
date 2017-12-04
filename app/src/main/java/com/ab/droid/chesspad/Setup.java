@@ -8,7 +8,7 @@ import com.ab.pgn.Config;
 import com.ab.pgn.Pack;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnItem;
-import com.ab.pgn.PgnTree;
+import com.ab.pgn.PgnGraph;
 import com.ab.pgn.Square;
 
 import java.io.IOException;
@@ -29,14 +29,14 @@ public class Setup implements ChessPadView.ChangeObserver {
 
     ChessPadView.StringWrapper enPass, hmClock, moveNum;
 
-    public Setup(PgnTree pgnTree, ChessPadView chessPadView) {
+    public Setup(PgnGraph pgnGraph, ChessPadView chessPadView) {
         this.chessPadView = chessPadView;
-        this.board = pgnTree.getBoard().clone();
-        this.headers = pgnTree.getPgn().cloneHeaders(Config.HEADER_FEN);
+        this.board = pgnGraph.getBoard().clone();
+        this.headers = pgnGraph.getPgn().cloneHeaders(Config.HEADER_FEN);
         this.headers.add(new Pair<>(Popups.ADD_HEADER_LABEL, ""));
         enPass = new ChessPadView.StringWrapper(_getEnpass(), this);
-        hmClock = new ChessPadView.StringWrapper("" + getBoard().reversiblePlyNum, this);
-        moveNum = new ChessPadView.StringWrapper("" + (getBoard().plyNum / 2 + 1), this);
+        hmClock = new ChessPadView.StringWrapper("" + getBoard().getReversiblePlyNum(), this);
+        moveNum = new ChessPadView.StringWrapper("" + (getBoard().getPlyNum() / 2 + 1), this);
         onValueChanged(null);       // update status
     }
 
@@ -66,7 +66,7 @@ public class Setup implements ChessPadView.ChangeObserver {
 
     private void serializeSetupBoard(BitStream.Writer writer) throws Config.PGNException {
         try {
-            Pack.packBoard(board, writer);
+            Pack.packBoard(board, 0, writer);
             List<Square> wKings = new LinkedList<>();
             List<Square> bKings = new LinkedList<>();
             for (int x = 0; x < Config.BOARD_SIZE; x++) {
@@ -117,7 +117,7 @@ public class Setup implements ChessPadView.ChangeObserver {
     }
 
     private String _getEnpass() {
-        Square sq = getBoard().getEnpass();
+        Square sq = getBoard().getEnpassant();
         if(sq.getY() == -1) {
             return "";
         }
@@ -140,35 +140,31 @@ public class Setup implements ChessPadView.ChangeObserver {
         return PgnItem.getTitle(headers, -1);
     }
 
-    public PgnTree toPgnTree() throws Config.PGNException {
+    public PgnGraph toPgnGraph() throws Config.PGNException {
         int err;
         if((err = validate()) != 0) {
             Log.e(DEBUG_TAG, String.format("Setup error %s\n%s", err, board.toString()));
-            return new PgnTree();
+            return new PgnGraph();
         }
-        PgnTree pgnTree = new PgnTree(board);
+        PgnGraph pgnGraph = new PgnGraph(board);
         headers.remove(headers.size() - 1);     // remove 'add new' row
-        pgnTree.getPgn().setHeaders(headers);
-        return pgnTree;
+        pgnGraph.getPgn().setHeaders(headers);
+        return pgnGraph;
     }
 
     public void setHeaders(List<Pair<String, String>> headers) {
         this.headers = headers;
     }
 
-    public int getFlags() {
-        return board.flags;
-    }
-
     public int getFlag(int flag) {
-        return getBoard().flags & flag;
+        return getBoard().getFlags() & flag;
     }
 
     public void setFlag(boolean set, int flag) {
         if (set) {
-            getBoard().flags |= flag;
+            getBoard().setFlags(flag);
         } else {
-            getBoard().flags &= ~flag;
+            getBoard().clearFlags(flag);
         }
         onAnyValueChanged();
     }
@@ -200,7 +196,7 @@ public class Setup implements ChessPadView.ChangeObserver {
                 Square sq = new Square(enPass);
                 if (sq.getX() < 0 || sq.getY() < 0) {
                     errNum = 1;
-                } else if((board.flags & Config.FLAGS_BLACK_MOVE) == 0) {
+                } else if((board.getFlags() & Config.FLAGS_BLACK_MOVE) == 0) {
                     if(sq.getY() != 5) {
                         errNum = 3;
                     }
@@ -210,10 +206,10 @@ public class Setup implements ChessPadView.ChangeObserver {
                     }
                 }
                 if(errNum == 0) {
-                    board.enpass = sq.getX();
-                    board.flags |= Config.FLAGS_ENPASSANT_OK;
+                    board.setEnpassant(sq);
+                    board.setFlags(Config.FLAGS_ENPASSANT_OK);
                 } else {
-                    board.flags &= ~Config.FLAGS_ENPASSANT_OK;
+                    board.clearFlags(Config.FLAGS_ENPASSANT_OK);
                 }
             }
             if(errNum == 0) {

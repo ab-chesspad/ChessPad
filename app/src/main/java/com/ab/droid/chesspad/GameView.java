@@ -239,21 +239,21 @@ public class GameView {
     }
 
     public void invalidate() {
-        title.setText(chessPad.pgnTree.getTitle());
-        if(chessPad.selected == null) {
-            boardView.setSelected(chessPad.pgnTree.getCurrentToSquare());
+        title.setText(chessPad.pgnGraph.getTitle());
+        if(chessPad.selectedSquare == null) {
+            boardView.setSelected(chessPad.pgnGraph.getCurrentMove().to);
         } else {
-            boardView.setSelected(chessPad.selected);
+            boardView.setSelected(chessPad.selectedSquare);
         }
 
-        move.setText(chessPad.pgnTree.getCurrentMove());
-        int g = chessPad.pgnTree.getGlyph();
+        move.setText(chessPad.pgnGraph.getNumberedMove());
+        int g = chessPad.pgnGraph.getGlyph();
         if (g == 0) {
             glyph.setText("");
         } else {
             glyph.setText(String.format("%s%d", Config.PGN_GLYPH, g));
         }
-        comment.setText(chessPad.pgnTree.getComment());
+        comment.setText(chessPad.pgnGraph.getComment());
         if (navigationEnabled) {
             if (chessPad.isFirstMove()) {
                 setButtonEnabled(ChessPad.Command.Start.getValue(), false);
@@ -263,7 +263,7 @@ public class GameView {
             } else {
                 setButtonEnabled(ChessPad.Command.Start.getValue(), true);
                 setButtonEnabled(ChessPad.Command.Prev.getValue(), true);
-                setButtonEnabled(ChessPad.Command.PrevVar.getValue(), chessPad.pgnTree.getVariations() == null);
+                setButtonEnabled(ChessPad.Command.PrevVar.getValue(), chessPad.pgnGraph.getVariations() == null);
                 setButtonEnabled(ChessPad.Command.Delete.getValue(), true);
             }
 
@@ -273,7 +273,7 @@ public class GameView {
                 setButtonEnabled(ChessPad.Command.End.getValue(), false);
             } else {
                 setButtonEnabled(ChessPad.Command.Next.getValue(), true);
-                setButtonEnabled(ChessPad.Command.NextVar.getValue(), chessPad.pgnTree.getVariations() == null);
+                setButtonEnabled(ChessPad.Command.NextVar.getValue(), chessPad.pgnGraph.getVariations() == null);
                 setButtonEnabled(ChessPad.Command.End.getValue(), true);
             }
         }

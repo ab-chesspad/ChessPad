@@ -131,7 +131,7 @@ public class SetupView {
             public boolean onTouch(View v, MotionEvent event) {
             if (event.getAction() == MotionEvent.ACTION_UP && errNum == 0) {
                 try {
-                    chessPad.setPgnTree(null);
+                    chessPad.setPgnGraph(null);
                 } catch (Config.PGNException e) {
                     Log.e(DEBUG_TAG, String.format("endSetup failed"), e);
                 }
@@ -312,7 +312,7 @@ public class SetupView {
         ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
     }
 
-    private void createPiecesView(RelativeLayout relativeLayout, int x, int y, final int[][] _pieces) {
+    private void createPiecesView(RelativeLayout relativeLayout, int x, int y, int[][] _pieces) {
         final Board pieces = new Board(_pieces);
         piecesView = ChessPadView.drawBoardView(chessPad, relativeLayout, x, y, new BoardHolder() {
             @Override

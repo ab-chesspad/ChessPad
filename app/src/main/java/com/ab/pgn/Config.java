@@ -1,15 +1,5 @@
 package com.ab.pgn;
 
-import android.os.Environment;
-
-//import org.apache.log4j.ConsoleAppender;
-//import org.apache.log4j.FileAppender;
-//import org.apache.log4j.Level;
-//import org.apache.log4j.Logger;
-//import org.apache.log4j.PatternLayout;
-
-import java.io.File;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -22,7 +12,6 @@ import java.util.List;
  */
 public class Config {
     public static final String version = "1.0";
-//    public static Level logLevel = Level.FATAL;
 
     public static final int
             MY_BUF_SIZE = 0x2000,
@@ -31,14 +20,14 @@ public class Config {
 
             // pieces, as defined in Config.FEN_PIECES
             WHITE = 0x00,
-            BLACK = 0x08,
+            BLACK = 0x01,
             EMPTY = 0x00,
-            KING = 0x01,
-            QUEEN = 0x02,
-            BISHOP = 0x03,
-            KNIGHT = 0x04,
-            ROOK = 0x05,
-            PAWN = 0x06,
+            KING = 0x02,
+            QUEEN = 0x04,
+            BISHOP = 0x06,
+            KNIGHT = 0x08,
+            ROOK = 0x0a,
+            PAWN = 0x0c,
             WHITE_KING = WHITE | KING,
             WHITE_QUEEN = WHITE | QUEEN,
             WHITE_BISHOP = WHITE | BISHOP,
@@ -59,28 +48,32 @@ public class Config {
             TOTAL_PIECE_BITMAPS         = POOL_BG_INDEX + 1,
 
             // position flags:
-            FLAGS_W_QUEEN_OK	= 0x0001,			// castle
-            FLAGS_W_KING_OK		= 0x0002,			// castle
-            FLAGS_B_QUEEN_OK	= 0x0004,			// castle
-            FLAGS_BLACK_MOVE	= BLACK,            // == 0x0008
-            FLAGS_B_KING_OK		= 0x0010,			// castle
+            FLAGS_BLACK_MOVE	= BLACK,            // == 0x0001
+            FLAGS_B_QUEEN_OK	= 0x0002,			// castle
+            FLAGS_B_KING_OK		= 0x0004,			// castle
+            FLAGS_W_QUEEN_OK	= 0x0008,			// castle
+            FLAGS_W_KING_OK		= 0x0010,			// castle
             FLAGS_ENPASSANT_OK	= 0x0020,
             INIT_POSITION_FLAGS	= (FLAGS_W_QUEEN_OK | FLAGS_W_KING_OK | FLAGS_B_QUEEN_OK | FLAGS_B_KING_OK),
             POSITION_FLAGS		= (FLAGS_BLACK_MOVE | FLAGS_ENPASSANT_OK | INIT_POSITION_FLAGS),
 
+            FLAGS_REPETITION	= 0x0040,
+            NODE_VISITED_FLAG	= 0x0040,           // using in toPgn
+
             // move flags:
-            FLAGS_CURRENT_MOVE	= 0x0040,           // for serialization
-            FLAGS_REPETITION	= 0x0080,
-            FLAGS_X_AMBIG		= 0x0100,
-            FLAGS_Y_AMBIG		= 0x0200,
+            FLAGS_CAPTURE		= 0x0080,
+            FLAGS_CASTLE		= 0x0100,
+            FLAGS_X_AMBIG		= 0x0200,
+            FLAGS_Y_AMBIG		= 0x0400,
             FLAGS_AMBIG		    = (FLAGS_X_AMBIG | FLAGS_Y_AMBIG),
-            FLAGS_CHECK			= 0x0400,
-            FLAGS_CHECKMATE		= 0x0800,
+            FLAGS_CHECK			= 0x0800,
             FLAGS_PROMOTION		= 0x1000,
-            FLAGS_CASTLE		= 0x2000,
-            FLAGS_ENPASSANT		= 0x4000,
+            FLAGS_ENPASSANT		= 0x2000,
+            FLAGS_CHECKMATE		= 0x4000,
             FLAGS_NULL_MOVE		= 0x8000,	        // any move
-            MOVE_FLAGS          = (FLAGS_BLACK_MOVE | FLAGS_CURRENT_MOVE | FLAGS_REPETITION | FLAGS_AMBIG |FLAGS_CHECK | FLAGS_CHECKMATE | FLAGS_PROMOTION | FLAGS_CASTLE | FLAGS_ENPASSANT | FLAGS_NULL_MOVE),
+            FLAGS_CURRENT_MOVE	= 0x10000,          // for serialization
+            MOVE_FLAGS          = (FLAGS_BLACK_MOVE | FLAGS_CURRENT_MOVE | FLAGS_CAPTURE | FLAGS_AMBIG |FLAGS_CHECK |
+                    FLAGS_CHECKMATE | FLAGS_PROMOTION | FLAGS_CASTLE | FLAGS_ENPASSANT | FLAGS_NULL_MOVE),
 
             // validate move options:
             VALIDATE_PGN_MOVE			= 0x0001,
@@ -101,7 +94,7 @@ public class Config {
             MOVE_CHECKMATE = "#",
 
             //            0123456789abcde
-            FEN_PIECES = " KQBNRP  kqbnrp", // piece offset is its internal representation
+            FEN_PIECES = "  KkQqBbNnRrPp", // piece offset is its internal representation
             PGN_K_CASTLE = "O-O",
             PGN_Q_CASTLE = "O-O-O",
             PGN_K_CASTLE_ALT = "0-0",

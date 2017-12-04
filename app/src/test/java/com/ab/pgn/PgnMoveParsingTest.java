@@ -18,17 +18,17 @@ public class PgnMoveParsingTest extends BaseTest {
     final static String version = Config.version;
 
 
-    private List<PgnTree> testParsing(String pgn) throws Config.PGNException {
-        List<PgnTree> pgnTrees = parse(pgn);
-        for (PgnTree pgnTree : pgnTrees) {
-            logger.debug(pgnTree.getInitBoard().toFEN());
-            logger.debug(pgnTree.getBoard().toFEN());
-            String finalFen = pgnTree.pgn.getHeader(MY_HEADER);
+    private List<PgnGraph> testParsing(String pgn) throws Config.PGNException {
+        List<PgnGraph> pgnGraphs = parse2PgnGraph(pgn);
+        for (PgnGraph pgnGraph : pgnGraphs) {
+            logger.debug(pgnGraph.getInitBoard().toFEN());
+            logger.debug(pgnGraph.getBoard().toFEN());
+            String finalFen = pgnGraph.pgn.getHeader(MY_HEADER);
             if(finalFen != null) {
-                Assert.assertEquals(finalFen, pgnTree.getBoard().toFEN());
+                Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
             }
         }
-        return pgnTrees;
+        return pgnGraphs;
     }
 
     @Test
@@ -66,6 +66,17 @@ public class PgnMoveParsingTest extends BaseTest {
                 "c4 Nc7 16.Nc3 Be6 17.Bg5 Qd7 18.Rad1 Rc8 19.Bxe7 Qxe7 20.d5 Qc5+ 21.Kh1 \n" +
                 "cxd5 22.cxd5 Bd7 23.e6 Bb5 24.Qf4 Kd8 25.Bxb5 Nxb5 26.Nxb5 Qxb5 27.d6 1-0 ";
 
+        testParsing(pgn);
+    }
+
+    @Test
+    public void testParsingVariants() throws Config.PGNException {
+        String pgn =
+                "[White \"merge\"]\n" +
+                        "[Black \"variations \"]\n" +
+                        "\n" +
+                        "1. e4 Nf6 (1. ... Nc6 2. Nf3 (2. Nc3 Nf6) 2. ... Nf6 3. Nc3 e6) (1. ... e5 2. Bc4) 2. Nc3 Nc6 3. Nf3 e5" +
+                        "";
         testParsing(pgn);
     }
 
@@ -121,7 +132,7 @@ public class PgnMoveParsingTest extends BaseTest {
                 "important}" +
                 " 1. exd5 (1. -- dxe4 2. dxe4 -- 3. Bb3 3... c4 {\n" +
                 "White's bishop isn't active}) 1... Qxd5 " +
-                        "2. Qe2 2... Bb7 3. Bg5 $1 (3. Nxe5 Nxe5\n" +
+                "2. Qe2 2... Bb7 3. Bg5 $1 (3. Nxe5 Nxe5\n" +
                 "4. Qxe5 Qxg2#) (3. Bb3 {threat to win the pawn} 3... Qd7 4. Nxe5 Nxe5 5. Qxe5\n" +
                 "5... Bd6 $44 {a strong attack}) 3... Rfe8 4. Bh4 {\n" +
                 "threatening to win the e-pawn with Bg3 as well as making room for Ng5 with Bb3}\n" +
@@ -144,14 +155,17 @@ public class PgnMoveParsingTest extends BaseTest {
 
                 "\n";
 
-        List<PgnTree> pgnTrees = testParsing(pgn);
-        for(PgnTree pgnTree : pgnTrees) {
+        List<PgnGraph> pgnGraphs = testParsing(pgn);
+        for(PgnGraph pgnGraph : pgnGraphs) {
             BitStream.Writer writer = new BitStream.Writer();
-            pgnTree.serialize(writer);
+            pgnGraph.serialize(writer);
 
-            PgnTree unserialized = new PgnTree(new BitStream.Reader(writer));
-            Assert.assertEquals(pgnTree.getBoard().toString(), unserialized.getBoard().toString());
-            Assert.assertTrue(areEqual(pgnTree.root, unserialized.root));
+            PgnGraph unserialized = new PgnGraph(new BitStream.Reader(writer));
+            unserialized.toEnd();
+            pgnGraph.toEnd();
+            Assert.assertEquals(pgnGraph.getBoard().toString(), unserialized.getBoard().toString());
+            Assert.assertTrue(areEqual(pgnGraph.rootMove, unserialized.rootMove));
+            Assert.assertTrue(areEqual(pgnGraph, unserialized));
         }
     }
 
@@ -164,8 +178,9 @@ public class PgnMoveParsingTest extends BaseTest {
                 "15. Qh5 Ng6 16. Rad1 c6 17. Ne3 Qf6 18. Kh1 Bg7 19. Bh3 Ne7 20. Rd3 Be6 21. Rfd1 Bh6 22. Rd4 Bf4 23. Rf4 Rad8 24. Rd8 Rd8 25. Bf5 Nf5 26. Nf5 Rd5 27. g4 Bf5 28. gf5 h6 29. h3 Kh7 " +
                 "30. Qe2 Qe5 31. Qh5 Qf6 32. Qe2 Re5 33. Qd3 Rd5 34. Qe2\n"+
                 "";
-        List<PgnTree> pgnTrees = parse(pgn);
-        Assert.assertTrue((pgnTrees.get(0).getBoard().flags & Config.FLAGS_REPETITION) != 0);
+        List<PgnGraph> pgnGraphs = parse2PgnGraph(pgn);
+        logger.debug(pgnGraphs.get(0).toPgn());
+        Assert.assertTrue((pgnGraphs.get(0).moveLine.getLast().moveFlags & Config.FLAGS_REPETITION) != 0);
     }
 
     @Test
@@ -340,8 +355,8 @@ public class PgnMoveParsingTest extends BaseTest {
             List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem item : items) {
                 logger.debug(item.toString());
-                PgnTree pgnTree = new PgnTree((PgnItem.Item) item);
-                logger.debug(String.format("[%s \"%s\"]\n", MY_HEADER, pgnTree.getBoard().toFEN()));
+                PgnGraph pgnGraph = new PgnGraph((PgnItem.Item) item);
+                logger.debug(String.format("[%s \"%s\"]\n", MY_HEADER, pgnGraph.getBoard().toFEN()));
             }
         }
     }
@@ -371,8 +386,8 @@ public class PgnMoveParsingTest extends BaseTest {
         });
 
         for(PgnItem item : items) {
-            PgnTree pgnTree = new PgnTree((PgnItem.Item)item);
-            logger.debug(String.format("[%s \"%s\"]\n", MY_HEADER, pgnTree.getBoard().toFEN()));
+            PgnGraph pgnGraph = new PgnGraph((PgnItem.Item)item);
+            logger.debug(String.format("[%s \"%s\"]\n", MY_HEADER, pgnGraph.getBoard().toFEN()));
         }
     }
 
@@ -392,8 +407,8 @@ public class PgnMoveParsingTest extends BaseTest {
             List<PgnItem> items = pgn.getChildrenNames(null);
             for (PgnItem item : items) {
                 logger.debug(item.toString());
-                PgnTree pgnTree = new PgnTree((PgnItem.Item) item);
-                logger.debug(String.format("[%s \"%s\"]\n", MY_HEADER, pgnTree.getBoard().toFEN()));
+                PgnGraph pgnGraph = new PgnGraph((PgnItem.Item) item);
+                logger.debug(String.format("[%s \"%s\"]\n", MY_HEADER, pgnGraph.getBoard().toFEN()));
             }
         }
     }

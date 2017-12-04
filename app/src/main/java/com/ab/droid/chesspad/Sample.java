@@ -24,14 +24,15 @@ public class Sample {
                 "[White \"white\\\\repetition, promotion\"]\n" +
                 "[Black \"black \\\"black\\\"\"]\n" +
                 "[FEN \"r3kbnr/pPp2p1p/4p3/3pP3/8/5P2/P1PP2pP/RNBQK2R w KQkq - 92 3\"]\n" +
-                "1. Nc3 Bd6 2. Nb1 Bf8 3. Nc3 Bd6 4. Nb1 {Sample to test ChessPad. 4. ... Be7 creates 50 moves situation. 4. ... Bf8 creates 3-fold repetition.}" +
+                "3. Nc3 Bd6 4. Nb1 Bf8 5. Nc3 Bd6 6. Nb1 {Sample to test ChessPad. 6. ... Be7 creates 50 moves situation. 6. ... Bf8 creates 3-fold repetition.}" +
                 "\n" +
                 "\n" +
 
                 "[White \"white\\\\spec chars, checkmate\"]\n" +
                 "[Black \"black \\\"black\\\"\"]\n" +
                 "[Bla\\\"bla \"\\\"bla\\\\bla\\\"bla\\\"\"]\n"+
-                "[FEN \"r2qkbnr/pP1pp2p/8/4P3/1p6/8/P1PP2pP/RNBQK2R w KQkq - 99 6\"]\n" +
+                "[FEN \"r2qkbnr/pP1pp2p/2p6/4P3/1p6/8/P1PPPPpP/RNBQK2R w KQkq - 99 6\"]\n" +
+                "6. bxa8=Q" +
                 "\n" +
 
                 "[White \"N. Dekhanov\"]\n" +
@@ -138,9 +139,9 @@ public class Sample {
                 "30.Qc3 Re4 31.d6 Qg5 32.f3 Re3 33.Qxa5 Rfe8 34.Rf2 Qf6 35.Rd1 R3e5 36.d7  1-0\n" +
                 "\n" +
 
-//                "[White \"Same position\"]\n" +
-//                "[Black \"after different moves\"]\n" +
-//                "1.e4 e5 2.Nf3 (2.Bc4 Nc6 3.Nf3 Nf6) 2. ... Nc6 3.Bc4 Nf6 4.c3" +
+                "[White \"Same position\"]\n" +
+                "[Black \"after different moves\"]\n" +
+                "1.e4 e5 2.Nf3 {main} (2.Bc4 {variation} Nc6 {variation} 3.Nf3 {variation} Nf6 {variation} $4 4.c3{variation} $7) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}" +
                 ""
                 ;
 

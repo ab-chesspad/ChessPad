@@ -4,12 +4,32 @@ import java.io.IOException;
 import java.util.StringTokenizer;
 
 /**
- * Chess board with pieces, validation
+ * Chess _board with pieces, validation
+ * PgnGraph node
  * Created by Alexander Bootman on 8/6/16.
  */
 public class Board {
     public static boolean DEBUG = true;
     final static PgnLogger logger = PgnLogger.getLogger(Board.class);
+    final static int
+            COORD_MASK = 0x0007,
+            COORD_LENGTH = 3,
+            FLAGS_OFFSET = 0,
+            FLAGS_MASK = 0x007f,
+            FLAGS_LENGTH = 7,
+            ENPASS_OFFSET = FLAGS_OFFSET + FLAGS_LENGTH,            //  7
+            WK_X_OFFSET = ENPASS_OFFSET + COORD_LENGTH,             // 10
+            WK_Y_OFFSET = WK_X_OFFSET + COORD_LENGTH,               // 13
+            BK_X_OFFSET = WK_Y_OFFSET + COORD_LENGTH,               // 16
+            BK_Y_OFFSET = BK_X_OFFSET + COORD_LENGTH,               // 19
+
+            BOARD_DATA_PACK_LENGTH = BK_Y_OFFSET + COORD_LENGTH,    // 22
+
+            REVERSIBLE_PLY_NUM_OFFSET = BK_Y_OFFSET + COORD_LENGTH,
+            REVERSIBLE_PLY_NUM_LENGTH = 7,
+            REVERSIBLE_PLY_NUM_MASK = 0x007f,
+
+            dummy_int = 0;
 
     static final int[][] init = {
             {Config.WHITE_ROOK, Config.WHITE_KNIGHT, Config.WHITE_BISHOP, Config.WHITE_QUEEN, Config.WHITE_KING, Config.WHITE_BISHOP, Config.WHITE_KNIGHT, Config.WHITE_ROOK},
@@ -33,27 +53,26 @@ public class Board {
             {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
     };
 
-    public int[][] board = new int[Config.BOARD_SIZE][Config.BOARD_SIZE];
-    public int plyNum;
-    public int reversiblePlyNum;
-    transient public int flags;         // before next move
-    transient public int enpass;        // x-coord only
-    transient public Square wKing = new Square();
-    transient public Square bKing = new Square();
+    private int[] board = new int[Config.BOARD_SIZE];
+
+    protected int plyNum;
+    protected int boardData;        // enpassant x-coord (3), 8-bit flags (8), kings (12)? == 23
+
+    private Move move;              // moves made in this position
 
     public Board() {
         toInit();
     }
 
-    public Board(int[][] board) {
-        this.board = board;
+    public Board(int[][] pieces) {
+        copyBoard(pieces);
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
-            Pack.pack(this, writer);
+            Pack.pack(this, 0, writer);
             writer.write(this.plyNum, 9);
-            writer.write(this.reversiblePlyNum, 9);
+            writer.write(this.getReversiblePlyNum(), 9);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -64,11 +83,157 @@ public class Board {
             Board tmp = Pack.unpack(reader);
             tmp.validate(null);
             tmp.plyNum = reader.read(9);
-            tmp.reversiblePlyNum = reader.read(9);
+            tmp.setReversiblePlyNum(reader.read(9));
             copy(tmp, this);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
+    }
+
+    public void setFlags(int value) {
+        boardData = Util.setValue(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
+    }
+
+    public void raiseFlags(int value) {
+        boardData = Util.setBits(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
+    }
+
+    public void clearFlags(int value) {
+        boardData = Util.clearBits(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
+    }
+
+    public void invertFlags(int value) {
+        boardData = Util.invertBits(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
+    }
+
+    public int getFlags() {
+        return Util.getValue(boardData, FLAGS_MASK, FLAGS_OFFSET);
+    }
+
+    public void setEnpassantX(int enpass) {
+        boardData = Util.setValue(boardData, enpass, COORD_MASK, ENPASS_OFFSET);
+    }
+
+    public void setEnpassant(Square enpass) {
+        setEnpassantX(enpass.getX());
+    }
+
+    public int getEnpassantX() {
+        if((this.getFlags() & Config.FLAGS_ENPASSANT_OK) == 0) {
+            return -1;
+        }
+        return Util.getValue(boardData, COORD_MASK, ENPASS_OFFSET);
+    }
+
+    private static int calcEnpass(String square) {
+        return (int) (square.charAt(0) - 'a');
+    }
+
+    public Square getEnpassant() {
+        Square square = new Square();
+        int flags = this.getFlags();
+        if((flags & Config.FLAGS_ENPASSANT_OK) == 0) {
+            return square;        // invalid square
+        }
+        int enpass = getEnpassantX();
+        int pawn, otherPawn;
+        int y, y1;
+        if((flags & Config.FLAGS_BLACK_MOVE) == 0) {
+            y = 4;
+            y1 = 6;
+            square.y = 5;
+            pawn = Config.WHITE_PAWN;
+            otherPawn = Config.BLACK_PAWN;
+        } else {
+            y = 3;
+            y1 = 1;
+            square.y = 2;
+            pawn = Config.BLACK_PAWN;
+            otherPawn = Config.WHITE_PAWN;
+        }
+
+        if (pawn == this.getPiece(enpass - 1, y) || pawn == this.getPiece(enpass + 1, y)) {
+            if(otherPawn == this.getPiece(enpass, y)
+                    && Config.EMPTY == this.getPiece(enpass, square.y)
+                    && Config.EMPTY == this.getPiece(enpass, y1)) {
+                square.setX(enpass);
+                return square;
+            }
+        }
+        return square;
+    }
+
+    public void setWKingX(int x) {
+        boardData = Util.setValue(boardData, x, COORD_MASK, WK_X_OFFSET);
+    }
+
+    public void setWKingY(int y) {
+        boardData = Util.setValue(boardData, y, COORD_MASK, WK_Y_OFFSET);
+    }
+
+    public void setWKing(int x, int y) {
+        setWKingX(x);
+        setWKingY(y);
+    }
+
+    public void setWKing(Square wKing) {
+        setWKingX(wKing.getX());
+        setWKingY(wKing.getY());
+    }
+
+    public int getWKingX() {
+        return Util.getValue(boardData, COORD_MASK, WK_X_OFFSET);
+    }
+
+    public int getWKingY() {
+        return Util.getValue(boardData, COORD_MASK, WK_Y_OFFSET);
+    }
+
+    public Square getWKing() {
+        return new Square(getWKingX(), getWKingY());
+    }
+
+
+    public void setBKingX(int x) {
+        boardData = Util.setValue(boardData, x, COORD_MASK, BK_X_OFFSET);
+    }
+
+    public void setBKingY(int y) {
+        boardData = Util.setValue(boardData, y, COORD_MASK, BK_Y_OFFSET);
+    }
+
+    public void setBKing(int x, int y) {
+        setBKingX(x);
+        setBKingY(y);
+    }
+
+    public void setBKing(Square bKing) {
+        setBKingX(bKing.getX());
+        setBKingY(bKing.getY());
+    }
+
+    public int getBKingX() {
+        return Util.getValue(boardData, COORD_MASK, BK_X_OFFSET);
+    }
+
+    public int getBKingY() {
+        return Util.getValue(boardData, COORD_MASK, BK_Y_OFFSET);
+    }
+
+    public Square getBKing() {
+        return new Square(getBKingX(), getBKingY());
+    }
+
+    public void setReversiblePlyNum(int x) {
+        boardData = Util.setValue(boardData, x, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
+    }
+
+    public int getReversiblePlyNum() {
+        return Util.getValue(boardData, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
+    }
+
+    public int getPlyNum() {
+        return plyNum;
     }
 
     public void validate(Move move) {
@@ -79,49 +244,48 @@ public class Board {
                 if(move != null) {
                     s = move.toString(true);
                 }
-                String msg = String.format("board error %s on %s:\n%s", err, s, toString());
+                String msg = String.format("_board error %s on %s:\n%s", err, s, toString());
                 logger.debug(msg);
-
 //                throw new Config.PGNException(msg);
             }
         }
     }
     public int getXSize() {
-        return board[0].length;
+        return Config.BOARD_SIZE;
     }
 
     public int getYSize() {
-        return board.length;
+        return Config.BOARD_SIZE;
+    }
+
+    public Move getMove() {
+        return move;
+    }
+
+    public void setMove(Move move) {
+        this.move = move;
     }
 
     public void copy(Board src, Board trg) {
         trg.copyBoard(src.board);
-        trg.flags = src.flags;
         trg.plyNum = src.plyNum;
-        trg.reversiblePlyNum = src.reversiblePlyNum;
-        trg.enpass = src.enpass;
-        trg.wKing = src.wKing.clone();
-        trg.bKing = src.bKing.clone();
+        trg.boardData = src.boardData;
+        trg.setWKing(src.getWKing());
+        trg.setBKing(src.getBKing());
     }
 
     public void toInit() {
+        setWKing(-1, -1);   // ??
+        setBKing(-1, -1);   // ??
         copyBoard(init);
-        flags = Config.INIT_POSITION_FLAGS;
-        plyNum =
-        reversiblePlyNum = 0;
-        enpass = 0;
-        wKing = new Square(4, 0);
-        bKing = new Square(4, 7);
+        setFlags(Config.INIT_POSITION_FLAGS);
     }
 
     public void toEmpty() {
+        setWKing(-1, -1);   // ??
+        setBKing(-1, -1);   // ??
         copyBoard(empty);
-        flags = 0;
-        plyNum =
-        reversiblePlyNum = 0;
-        enpass = 0;
-        wKing = new Square();
-        bKing = new Square();
+        setFlags(0);
     }
 
     @Override
@@ -129,11 +293,11 @@ public class Board {
         String res = "";
 
         res += "   a b c d e f g h\n";
-        for (int j = board.length - 1; j >= 0; j--) {
+        for (int j = Config.BOARD_SIZE - 1; j >= 0; j--) {
             res += (j + 1) + " ";
-            for (int i = 0; i < board[j].length; i++) {
+            for (int i = 0; i < Config.BOARD_SIZE; i++) {
                 char ch;
-                int piece = board[j][i];
+                int piece = getPiece(i, j);
                 ch = Config.FEN_PIECES.charAt(piece);
                 if (ch == ' ') {
                     ch = '.';
@@ -153,14 +317,14 @@ public class Board {
         }
         Pack thisPack, thatPack;
         try {
-            thisPack = new Pack(this);
+            thisPack = new Pack(this, 0);
         } catch (Config.PGNException e) {
             logger.error(String.format("Position invalid for packing %s", this.toString()), e);
             return false;
         }
         try {
-            thatPack = new Pack((Board) that);
-            return thisPack.equals(thatPack);
+            thatPack = new Pack((Board) that, 0);
+            return thisPack.equalPosition(thatPack);
         } catch (Config.PGNException e) {
             logger.error(String.format("Position invalid for packing %s", that.toString()), e);
             return false;
@@ -171,19 +335,32 @@ public class Board {
     public Board clone() {
         Board board = new Board();
         board.copyBoard(this.board);
-        board.flags = this.flags;
         board.plyNum = this.plyNum;
-        board.reversiblePlyNum = this.reversiblePlyNum;
-        board.enpass = this.enpass;
-        board.wKing = this.wKing.clone();
-        board.bKing = this.bKing.clone();
+        board.boardData = this.boardData;
+        board.setWKing(this.getWKing());
+        board.setBKing(this.getBKing());
         return board;
     }
 
     public void copyBoard(int[][] from) {
-        for (int i = 0; i < from.length; i++) {
-            System.arraycopy(from[i], 0, board[i], 0, from[i].length);
+        for (int j = 0; j < from.length; ++j) {
+            int line = 0;
+            for (int i = from[j].length - 1; i >= 0; --i) {
+                int piece = from[j][i];
+                line = (line << 4) + piece;
+                if(piece == Config.WHITE_KING) {
+                    setWKing(i, j);
+                }
+                if(piece == Config.BLACK_KING) {
+                    setBKing(i, j);
+                }
+            }
+            board[j] = line;
         }
+    }
+
+    public void copyBoard(int[] from) {
+        System.arraycopy(from, 0, this.board, 0, from.length);
     }
 
     /**
@@ -206,58 +383,60 @@ public class Board {
                     int piece = Config.FEN_PIECES.indexOf(ch);
                     this.setPiece(i, j, piece);
                     if (piece == Config.WHITE_KING) {
-                        this.wKing = new Square(i, j);
+                        this.setWKing(i, j);
                     }
                     if (piece == Config.BLACK_KING) {
-                        this.bKing = new Square(i, j);
+                        this.setBKing(i, j);
                     }
                     ++i;
                 }
             }
         }
 
+        int flags = 0;
         if (st.hasMoreTokens()) {
             String turn = st.nextToken();
             if (turn.equals("b")) {
-                this.flags |= Config.FLAGS_BLACK_MOVE;      // previous move was black
+                flags |= Config.FLAGS_BLACK_MOVE;      // previous move was black
             }
         }
 
         if (st.hasMoreTokens()) {
             String castle = st.nextToken();
             if (castle.indexOf('K') >= 0) {
-                this.flags |= Config.FLAGS_W_KING_OK;
+                flags |= Config.FLAGS_W_KING_OK;
             }
             if (castle.indexOf('Q') >= 0) {
-                this.flags |= Config.FLAGS_W_QUEEN_OK;
+                flags |= Config.FLAGS_W_QUEEN_OK;
             }
             if (castle.indexOf('k') >= 0) {
-                this.flags |= Config.FLAGS_B_KING_OK;
+                flags |= Config.FLAGS_B_KING_OK;
             }
             if (castle.indexOf('q') >= 0) {
-                this.flags |= Config.FLAGS_B_QUEEN_OK;
+                flags |= Config.FLAGS_B_QUEEN_OK;
             }
         }
 
         if (st.hasMoreTokens()) {
             String enpass = st.nextToken();
             if (!enpass.equals("-")) {
-                this.enpass = calcEnpass(enpass);
-                this.flags |= Config.FLAGS_ENPASSANT_OK;
+                this.setEnpassantX(calcEnpass(enpass));
+                flags |= Config.FLAGS_ENPASSANT_OK;
             }
         }
 
         if (st.hasMoreTokens()) {
             String reversible_ply_num = st.nextToken();
-            this.reversiblePlyNum = Integer.parseInt(reversible_ply_num);
+            this.setReversiblePlyNum(Integer.parseInt(reversible_ply_num));
         }
 
         if (st.hasMoreTokens()) {
             this.plyNum = 2 * (Integer.parseInt(st.nextToken()) - 1);
-            if ((this.flags & Config.FLAGS_BLACK_MOVE) != 0) {
+            if ((flags & Config.FLAGS_BLACK_MOVE) != 0) {
                 ++this.plyNum;
             }
         }
+        this.setFlags(flags);
     }
 
     /**
@@ -290,56 +469,45 @@ public class Board {
             }
         }
 
-        if ((this.flags & Config.FLAGS_BLACK_MOVE) != 0) {
+        if ((this.getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
             sb.append(" b ");
         } else {
             sb.append(" w ");
         }
 
-        if ((this.flags & Config.INIT_POSITION_FLAGS) == 0) {
+        if ((this.getFlags() & Config.INIT_POSITION_FLAGS) == 0) {
             sb.append("-");
         } else {
-            String castle = "";
-            if ((this.flags & Config.FLAGS_W_KING_OK) != 0) {
+            if ((this.getFlags() & Config.FLAGS_W_KING_OK) != 0) {
                 sb.append("K");
             }
-            if ((this.flags & Config.FLAGS_W_QUEEN_OK) != 0) {
+            if ((this.getFlags() & Config.FLAGS_W_QUEEN_OK) != 0) {
                 sb.append("Q");
             }
-            if ((this.flags & Config.FLAGS_B_KING_OK) != 0) {
+            if ((this.getFlags() & Config.FLAGS_B_KING_OK) != 0) {
                 sb.append("k");
             }
-            if ((this.flags & Config.FLAGS_B_QUEEN_OK) != 0) {
+            if ((this.getFlags() & Config.FLAGS_B_QUEEN_OK) != 0) {
                 sb.append("q");
             }
         }
         sb.append(" ");
 
-        if ((this.flags & Config.FLAGS_ENPASSANT_OK) == 0) {
+        if ((this.getFlags() & Config.FLAGS_ENPASSANT_OK) == 0) {
             sb.append("-");
         } else {
-            int y;
-            if ((this.flags & Config.FLAGS_BLACK_MOVE) == 0) {
-                y = 5;
-            } else {
-                y = 2;
-            }
-            sb.append(Square.x2String(this.enpass)).append(Square.y2String(y));
+            sb.append(this.getEnpassant());
         }
-        sb.append(" ").append(this.reversiblePlyNum);
+        sb.append(" ").append(this.getReversiblePlyNum());
         sb.append(" ").append((1 + this.plyNum / 2));
         return new String(sb);
-    }
-
-    private static int calcEnpass(String square) {
-        return (int) (square.charAt(0) - 'a');
     }
 
     public int getPiece(int x, int y) {
         if(x < 0 || y < 0 || y >= getYSize() || x >= getXSize()) {
             return Config.EMPTY;
         }
-        return board[y][x];
+        return (board[y] >> (4 * x)) & 0x0f;
     }
 
     public int getPiece(Square square) {
@@ -347,36 +515,15 @@ public class Board {
     }
 
     public void setPiece(int x, int y, int piece) {
-        int oldPiece = board[y][x];
-        board[y][x] = piece;
+        int mask = 0x0f << (4 * x);
+        board[y] &= ~mask;
+        board[y] |= piece << (4 * x);
 
-        if((oldPiece & ~Config.BLACK) == Config.KING ) {
-            // can be result of invalid setup, find new king locations
-            wKing = bKing = null;
-            for (y = 0; y < Config.BOARD_SIZE; y++) {
-                for (x = 0; x < Config.BOARD_SIZE; x++) {
-                    piece = this.getPiece(x, y);
-                    if(piece == Config.WHITE_KING) {
-                        wKing = new Square(x, y);
-                        if(bKing != null) {
-                            return;
-                        }
-                    }
-                    if(piece == Config.BLACK_KING) {
-                        bKing = new Square(x, y);
-                        if(wKing != null) {
-                            return;
-                        }
-                    }
-                }
-            }
-        } else {
-            if(piece == Config.WHITE_KING) {
-                wKing = new Square(x, y);
-            }
-            if(piece == Config.BLACK_KING) {
-                bKing = new Square(x, y);
-            }
+        if(piece == Config.WHITE_KING) {
+            setWKing(x, y);
+        }
+        if(piece == Config.BLACK_KING) {
+            setBKing(x, y);
         }
     }
 
@@ -385,9 +532,10 @@ public class Board {
     }
 
     public Move newMove() {
-        return new Move(0);
+        return new Move(this.getFlags());
     }
 
+    // heavily depends on piece values!!
     public int validateSetup() {
         int y, x;
         int[][] count = {
@@ -415,7 +563,7 @@ public class Board {
                 } else {
                     color = 1;
                 }
-                int index = piece & ~Config.BLACK;
+                int index = (piece & ~Config.BLACK) / 2;
                 if(index == Config.PAWN) {
                     if(y == 0 || y == Config.BOARD_SIZE - 1) {
                         return 9 + color;           // Row for pawn!
@@ -428,7 +576,7 @@ public class Board {
                 if (++count[index][color] > count[index][2]) {
                     return 17 + color;           // Impossible pieces
                 }
-                if(index == Config.KING) {
+                if(index * 2 == Config.KING) {
                     king[color] = new Square(x, y);
                 }
             }
@@ -442,33 +590,33 @@ public class Board {
         }
 
         int extra[] = new int[2];
-        for (int i = Config.QUEEN; i <= Config.ROOK; ++i) {
+        for (int i = Config.QUEEN / 2; i <= Config.ROOK / 2; ++i) {
             for(int color = 0; color < 2; ++color) {
                 int e = count[i][color] - count[i][3];
                 if(e > 0) {
                     extra[color] += e;
-                    if(extra[color] > count[Config.PAWN][3]) {
+                    if(extra[color] > count[Config.PAWN / 2][3]) {
                         return 17 + color;           // Impossible pieces
                     }
                 }
             }
         }
 
-        if ((this.flags & Config.INIT_POSITION_FLAGS & ~getPositionFlags()) != 0) {
+        if ((this.getFlags() & Config.INIT_POSITION_FLAGS & ~getPositionFlags()) != 0) {
             return 13;
         }
-        if ((this.flags & Config.FLAGS_ENPASSANT_OK) != 0) {
-            if (this.reversiblePlyNum > 0) {
+        if ((this.getFlags() & Config.FLAGS_ENPASSANT_OK) != 0) {
+            if (this.getReversiblePlyNum() > 0) {
                 return 11;
             }
-            if(this.getEnpass().getY() == -1) {
+            if(this.getEnpassantX() == -1) {
                 return 14;
             }
         }
 
         // verify if the other king is checked:
         Move probe = newMove();
-        if ((this.flags & Config.FLAGS_BLACK_MOVE) == 0) {
+        if ((this.getFlags() & Config.FLAGS_BLACK_MOVE) == 0) {
             probe.to = king[1];
         } else {
             probe.to = king[0];
@@ -494,38 +642,6 @@ public class Board {
                 flags |= Config.FLAGS_B_KING_OK;
         }
         return flags;
-    }
-
-    public Square getEnpass() {
-        Square sq = new Square(this.enpass, -1);
-
-        if((this.flags & Config.FLAGS_ENPASSANT_OK) == 0) {
-            return new Square();        // invalid square
-        }
-        int pawn, otherPawn;
-        int y, y1;
-        if((this.flags & Config.FLAGS_BLACK_MOVE) == 0) {
-            y = 4;
-            y1 = 6;
-            sq.y = 5;
-            pawn = Config.WHITE_PAWN;
-            otherPawn = Config.BLACK_PAWN;
-        } else {
-            y = 3;
-            y1 = 1;
-            sq.y = 2;
-            pawn = Config.BLACK_PAWN;
-            otherPawn = Config.WHITE_PAWN;
-        }
-
-        if (pawn == this.getPiece(sq.x - 1, y) || pawn == this.getPiece(sq.x + 1, y)) {
-            if(otherPawn == this.getPiece(sq.x, y)
-                && Config.EMPTY == this.getPiece(sq)
-                && Config.EMPTY == this.getPiece(sq.x, y1)) {
-                return sq;
-            }
-        }
-        return new Square();        // invalid square
     }
 
     // for pgn ambiguous moves QBNR and pawn, K for attack
@@ -581,14 +697,13 @@ public class Board {
         Board tmp = this.clone();
         tmp.doMove(move);
         tmp.validate(move);
-        move.snapshot = tmp;
 
         // 3. validate own king is checked
         Square target;
         if ((move.piece & Config.BLACK) == 0) {
-            target = tmp.wKing;
+            target = tmp.getWKing();
         } else {
-            target = tmp.bKing;
+            target = tmp.getBKing();
         }
         return tmp.findAttack(target, null) == null;
     }
@@ -638,13 +753,12 @@ public class Board {
             }
         } else if (adx == 1) {
             int pieceTaken = this.getPiece(move.to);
-            if (this.getPiece(move.to) != Config.EMPTY && (pieceTaken & Config.BLACK) != (move.moveFlags & Config.BLACK)) {
+            if (pieceTaken != Config.EMPTY && (pieceTaken & Config.BLACK) != (this.getPiece(move.from) & Config.BLACK)) {
                 ok = true;
-            } else if (this.enpass == move.to.x) {
+            } else if (this.getEnpassantX() == move.to.x) {
                 pieceTaken = this.getPiece(move.to.x, move.to.y - d);
                 if (pieceTaken == hisPawn) {
-                    move.pieceTaken = pieceTaken;
-                    move.moveFlags |= Config.FLAGS_ENPASSANT;
+                    move.moveFlags |= Config.FLAGS_ENPASSANT | Config.FLAGS_CAPTURE;
                     ok = true;
                 }
             }
@@ -707,11 +821,11 @@ public class Board {
                 return false;
             if((move.piece & Config.BLACK) == 0) {
                 if( dx == -2 ) {
-                    if((this.flags & Config.FLAGS_W_QUEEN_OK) == 0) {
+                    if((this.getFlags() & Config.FLAGS_W_QUEEN_OK) == 0) {
                         return false;
                     }
                     rook.x = 0;
-                } else if( (this.flags & Config.FLAGS_W_KING_OK) == 0 ) {
+                } else if( (this.getFlags() & Config.FLAGS_W_KING_OK) == 0 ) {
                     return false;
                 } else {
                     rook.x = 7;
@@ -722,11 +836,11 @@ public class Board {
                 }
             } else {
                 if( dx == -2 ) {
-                    if((this.flags & Config.FLAGS_B_QUEEN_OK) == 0) {
+                    if((this.getFlags() & Config.FLAGS_B_QUEEN_OK) == 0) {
                         return false;
                     }
                     rook.x = 0;
-                } else if( (this.flags & Config.FLAGS_B_KING_OK) == 0 ) {
+                } else if( (this.getFlags() & Config.FLAGS_B_KING_OK) == 0 ) {
                     return false;
                 } else {
                     rook.x = 7;
@@ -766,7 +880,6 @@ public class Board {
             }
         }
 
-        move.snapshot = tmp;                                        // reuse tmp
         return true;
     }
 
@@ -775,10 +888,10 @@ public class Board {
         Board tmp = this.clone();
         tmp.doMove(move);
         Square sq;
-        if((tmp.flags & Config.FLAGS_BLACK_MOVE) == 0) {
-            sq = tmp.bKing;
+        if((tmp.getFlags() & Config.FLAGS_BLACK_MOVE) == 0) {
+            sq = tmp.getBKing();
         } else {
-            sq = tmp.wKing;
+            sq = tmp.getWKing();
         }
         return tmp.findAttack(sq, null) == null;
     }
@@ -786,7 +899,9 @@ public class Board {
     // check if any piece attacks trg square, not necessarily a valid move
     Move findAttack(Square trg, Square except) {
         Move probe = newMove();
-        if(except != null) {
+        if(except == null) {
+            probe.from = new Square(0, 0);
+        } else {
             probe.from = except.clone();
             ++probe.from.x;
             if( probe.from.x == Config.BOARD_SIZE ) {
@@ -799,7 +914,7 @@ public class Board {
         for (; probe.from.y < Config.BOARD_SIZE; ++probe.from.y) {
             for (; probe.from.x < Config.BOARD_SIZE; ++probe.from.x) {
                 probe.piece = getPiece(probe.from);
-                if (probe.piece == Config.EMPTY || (this.flags & Config.BLACK) != (probe.piece & Config.BLACK)) {
+                if (probe.piece == Config.EMPTY || (this.getFlags() & Config.BLACK) != (probe.piece & Config.BLACK)) {
                     continue;
                 }
                 if (trgPiece == Config.EMPTY || (trgPiece & Config.BLACK) != (probe.piece & Config.BLACK)) {
@@ -819,7 +934,7 @@ public class Board {
 
         // 1. validate king moves
         // his move
-        this.flags ^= Config.FLAGS_BLACK_MOVE;
+        this.invertFlags(Config.FLAGS_BLACK_MOVE);
         probe.piece = this.getPiece(move.to);
         probe.from = move.to.clone();
 
@@ -837,14 +952,14 @@ public class Board {
                 if( piece == Config.EMPTY || (piece & Config.BLACK) != (probe.piece & Config.BLACK)) {
                     if (validateKingMove(probe)) {
                         if(validateOwnKingCheck(probe)) {
-                            this.flags ^= Config.FLAGS_BLACK_MOVE;
+                            this.invertFlags(Config.FLAGS_BLACK_MOVE);
                             return false;
                         }
                     }
                 }
             }
         }
-        this.flags ^= Config.FLAGS_BLACK_MOVE;
+        this.invertFlags(Config.FLAGS_BLACK_MOVE);
 
         // 2. verify if it is a double-check, skip verified squares
         // my move
@@ -854,7 +969,7 @@ public class Board {
 
         // 3. verify if the attacking piece can be blocked/captured
         // his move
-        this.flags ^= Config.FLAGS_BLACK_MOVE;
+        this.invertFlags(Config.FLAGS_BLACK_MOVE);
         probe = move.clone();
         probe.moveFlags ^= Config.FLAGS_BLACK_MOVE;
         int dx = 0, dy = 0, n = 1;
@@ -884,12 +999,11 @@ public class Board {
             for (probe.from.y = 0; probe.from.y < Config.BOARD_SIZE; ++probe.from.y) {
                 for (probe.from.x = 0; probe.from.x < Config.BOARD_SIZE; ++probe.from.x) {
                     probe.piece = getPiece(probe.from);
-                    if (probe.piece == Config.EMPTY || (this.flags & Config.BLACK) != (probe.piece & Config.BLACK)) {
+                    if (probe.piece == Config.EMPTY || (this.getFlags() & Config.BLACK) != (probe.piece & Config.BLACK)) {
                         continue;
                     }
                     if (validatePgnMove(probe, Config.VALIDATE_USER_MOVE)) {
-                            //System.out.println(String.format("check attack %s - yes", probe));
-                        this.flags ^= Config.FLAGS_BLACK_MOVE;
+                        this.invertFlags(Config.FLAGS_BLACK_MOVE);
                         return false;
                     }
                 }
@@ -898,9 +1012,9 @@ public class Board {
         boolean res = true;
 
         // 4. special case: mating move by pawn that can be taken by en passant
-        if((this.flags & Config.FLAGS_ENPASSANT_OK) != 0) {
+        if((this.getFlags() & Config.FLAGS_ENPASSANT_OK) != 0) {
             probe = this.newMove();
-            if((this.flags & Config.FLAGS_BLACK_MOVE) != 0) {
+            if((this.getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
                 probe.from.y = 3;
                 probe.to.y = 2;
                 probe.piece = Config.BLACK_PAWN;
@@ -909,21 +1023,22 @@ public class Board {
                 probe.to.y = 5;
                 probe.piece = Config.WHITE_PAWN;
             }
-            probe.to.x = this.enpass;
-            if(getPiece(this.enpass - 1, probe.from.y) == probe.piece) {
-                probe.from.x = this.enpass - 1;
+            int enpass = this.getEnpassantX();
+            probe.to.x = enpass;
+            if(getPiece(enpass - 1, probe.from.y) == probe.piece) {
+                probe.from.x = enpass - 1;
                 if (validatePgnMove(probe, Config.VALIDATE_USER_MOVE)) {
                     res = false;
                 }
             }
-            if( getPiece(this.enpass + 1, probe.from.y) == probe.piece) {
-                probe.from.x = this.enpass + 1;
+            if( getPiece(enpass + 1, probe.from.y) == probe.piece) {
+                probe.from.x = enpass + 1;
                 if (validatePgnMove(probe, Config.VALIDATE_USER_MOVE)) {
                     res = false;
                 }
             }
         }
-        this.flags ^= Config.FLAGS_BLACK_MOVE;
+        this.invertFlags(Config.FLAGS_BLACK_MOVE);
         return res;
     }
 
@@ -931,11 +1046,13 @@ public class Board {
     public void doMove(Move move) {
         ++this.plyNum;
         if ((move.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
-            this.flags ^= Config.FLAGS_BLACK_MOVE;
+            this.invertFlags(Config.FLAGS_BLACK_MOVE);
             return;
         }
 
-        move.pieceTaken = this.getPiece(move.to);
+        if(this.getPiece(move.to) != Config.EMPTY) { // can be empty: en passant
+            move.moveFlags |= Config.FLAGS_CAPTURE;
+        }
 
         setPiece(move.from, Config.EMPTY);
         if ((move.piecePromoted == Config.EMPTY)) {
@@ -954,9 +1071,7 @@ public class Board {
             }
         }
         if ((move.moveFlags & Config.FLAGS_ENPASSANT_OK) != 0) {
-            this.enpass = move.to.x;
-        } else {
-            this.enpass = 0;
+            this.setEnpassantX(move.to.x);
         }
 
         if ((move.moveFlags & Config.FLAGS_CASTLE) != 0) {
@@ -974,32 +1089,33 @@ public class Board {
         }
 
         if (move.piece == Config.WHITE_KING) {
-            this.wKing = move.to.clone();
-            this.flags &= ~(Config.FLAGS_W_QUEEN_OK | Config.FLAGS_W_KING_OK);
+            this.setWKing(move.to);
+            this.clearFlags(Config.FLAGS_W_QUEEN_OK | Config.FLAGS_W_KING_OK);
         } else if (move.piece == Config.BLACK_KING) {
-            this.bKing = move.to.clone();
-            this.flags &= ~(Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK);
+            this.setBKing(move.to);
+            this.clearFlags(Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK);
         } else if (move.piece == Config.WHITE_ROOK) {
             if (move.from.x == 0) {
-                this.flags &= ~Config.FLAGS_W_QUEEN_OK;
+                this.clearFlags(Config.FLAGS_W_QUEEN_OK);
             } else if (move.from.x == 7) {
-                this.flags &= ~Config.FLAGS_W_KING_OK;
+                this.clearFlags(Config.FLAGS_W_KING_OK);
             }
         } else if (move.piece == Config.BLACK_ROOK) {
             if (move.from.x == 0) {
-                this.flags &= ~Config.FLAGS_B_QUEEN_OK;
+                this.clearFlags(Config.FLAGS_B_QUEEN_OK);
             } else if (move.from.x == 7) {
-                this.flags &= ~Config.FLAGS_B_KING_OK;
+                this.clearFlags(Config.FLAGS_B_KING_OK);
             }
         }
-        if(move.getColorlessPiece() == Config.PAWN || move.pieceTaken != Config.EMPTY) {
-            this.reversiblePlyNum = 0;
+        if(move.getColorlessPiece() == Config.PAWN || (move.moveFlags & Config.FLAGS_CAPTURE) != 0) {
+            this.setReversiblePlyNum(0);
         } else {
-            ++this.reversiblePlyNum;
+            this.setReversiblePlyNum(getReversiblePlyNum() + 1);
         }
 
-        this.flags &= ~Config.FLAGS_ENPASSANT_OK;
-        this.flags |= move.moveFlags & Config.FLAGS_ENPASSANT_OK;
-        this.flags ^= Config.FLAGS_BLACK_MOVE;
+        this.clearFlags(Config.FLAGS_ENPASSANT_OK);
+        this.raiseFlags(move.moveFlags & Config.FLAGS_ENPASSANT_OK);
+        this.invertFlags(Config.FLAGS_BLACK_MOVE);
     }
+
 }

@@ -3,27 +3,24 @@ package com.ab.pgn;
 import java.io.IOException;
 
 /**
- * move data - pgnTree node
+ * move stored in Board - PgnGraph node
  * Created by Alexander Bootman on 8/6/16.
  */
 public class Move {
-    public Square from;                  // from.x == -1 for null move or a placeholder
+    public Square from;                         // from.x == -1 for null move or a placeholder
     public Square to;
     public int piecePromoted = Config.EMPTY;
     public int moveFlags;
     public String comment;
-    public int glyph;                          // one glyph per move, but can store more as bytes in the future
+    public int glyph;                           // one glyph per move, but can store more as bytes in the future
 
-    transient public int pieceTaken = Config.EMPTY;
     transient public int piece = Config.EMPTY;
-    transient public Pack pack = null;
-    transient public Board snapshot;                     // board after the move
-    transient public Move nextMove;
-    transient public Move prevMove;
+    transient public int[] packData;            // board after the move
     transient public Move variation;
 
-    public Move(int piece, Square from, Square to) {
-        this.piece = piece;
+    public Move(Board board, Square from, Square to) {
+        this.moveFlags = board.getFlags();
+        this.piece = board.getPiece(from.getX(), from.getY());
         this.from = from;
         this.to = to;
     }
@@ -39,7 +36,6 @@ public class Move {
         m.from = this.from.clone();
         m.to = this.to.clone();
         m.piece = this.piece;
-        m.pieceTaken = this.pieceTaken;
         m.piecePromoted = this.piecePromoted;
         m.comment = this.comment;
         m.glyph = this.glyph;
@@ -47,27 +43,53 @@ public class Move {
         return m;
     }
 
-    public void serialize(BitStream.Writer writer) throws IOException {
-        from.serialize(writer);
-        to.serialize(writer);
-        writer.write(moveFlags, 16);
-        if(piecePromoted == Config.EMPTY) {
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            writer.write((piecePromoted & ~Config.PIECE_COLOR), 3);
+    public void serialize(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            from.serialize(writer);
+            to.serialize(writer);
+            writer.write(moveFlags, 16);
+            if (piecePromoted == Config.EMPTY) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                writer.write((piecePromoted & ~Config.PIECE_COLOR), 3);
+            }
+            if (glyph == 0) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                writer.write(glyph, 8);
+            }
+            if (comment == null) {   // empty?
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                writer.writeString(comment);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
-        if(glyph == 0) {
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            writer.write(glyph, 8);
-        }
-        if(comment == null) {   // empty?
-            writer.write(0, 1);
-        } else {
-            writer.write(1, 1);
-            writer.writeString(comment);
+        new Pack(this.packData).serialize(writer);
+    }
+
+    public Move(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            from = new Square(reader);
+            to = new Square(reader);
+            moveFlags = reader.read(16);
+            if (reader.read(1) == 1) {
+                piecePromoted = reader.read(3) | (moveFlags & Config.PIECE_COLOR);
+            }
+            if (reader.read(1) == 1) {
+                glyph = reader.read(8);
+            }
+            if (reader.read(1) == 1) {
+                comment = reader.readString();
+            }
+            Pack pack = new Pack(reader);
+            packData = pack.getPackData();
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
         }
     }
 
@@ -87,32 +109,43 @@ public class Move {
             }
 
             piece = board.getPiece(from);
-            pieceTaken = board.getPiece(to);    // todo: verify en passant
-            snapshot = board.clone();
-            snapshot.doMove(this);
-            snapshot.validate(this);
-            pack = new Pack(snapshot);
+
+            Pack pack = new Pack(reader);
+            packData = pack.getPackData();
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
     }
 
-    public boolean equals(Move that) {
-        return this.from.equals(that.from) && this.to.equals(that.to) && this.piecePromoted == that.piecePromoted;
+    public boolean isSameAs(Move that) {
+        if(that == null) {
+            return false;
+        }
+
+        if((this.moveFlags & Config.FLAGS_NULL_MOVE) != 0 || (that.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
+            return (this.moveFlags & Config.FLAGS_NULL_MOVE) == (that.moveFlags & Config.FLAGS_NULL_MOVE);
+        }
+        if(this.moveFlags != that.moveFlags) {
+            return false;
+        }
+        if(this.piece != that.piece) {
+            return false;
+        }
+        if(this.piecePromoted != that.piecePromoted) {
+            return false;
+        }
+        if(!this.from.equals(that.from)) {
+            return false;
+        }
+        return new Pack(this.packData).equals(new Pack(that.packData));
     }
 
-    public String toNumString() {
-        int plyNum;
-        if(snapshot != null) {
-            plyNum = snapshot.plyNum;
-        } else if(this.prevMove != null && this.prevMove.snapshot != null) {
-            plyNum = this.prevMove.snapshot.plyNum + 1;
-        } else {
-            plyNum = 0;
-        }
-        return "" + ((plyNum + 1) / 2) + ". "
-                + ((plyNum & 1) == 1 ? "" : "... ")
-                + toString();
+    public Move getVariation() {
+        return variation;
+    }
+
+    public void setVariation(Move variation) {
+        this.variation = variation;
     }
 
     public boolean isNullMove() {
@@ -155,8 +188,9 @@ public class Move {
                 res.append(from.x2String());
             }
 
-            if (pieceTaken != Config.EMPTY ||
-                    getColorlessPiece() == Config.PAWN && to.x != from.x) {
+            if ((moveFlags & Config.FLAGS_CAPTURE) != 0
+//                    || getColorlessPiece() == Config.PAWN && to.x != from.x
+                    ) {
                 res.append(Config.MOVE_CAPTURE);
             }
 

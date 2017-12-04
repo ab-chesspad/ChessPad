@@ -1,7 +1,7 @@
 package com.ab.pgn;
 
-import android.support.annotation.NonNull;
-import android.support.annotation.StringDef;
+//import android.support.annotation.NonNull;
+//import android.support.annotation.StringDef;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -258,7 +258,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
     }
 
     @Override
-    public int compareTo(@NonNull PgnItem that) {
+    public int compareTo(PgnItem that) {
         int res;
         if(this.getClass().equals(Dir.class)) {
             if(!that.getClass().equals(Dir.class)) {
@@ -528,7 +528,8 @@ public abstract class PgnItem implements Comparable<PgnItem> {
                                 src.moveText = item.toString(false, true);    // the whole item
                             }
                             if (src.moveText != null) {
-                                byte[] buf = src.moveText.getBytes("UTF-8");
+                                String moveText = src.moveText + "\n";
+                                byte[] buf = moveText.getBytes("UTF-8");
                                 os.write(buf, 0, buf.length);
                                 ++count[0];
                             }

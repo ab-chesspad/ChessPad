@@ -90,8 +90,11 @@ public class Popups {
 
     public static final String ADD_HEADER_LABEL = "            ";
     private ChessPad chessPad;
-    private final int[] promotionListW = {R.drawable.qw, R.drawable.bw, R.drawable.nw, R.drawable.rw};
-    private final int[] promotionListB = {R.drawable.qb, R.drawable.bb, R.drawable.nb, R.drawable.rb};
+    private final int[][] promotionList = {
+            {R.drawable.qw, R.drawable.rw, R.drawable.bw, R.drawable.nw},
+            {R.drawable.qb, R.drawable.rb, R.drawable.bb, R.drawable.nb},
+            {Config.QUEEN, Config.ROOK, Config.BISHOP, Config.KNIGHT},
+    };
     private List<String> glyphs;
 
     private boolean fileListShown = false;
@@ -133,8 +136,7 @@ public class Popups {
         try {
             fileListShown = reader.read(1) == 1;
             if (reader.read(1) == 1) {
-                promotionMove = new Move(reader, chessPad.pgnTree.getBoard());
-                promotionMove.snapshot = null;
+                promotionMove = new Move(reader, chessPad.pgnGraph.getBoard());
             }
             this.dialogType = DialogType.value(reader.read(4));
             dialogMsg = reader.readString();
@@ -194,25 +196,27 @@ public class Popups {
         PgnItem pgnItem;
         switch (dialogType) {
             case Glyphs:
-                launchDialog(dialogType, new CPArrayAdapter(glyphs, chessPad.pgnTree.getGlyph()));
+                launchDialog(dialogType, new CPArrayAdapter(glyphs, chessPad.pgnGraph.getGlyph()));
                 break;
 
             case Variations:
-                List<Move> variations = chessPad.pgnTree.getVariations();
+                List<Move> variations = chessPad.pgnGraph.getVariations();
                 launchDialog(dialogType, new CPArrayAdapter(variations, 0));       // 1st one is main line
                 break;
 
             case Promotion:
+                int index;
                 if ((this.promotionMove.moveFlags & Config.BLACK) == 0) {
-                    launchDialog(dialogType, new CPArrayAdapter(promotionListW, -1));
+                    index = 0;
                 } else {
-                    launchDialog(dialogType, new CPArrayAdapter(promotionListB, -1));
+                    index = 1;
                 }
+                launchDialog(dialogType, new CPArrayAdapter(promotionList[index], -1));
                 break;
 
             case Load:
                 int selectedPgnItem = -1;
-                pgnItem = chessPad.pgnTree.getPgn();
+                pgnItem = chessPad.pgnGraph.getPgn();
                 if (pgnItem != null) {
                     selectedPgnItem = pgnItem.parentIndex(chessPad.currentPath);
                 }
@@ -233,7 +237,7 @@ public class Popups {
 
             case Headers:
                 if(chessPad.mode == ChessPad.Mode.Game) {
-                    pgnItem = chessPad.pgnTree.getPgn();
+                    pgnItem = chessPad.pgnGraph.getPgn();
                     if (pgnItem != null) {
                         CPHeaderListAdapter adapter;
                         if (editHeaders == null) {
@@ -255,8 +259,8 @@ public class Popups {
             case DeleteYesNo:
                 if (chessPad.isFirstMove()) {
                     dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_game), R.drawable.exclamation, Popups.DialogButton.YesNo);
-                } else if (chessPad.pgnTree.isEnd()) {
-                    chessPad.pgnTree.delCurrentMove();
+                } else if (chessPad.pgnGraph.isEnd()) {
+                    chessPad.pgnGraph.delCurrentMove();
                     chessPad.chessPadView.invalidate();
                 } else {
                     dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_move), 0, Popups.DialogButton.YesNo);
@@ -291,15 +295,15 @@ public class Popups {
                 case DialogInterface.BUTTON_POSITIVE:
                     try {
                         if(chessPad.isSaveable()) {
-                            chessPad.savePgnTree(true, new CPPostExecutor() {
+                            chessPad.savePgnGraph(true, new CPPostExecutor() {
                                 @Override
                                 public void onPostExecute() throws Config.PGNException {
-                                    chessPad.setPgnTree(null);
+                                    chessPad.setPgnGraph(null);
                                 }
 
                                 @Override
                                 public void onExecuteException(Config.PGNException e) throws Config.PGNException {
-                                    Log.e(DEBUG_TAG, "savePgnTree, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                                    Log.e(DEBUG_TAG, "savePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
                                 }
                             });
                         } else {
@@ -314,8 +318,8 @@ public class Popups {
 
                 case DialogInterface.BUTTON_NEGATIVE:
                     try {
-                        chessPad.pgnTree.setModified(false);
-                        chessPad.setPgnTree(null);
+                        chessPad.pgnGraph.setModified(false);
+                        chessPad.setPgnGraph(null);
                     } catch (Config.PGNException e) {
                         Log.e(DEBUG_TAG, "dlgMessage()", e);
                     }
@@ -343,13 +347,13 @@ public class Popups {
 
             case Glyphs:
                 dismissDlg();
-                chessPad.pgnTree.setGlyph(selected);
+                chessPad.pgnGraph.setGlyph(selected);
                 break;
 
             case Variations:
                 dismissDlg();
                 Move variation = (Move) selectedValue;
-                chessPad.pgnTree.toVariation(variation);
+                chessPad.pgnGraph.toVariation(variation);
                 break;
 
             case DeleteYesNo:
@@ -359,9 +363,9 @@ public class Popups {
 
             case Promotion:
                 dismissDlg();
-                promotionMove.piecePromoted = (selected + 2) | (promotionMove.moveFlags & Config.BLACK);
-                promotionMove.snapshot = null;
-                chessPad.pgnTree.addUserMove(promotionMove);
+                promotionMove.piecePromoted = promotionList[2][selected] | (promotionMove.moveFlags & Config.BLACK);
+                chessPad.pgnGraph.validateUserMove(promotionMove);  // validate check
+                chessPad.pgnGraph.addUserMove(promotionMove);
                 break;
 
             case Menu:
@@ -371,7 +375,7 @@ public class Popups {
 
             case Load:
                 if (selectedValue instanceof PgnItem.Item) {
-                    Log.d(DEBUG_TAG, String.format("selected %s", selectedValue.toString()));
+                    Log.d(DEBUG_TAG, String.format("selectedSquare %s", selectedValue.toString()));
                     dismissDlg();
                     final PgnItem.Item actualItem = (PgnItem.Item) selectedValue;
                     new CPAsyncTask(chessPad.chessPadView.cpProgressBar, new CPExecutor() {
@@ -379,7 +383,7 @@ public class Popups {
                         public void onPostExecute() {
                             Log.d(DEBUG_TAG, String.format("getPgnItem end, thread %s", Thread.currentThread().getName()));
                             try {
-                                chessPad.setPgnTree(actualItem);
+                                chessPad.setPgnGraph(actualItem);
                             } catch (Config.PGNException e) {
                                 Log.e(DEBUG_TAG, String.format("actualItem %s", actualItem.toString()), e);
                             }
@@ -417,12 +421,12 @@ public class Popups {
 
             case Append:
                 PgnItem.Pgn pgn = new PgnItem.Pgn(selectedValue.toString());
-                chessPad.pgnTree.getPgn().setParent(pgn);
-                chessPad.pgnTree.getPgn().setIndex(-1);
-                chessPad.savePgnTree(true, new CPPostExecutor() {
+                chessPad.pgnGraph.getPgn().setParent(pgn);
+                chessPad.pgnGraph.getPgn().setIndex(-1);
+                chessPad.savePgnGraph(true, new CPPostExecutor() {
                     @Override
                     public void onPostExecute() throws Config.PGNException {
-                        chessPad.setPgnTree(null);
+                        chessPad.setPgnGraph(null);
                     }
 
                     @Override
@@ -436,7 +440,7 @@ public class Popups {
                 if (selected == DialogInterface.BUTTON_POSITIVE) {
                     if(chessPad.getMode() == ChessPad.Mode.Game) {
                         editHeaders.remove(editHeaders.size() - 1);     // remove 'add new' row
-                        chessPad.pgnTree.setHeaders(editHeaders);
+                        chessPad.pgnGraph.setHeaders(editHeaders);
                     } else {
                         chessPad.setup.setHeaders(editHeaders);
                     }
@@ -638,7 +642,7 @@ public class Popups {
             public void onClick(View v) {
                 fileListShown = true;
                 listView.setVisibility(View.VISIBLE);
-                final PgnItem pgnItem = chessPad.pgnTree.getPgn();
+                final PgnItem pgnItem = chessPad.pgnGraph.getPgn();
                 if (pgnItem != null) {
                     try {
 
