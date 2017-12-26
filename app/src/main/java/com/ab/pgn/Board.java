@@ -1,6 +1,8 @@
 package com.ab.pgn;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.StringTokenizer;
 
 /**
@@ -12,6 +14,7 @@ public class Board {
     public static boolean DEBUG = true;
     final static PgnLogger logger = PgnLogger.getLogger(Board.class);
     final static int
+            // boardData:
             COORD_MASK = 0x0007,
             COORD_LENGTH = 3,
             FLAGS_OFFSET = 0,
@@ -25,9 +28,24 @@ public class Board {
 
             BOARD_DATA_PACK_LENGTH = BK_Y_OFFSET + COORD_LENGTH,    // 22
 
-            REVERSIBLE_PLY_NUM_OFFSET = BK_Y_OFFSET + COORD_LENGTH,
+            // using in toPgn
+            NODE_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,           // 22
+            NODE_VISITED_LENGTH = 1,
+            NODE_VISITED_MASK = 0x1,
+
+            // boardCounts:
+            PLY_NUM_OFFSET = 0,
+            PLY_NUM_LENGTH = 9,
+            PLY_NUM_MASK = 0x01ff,
+            REVERSIBLE_PLY_NUM_OFFSET = PLY_NUM_OFFSET + PLY_NUM_LENGTH,    //  9
             REVERSIBLE_PLY_NUM_LENGTH = 7,
             REVERSIBLE_PLY_NUM_MASK = 0x007f,
+
+            IN_MOVES_OFFSET = REVERSIBLE_PLY_NUM_OFFSET + REVERSIBLE_PLY_NUM_LENGTH,    // 16
+            IN_MOVES_LENGTH = 3,
+            IN_MOVES_MASK = 0x7,
+
+            BOARD_COUNTS_PACK_LENGTH = IN_MOVES_OFFSET + IN_MOVES_LENGTH,               // 19
 
             dummy_int = 0;
 
@@ -55,8 +73,8 @@ public class Board {
 
     private int[] board = new int[Config.BOARD_SIZE];
 
-    protected int plyNum;
-    protected int boardData;        // enpassant x-coord (3), 8-bit flags (8), kings (12)? == 23
+    private int boardCounts;      // plynum, reversable plynum
+    private int boardData;        // enpassant x-coord (3), 7-bit flags (7), kings (12) == 22
 
     private Move move;              // moves made in this position
 
@@ -70,9 +88,8 @@ public class Board {
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
-            Pack.pack(this, 0, writer);
-            writer.write(this.plyNum, 9);
-            writer.write(this.getReversiblePlyNum(), 9);
+            pack(writer);
+            writer.write(this.boardCounts, BOARD_COUNTS_PACK_LENGTH);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -80,10 +97,9 @@ public class Board {
 
     public Board(BitStream.Reader reader) throws Config.PGNException {
         try {
-            Board tmp = Pack.unpack(reader);
+            Board tmp = unpack(reader);
+            tmp.boardCounts = reader.read(BOARD_COUNTS_PACK_LENGTH);
             tmp.validate(null);
-            tmp.plyNum = reader.read(9);
-            tmp.setReversiblePlyNum(reader.read(9));
             copy(tmp, this);
         } catch (IOException e) {
             throw new Config.PGNException(e);
@@ -224,16 +240,40 @@ public class Board {
         return new Square(getBKingX(), getBKingY());
     }
 
-    public void setReversiblePlyNum(int x) {
-        boardData = Util.setValue(boardData, x, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
-    }
-
-    public int getReversiblePlyNum() {
-        return Util.getValue(boardData, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
+    public void setPlyNum(int x) {
+        boardCounts = Util.setValue(boardCounts, x, PLY_NUM_MASK, PLY_NUM_OFFSET);
     }
 
     public int getPlyNum() {
-        return plyNum;
+        return Util.getValue(boardCounts, PLY_NUM_MASK, PLY_NUM_OFFSET);
+    }
+
+    public void incrementPlyNum(int x) {
+        boardCounts = Util.incrementValue(boardCounts, x, PLY_NUM_MASK, PLY_NUM_OFFSET);
+    }
+
+    public void setReversiblePlyNum(int x) {
+        boardCounts = Util.setValue(boardCounts, x, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
+    }
+
+    public void incrementReversiblePlyNum(int x) {
+        boardCounts = Util.incrementValue(boardCounts, x, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
+    }
+
+    public int getReversiblePlyNum() {
+        return Util.getValue(boardCounts, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
+    }
+
+    public void setInMoves(int x) {
+        boardCounts = Util.setValue(boardCounts, x, IN_MOVES_MASK, IN_MOVES_OFFSET);
+    }
+
+    public void incrementInMoves(int x) {
+        boardCounts = Util.incrementValue(boardCounts, x, IN_MOVES_MASK, IN_MOVES_OFFSET);
+    }
+
+    public int getInMoves() {
+        return Util.getValue(boardCounts, IN_MOVES_MASK, IN_MOVES_OFFSET);
     }
 
     public void validate(Move move) {
@@ -266,9 +306,18 @@ public class Board {
         this.move = move;
     }
 
+    public void setVisited(boolean visited) {
+        int flag = visited ? 1 : 0;
+        boardData = Util.setValue(boardData, flag, NODE_VISITED_MASK, NODE_VISITED_OFFSET);
+    }
+
+    public boolean wasVisited() {
+        return Util.getValue(boardData, NODE_VISITED_MASK, NODE_VISITED_OFFSET) == 1;
+    }
+
     public void copy(Board src, Board trg) {
         trg.copyBoard(src.board);
-        trg.plyNum = src.plyNum;
+        trg.boardCounts = src.boardCounts;
         trg.boardData = src.boardData;
         trg.setWKing(src.getWKing());
         trg.setBKing(src.getBKing());
@@ -317,13 +366,13 @@ public class Board {
         }
         Pack thisPack, thatPack;
         try {
-            thisPack = new Pack(this, 0);
+            thisPack = new Pack(this.pack());
         } catch (Config.PGNException e) {
             logger.error(String.format("Position invalid for packing %s", this.toString()), e);
             return false;
         }
         try {
-            thatPack = new Pack((Board) that, 0);
+            thatPack = new Pack(((Board)that).pack());
             return thisPack.equalPosition(thatPack);
         } catch (Config.PGNException e) {
             logger.error(String.format("Position invalid for packing %s", that.toString()), e);
@@ -335,8 +384,9 @@ public class Board {
     public Board clone() {
         Board board = new Board();
         board.copyBoard(this.board);
-        board.plyNum = this.plyNum;
+        board.boardCounts = this.boardCounts;
         board.boardData = this.boardData;
+        board.setInMoves(0);
         board.setWKing(this.getWKing());
         board.setBKing(this.getBKing());
         return board;
@@ -431,10 +481,11 @@ public class Board {
         }
 
         if (st.hasMoreTokens()) {
-            this.plyNum = 2 * (Integer.parseInt(st.nextToken()) - 1);
+            int plyNum = 2 * (Integer.parseInt(st.nextToken()) - 1);
             if ((flags & Config.FLAGS_BLACK_MOVE) != 0) {
-                ++this.plyNum;
+                ++plyNum;
             }
+            this.setPlyNum(plyNum);
         }
         this.setFlags(flags);
     }
@@ -499,7 +550,7 @@ public class Board {
             sb.append(this.getEnpassant());
         }
         sb.append(" ").append(this.getReversiblePlyNum());
-        sb.append(" ").append((1 + this.plyNum / 2));
+        sb.append(" ").append((1 + this.getPlyNum() / 2));
         return new String(sb);
     }
 
@@ -1044,7 +1095,7 @@ public class Board {
 
     // move pieces on board
     public void doMove(Move move) {
-        ++this.plyNum;
+        this.incrementPlyNum(1);
         if ((move.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             this.invertFlags(Config.FLAGS_BLACK_MOVE);
             return;
@@ -1110,12 +1161,164 @@ public class Board {
         if(move.getColorlessPiece() == Config.PAWN || (move.moveFlags & Config.FLAGS_CAPTURE) != 0) {
             this.setReversiblePlyNum(0);
         } else {
-            this.setReversiblePlyNum(getReversiblePlyNum() + 1);
+            this.incrementReversiblePlyNum(1);
         }
 
         this.clearFlags(Config.FLAGS_ENPASSANT_OK);
         this.raiseFlags(move.moveFlags & Config.FLAGS_ENPASSANT_OK);
         this.invertFlags(Config.FLAGS_BLACK_MOVE);
+    }
+
+    /**
+     * pack position into int[6] (byte[24])
+     *   64 bit - 'index' array - 8 x 8 bits, 1 for a piece, 0 for empty
+     *  100 bit - all pieces except kings:
+     *           10 pieces (except kings) are packed with 3-number groups, each group into 10-bit array
+     *   12 bit - both kings positions
+     *    3 bit - en passant
+     *    7 bit - position flags
+     * =186 bit total
+     *  added 6-bit ply number to use in hashCode() but not in equalPosition()
+     *  assuming no variant merge after 64 moves
+     * 6 * 32 = 192 bit for int[6]
+     * <p/>
+     *
+     * To validate 3-fold repetition, position identification, board serialization
+     * https://en.wikipedia.org/wiki/Threefold_repetition
+     * ... for a position to be considered the same, each player must have the same set of legal moves
+     * each time, including the possible rights to castle and capture en passant.
+     * Created by Alexander Bootman on 8/6/16.
+     */
+    static final int
+            PACK_SIZE = 6,              // ints.length
+            PACK_PIECE_ADJUSTMENT = 4,  // wq->0, bq->1, wr->2, etc.
+            MOVE_NUMBER_LENGTH = 6,     // only 6-bit part
+            MOVE_NUMBER_MASK = 0x03f,
+            _dummy_int = 0;
+
+    int[] pack() throws Config.PGNException {
+        try {
+            int[] ints = new int[PACK_SIZE];
+            BitStream.Writer writer = new BitStream.Writer();
+            pack(writer);
+            byte[] buf = writer.getBits();
+
+            int n = -1;
+            for (int i = 0; i < ints.length; ++i) {
+                ints[i] = 0;
+                int shift = 0;
+                for (int j = 0; j < 4; ++j) {
+                    if (++n < buf.length) {
+                        ints[i] |= ((int) buf[n] & 0x0ff) << shift;
+                        shift += 8;
+                    }
+                }
+            }
+            return  ints;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public static Board unpack(int[] ints) throws Config.PGNException {
+        try {
+            byte[] bits = new byte[ints.length * 4];
+            for (int i = 0; i < ints.length / 2; ++i) {
+                long one = ((long)ints[2 * i + 1] << 32) | ((long)ints[2 * i] & 0x0ffffffffL);
+                int n = 8 * i - 1;
+                for (int j = 0; j < 8; ++j) {
+                    ++n;
+                    bits[n] = (byte) (one & 0x0ff);
+                    one >>>= 8;
+                }
+            }
+
+            BitStream.Reader reader = new BitStream.Reader(bits);
+            return unpack(reader);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public void pack(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            int pieces = 0;
+            List<Integer> values = new LinkedList<>();
+            int val = 0;
+            int factor = 1;
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                int mask = 1;
+                int buf = 0;
+                for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                    int code = this.getPiece(i, j) - PACK_PIECE_ADJUSTMENT;
+                    if (code >= 0) {
+                        // ignoring kings
+                        ++pieces;
+                        buf |= mask;
+                        val += factor * code;
+                        factor *= 10;
+                        if (factor == 1000) {
+                            values.add(val);    // store 3-decimal-digits number
+                            factor = 1;
+                            val = 0;
+                        }
+                    }
+                    mask <<= 1;
+                }
+                writer.write(buf, 8);
+            }
+            if (factor != 1) {
+                values.add(val);
+            }
+            writer.write(this.getPlyNum() / 2, Board.MOVE_NUMBER_LENGTH);
+            writer.write(this.boardData, Board.BOARD_DATA_PACK_LENGTH);
+            for (int v : values) {
+                writer.write(v, 10);    // copy 3-decimal-digits number in 10-bit array
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public static Board unpack(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            Board board = new Board();
+            board.toEmpty();
+
+            byte[] pieceBits = new byte[Config.BOARD_SIZE];
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                pieceBits[j] = (byte) (reader.read(8) & 0x0ff);
+            }
+
+            int moveNum = reader.read(Board.MOVE_NUMBER_LENGTH);    // ignore
+            board.boardData = reader.read(Board.BOARD_DATA_PACK_LENGTH);
+
+            int val = 0;
+            int factor = 3;
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                int mask = 1;
+                for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                    if ((pieceBits[j] & mask) != 0) {
+                        if (factor == 3) {
+                            // copy 3-decimal-digits number in 10-bit array
+                            val = reader.read(10);
+                            factor = 0;
+                        }
+                        int code = val % 10;
+                        int piece = code + PACK_PIECE_ADJUSTMENT;
+                        board.setPiece(i, j, piece);
+                        val /= 10;
+                        ++factor;
+                    }
+                    mask <<= 1;
+                }
+            }
+            board.setPiece(board.getWKingX(), board.getWKingY(), Config.WHITE_KING);
+            board.setPiece(board.getBKingX(), board.getBKingY(), Config.BLACK_KING);
+            return board;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
 }

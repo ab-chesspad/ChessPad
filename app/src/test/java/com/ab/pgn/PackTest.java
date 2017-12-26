@@ -16,9 +16,9 @@ public class PackTest extends BaseTest {
     @Test
     public void testInit() throws Config.PGNException {
         Board board = new Board();
-        Pack pack = new Pack(board, 0);
+        Pack pack = new Pack(board.pack());
         Assert.assertEquals(30, pack.getNumberOfPieces());
-        Board clone = pack.unpack();
+        Board clone = Board.unpack(pack.getPackData());
         Assert.assertEquals(board.toFEN(), clone.toFEN());
     }
 
@@ -29,9 +29,9 @@ public class PackTest extends BaseTest {
         // Pack requires both kings to be on the board
         board.setPiece(0, 0, Config.WHITE_KING);
         board.setPiece(7, 0, Config.BLACK_KING);
-        Pack pack = new Pack(board, 0);
+        Pack pack = new Pack(board.pack());
         Assert.assertEquals(pack.getNumberOfPieces(), 0);
-        Board clone = pack.unpack();
+        Board clone = Board.unpack(pack.getPackData());
         Assert.assertEquals(board.toFEN(), clone.toFEN());
     }
 
@@ -54,11 +54,10 @@ public class PackTest extends BaseTest {
             String onlyLetters = fen.substring(0, i).replaceAll("[^\\p{L}]", "");
             int pieces = onlyLetters.length() - 2;  // without kings
             Board board = new Board(fen);
-            Pack pack = new Pack(board, 0);
+            Pack pack = new Pack(board.pack());
             positions.put(pack, board);
-//            Assert.assertEquals(fen, pieces, pack.getNumberOfPieces());
-            Board clone = pack.unpack();
-            Pack clonePack = new Pack(clone, 0);
+            Board clone = Board.unpack(pack.getPackData());
+            Pack clonePack = new Pack(clone.pack());
             Assert.assertEquals(fen, clone.toFEN());
             Assert.assertTrue(pack.equals(clonePack));
             Board fromMap = positions.get(clonePack);
@@ -76,6 +75,19 @@ public class PackTest extends BaseTest {
     }
 
     @Test
+    public void testPositionEquality() throws Config.PGNException {
+        String[] fens = {
+            "8/pp3p1k/2p2q1p/3r1P2/5R2/7P/P1P1QP2/7K b - - 2 30",
+            "8/pp3p1k/2p2q1p/3r1P2/5R2/7P/P1P1QP2/7K b - - 6 32",
+        };
+        Board b0 = new Board(fens[0]);
+        Pack p0 = new Pack(b0.pack());
+        Board b1 = new Board(fens[1]);
+        Pack p1 = new Pack(b1.pack());
+        Assert.assertTrue(String.format("\"%s\" != \"%s\"", fens[0], fens[1]), p1.equalPosition(p0));
+    }
+
+    @Test
     public void testPack() throws Config.PGNException, IOException {
         String fen = "r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w - - 0 1";
         Board board = new Board(fen);
@@ -83,14 +95,14 @@ public class PackTest extends BaseTest {
         BitStream.Writer writer = new BitStream.Writer();
         int i = 25;
         writer.write(i, 5);
-        Pack.pack(board, 0, writer);
+        board.pack(writer);
 
         byte[] buf = writer.getBits();
         BitStream.Reader reader = new BitStream.Reader(buf);
         int j = reader.read(5);
         Assert.assertEquals(i, j);
 
-        Board copy = Pack.unpack(reader);
+        Board copy = Board.unpack(reader);
         String fenCopy = copy.toFEN();
         Assert.assertEquals(fen, fenCopy);
     }

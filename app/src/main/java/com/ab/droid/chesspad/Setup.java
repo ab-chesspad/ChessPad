@@ -5,10 +5,9 @@ import android.util.Log;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
-import com.ab.pgn.Pack;
 import com.ab.pgn.Pair;
-import com.ab.pgn.PgnItem;
 import com.ab.pgn.PgnGraph;
+import com.ab.pgn.PgnItem;
 import com.ab.pgn.Square;
 
 import java.io.IOException;
@@ -66,7 +65,7 @@ public class Setup implements ChessPadView.ChangeObserver {
 
     private void serializeSetupBoard(BitStream.Writer writer) throws Config.PGNException {
         try {
-            Pack.packBoard(board, 0, writer);
+            board.pack(writer);
             List<Square> wKings = new LinkedList<>();
             List<Square> bKings = new LinkedList<>();
             for (int x = 0; x < Config.BOARD_SIZE; x++) {
@@ -95,7 +94,7 @@ public class Setup implements ChessPadView.ChangeObserver {
 
     private Board unserializeSetupBoard(BitStream.Reader reader) throws Config.PGNException {
         try {
-            Board board = Pack.unpackBoard(reader);
+            Board board = Board.unpack(reader);
             int n = reader.read(6);
             for (int i = 0; i < n; ++i) {
                 Square sq = new Square(reader);

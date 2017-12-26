@@ -19,7 +19,7 @@ public class PgnMoveParsingTest extends BaseTest {
 
 
     private List<PgnGraph> testParsing(String pgn) throws Config.PGNException {
-        List<PgnGraph> pgnGraphs = parse2PgnGraph(pgn);
+        List<PgnGraph> pgnGraphs = parse2PgnGraphs(pgn);
         for (PgnGraph pgnGraph : pgnGraphs) {
             logger.debug(pgnGraph.getInitBoard().toFEN());
             logger.debug(pgnGraph.getBoard().toFEN());
@@ -178,7 +178,7 @@ public class PgnMoveParsingTest extends BaseTest {
                 "15. Qh5 Ng6 16. Rad1 c6 17. Ne3 Qf6 18. Kh1 Bg7 19. Bh3 Ne7 20. Rd3 Be6 21. Rfd1 Bh6 22. Rd4 Bf4 23. Rf4 Rad8 24. Rd8 Rd8 25. Bf5 Nf5 26. Nf5 Rd5 27. g4 Bf5 28. gf5 h6 29. h3 Kh7 " +
                 "30. Qe2 Qe5 31. Qh5 Qf6 32. Qe2 Re5 33. Qd3 Rd5 34. Qe2\n"+
                 "";
-        List<PgnGraph> pgnGraphs = parse2PgnGraph(pgn);
+        List<PgnGraph> pgnGraphs = parse2PgnGraphs(pgn);
         logger.debug(pgnGraphs.get(0).toPgn());
         Assert.assertTrue((pgnGraphs.get(0).moveLine.getLast().moveFlags & Config.FLAGS_REPETITION) != 0);
     }

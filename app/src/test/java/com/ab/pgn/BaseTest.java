@@ -135,10 +135,10 @@ public class BaseTest {
         }
 
         for(Map.Entry<Pack, Board> entry : g2.positions.entrySet()) {
-            entry.getValue().clearFlags(Config.NODE_VISITED_FLAG);
+            entry.getValue().setVisited(false);
         }
         for(Map.Entry<Pack, Board> entry : g1.positions.entrySet()) {
-            entry.getValue().clearFlags(Config.NODE_VISITED_FLAG);
+            entry.getValue().setVisited(false);
         }
         return areEqual(g1, g1.rootMove, g2, g2.rootMove);
     }
@@ -156,17 +156,17 @@ public class BaseTest {
             if(!b2.equals(b1)) {
                 return false;
             }
-            int f2 = b2.getFlags() & Config.NODE_VISITED_FLAG;
-            int f1 = b1.getFlags() & Config.NODE_VISITED_FLAG;
+            boolean f2 = b2.wasVisited();
+            boolean f1 = b1.wasVisited();
             if(f2 != f1) {
                 return false;
             }
-            if(f2 != 0) {
+            if(f2) {
                 return true;
             }
 
-            b2.raiseFlags(Config.NODE_VISITED_FLAG);
-            b1.raiseFlags(Config.NODE_VISITED_FLAG);
+            b2.setVisited(true);
+            b1.setVisited(true);
             if(!areEqual(g1, m1.getVariation(), g2, m2.getVariation())) {
                 return false;
             }
@@ -251,7 +251,7 @@ public class BaseTest {
         return res;
     }
 
-    public List<PgnGraph> parse2PgnGraph(String pgn) throws Config.PGNException {
+    public List<PgnGraph> parse2PgnGraphs(String pgn) throws Config.PGNException {
         List<PgnGraph> res = new LinkedList<>();
         BufferedReader br = new BufferedReader(new StringReader(pgn));
         final List<PgnItem> items = new LinkedList<>();
@@ -330,7 +330,7 @@ public class BaseTest {
                     positionFlags, expectedPositionFlags);
         }
 
-        pgnGraph.delLastMove();
+        pgnGraph.delCurrentMove();
         boolean res = pgnGraph.validateUserMove(move);
         if(expectedFlags == ERR) {
             Assert.assertFalse(String.format("%s must be error\n%s", moveText, initBoard.toString()), res);

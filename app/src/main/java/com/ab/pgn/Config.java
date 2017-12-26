@@ -58,7 +58,6 @@ public class Config {
             POSITION_FLAGS		= (FLAGS_BLACK_MOVE | FLAGS_ENPASSANT_OK | INIT_POSITION_FLAGS),
 
             FLAGS_REPETITION	= 0x0040,
-            NODE_VISITED_FLAG	= 0x0040,           // using in toPgn
 
             // move flags:
             FLAGS_CAPTURE		= 0x0080,
