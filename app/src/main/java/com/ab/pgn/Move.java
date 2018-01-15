@@ -3,7 +3,7 @@ package com.ab.pgn;
 import java.io.IOException;
 
 /**
- * move stored in Board - PgnGraph node
+ * move - PgnGraph edge, stored in Board - PgnGraph vertex
  * Created by Alexander Bootman on 8/6/16.
  */
 public class Move {

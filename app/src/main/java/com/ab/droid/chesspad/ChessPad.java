@@ -208,7 +208,7 @@ public class ChessPad extends AppCompatActivity {
     }
 
     private void sample() {
-        new Sample(this).createPgnTest();
+        new Sample().createPgnTest();
     }
 
     @Override

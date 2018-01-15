@@ -7,7 +7,7 @@ import java.util.StringTokenizer;
 
 /**
  * Chess _board with pieces, validation
- * PgnGraph node
+ * PgnGraph vertex
  * Created by Alexander Bootman on 8/6/16.
  */
 public class Board {
@@ -29,9 +29,9 @@ public class Board {
             BOARD_DATA_PACK_LENGTH = BK_Y_OFFSET + COORD_LENGTH,    // 22
 
             // using in toPgn
-            NODE_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,           // 22
-            NODE_VISITED_LENGTH = 1,
-            NODE_VISITED_MASK = 0x1,
+            VERTEX_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,           // 22
+            VERTEX_VISITED_LENGTH = 1,
+            VERTEX_VISITED_MASK = 0x1,
 
             // boardCounts:
             PLY_NUM_OFFSET = 0,
@@ -308,11 +308,11 @@ public class Board {
 
     public void setVisited(boolean visited) {
         int flag = visited ? 1 : 0;
-        boardData = Util.setValue(boardData, flag, NODE_VISITED_MASK, NODE_VISITED_OFFSET);
+        boardData = Util.setValue(boardData, flag, VERTEX_VISITED_MASK, VERTEX_VISITED_OFFSET);
     }
 
     public boolean wasVisited() {
-        return Util.getValue(boardData, NODE_VISITED_MASK, NODE_VISITED_OFFSET) == 1;
+        return Util.getValue(boardData, VERTEX_VISITED_MASK, VERTEX_VISITED_OFFSET) == 1;
     }
 
     public void copy(Board src, Board trg) {

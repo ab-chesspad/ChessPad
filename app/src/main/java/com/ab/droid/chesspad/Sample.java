@@ -11,23 +11,16 @@ import java.io.IOException;
  * Created by Alexander Bootman on 8/28/16.
  */
 public class Sample {
-    private ChessPad chessPad;
-
-    public Sample(ChessPad chessPad) {
-        this.chessPad = chessPad;
-    }
-
     public void createPgnTest() {
         try {
-            // 8/pp6/5qpp/1Q2Np1k/5P2/P5PK/1Pr4P/8 b - - 0 1
             String pgn =
-                    "[White \"Fischer,M\"]\n" +
-                    "[Black \"Petrosian\"]\n" +
-                    "\n"+
-                    "1. e4 e6 2. d4 d5 3. Nc3 Nf6 4. Bg5 de4 5. Ne4 Be7 6. Bf6 gf6 7. g3 f5 8. Nc3 Bf6 9. Nge2 Nc6 10. d5 ed5 11. Nd5 Bb2 12. Bg2 O-O 13. O-O Bh8 14. Nef4 Ne5 " +
-                    "15. Qh5 Ng6 16. Rad1 c6 17. Ne3 Qf6 18. Kh1 Bg7 19. Bh3 Ne7 20. Rd3 Be6 21. Rfd1 Bh6 22. Rd4 Bf4 23. Rf4 Rad8 24. Rd8 Rd8 25. Bf5 Nf5 26. Nf5 Rd5 27. g4 Bf5 28. gf5 h6 29. h3 Kh7 " +
-                    "30. Qe2 Qe5 31. Qh5 Qf6 32. Qe2 Re5 33. Qd3 Rd5 {34. Qe2 - repetition}\n"+
-                    "\n" +
+                "[White \"Fischer,M\"]\n" +
+                "[Black \"Petrosian\"]\n" +
+                "\n"+
+                "1. e4 e6 2. d4 d5 3. Nc3 Nf6 4. Bg5 de4 5. Ne4 Be7 6. Bf6 gf6 7. g3 f5 8. Nc3 Bf6 9. Nge2 Nc6 10. d5 ed5 11. Nd5 Bb2 12. Bg2 O-O 13. O-O Bh8 14. Nef4 Ne5 " +
+                "15. Qh5 Ng6 16. Rad1 c6 17. Ne3 Qf6 18. Kh1 Bg7 19. Bh3 Ne7 20. Rd3 Be6 21. Rfd1 Bh6 22. Rd4 Bf4 23. Rf4 Rad8 24. Rd8 Rd8 25. Bf5 Nf5 26. Nf5 Rd5 27. g4 Bf5 28. gf5 h6 29. h3 Kh7 " +
+                "30. Qe2 Qe5 31. Qh5 Qf6 32. Qe2 Re5 33. Qd3 Rd5 {34. Qe2 - repetition}\n"+
+                "\n" +
 
                 "[White \"white\\\\repetition, promotion\"]\n" +
                 "[Black \"black \\\"black\\\"\"]\n" +
@@ -149,7 +142,8 @@ public class Sample {
 
                 "[White \"Same position\"]\n" +
                 "[Black \"after different moves\"]\n" +
-                "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}" +
+                "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
+                "\n" +
                 ""
                 ;
 
