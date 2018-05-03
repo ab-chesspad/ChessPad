@@ -18,6 +18,8 @@ import com.ab.pgn.Square;
 
 import java.util.List;
 
+//import android.hardware.usb.UsbDevice;
+
 /**
  *
  * Created by Alexander Bootman on 11/27/16.
@@ -42,7 +44,26 @@ public class GameView {
     public GameView(ChessPad chessPad, RelativeLayout relativeLayoutMain) {
         this.chessPad = chessPad;
         this.relativeLayoutMain = relativeLayoutMain;
+
     }
+
+//    private void testUsb() {
+//        HashMap<String, UsbDevice> deviceList = DgtSetup.discover(chessPad);
+//        if(deviceList == null) {
+//            comment.setText("UsbDevice list is null");
+//            return;
+//        }
+//
+//        String msg = "Usb list:\n";
+//
+//        Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
+//        while(deviceIterator.hasNext()){
+//            UsbDevice device = deviceIterator.next();
+//            msg += device.getDeviceName() + "\n";
+//        }
+//        comment.setText(msg);
+//
+//    }
 
     public void draw() {
         int x, y, dx, dy;
@@ -236,6 +257,8 @@ public class GameView {
             Metrics.cpScreenHeight = y + h;
         }
         setButtonEnabled(ChessPad.Command.Stop.getValue(), false);
+
+//        testUsb();
     }
 
     public void invalidate() {

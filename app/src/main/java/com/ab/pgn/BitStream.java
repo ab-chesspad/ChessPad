@@ -119,7 +119,7 @@ public abstract class BitStream {
     public static class Reader extends  BitStream {
         private InputStream is;
 
-        public Reader(InputStream is) throws IOException {
+        public Reader(InputStream is) {
             this.is = is;
             bitIndex = 8;
         }

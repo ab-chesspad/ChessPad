@@ -56,6 +56,11 @@ public class Square {
         return new Square(this.x, this.y);
     }
 
+    @Override
+    public int hashCode() {
+        return (this.x <<3) + this.y;
+    }
+
     public boolean equals(Square that) {
         return this.x == that.x && this.y == that.y;
     }

@@ -7,6 +7,8 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.mockito.Matchers.startsWith;
+
 /**
  * unit tests
  * Created by Alexander Bootman on 8/14/16.
@@ -105,5 +107,18 @@ public class PackTest extends BaseTest {
         Board copy = Board.unpack(reader);
         String fenCopy = copy.toFEN();
         Assert.assertEquals(fen, fenCopy);
+        int[] pack = board.pack();
+        Board b = Board.unpack(pack);
+        fenCopy = b.toFEN();
+        Assert.assertEquals(fen, fenCopy);
+    }
+
+    @Test
+    public void testInvalidPack() throws Config.PGNException {
+        String fen = "rnbqkbnr/pppppppp/8/q/8/8/PPPPPPPP/RNBQKBNR w - - 0 1";
+        Board invalid = new Board(fen);
+        expectedEx.expect(Config.PGNException.class);
+        expectedEx.expectMessage(startsWith("Invalid position to pack:"));
+        int[] pack = invalid.pack();
     }
 }

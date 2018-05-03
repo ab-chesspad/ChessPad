@@ -11,7 +11,7 @@ import java.util.StringTokenizer;
  * Created by Alexander Bootman on 8/6/16.
  */
 public class Board {
-    public static boolean DEBUG = true;
+    public static boolean DEBUG = false;
     final static PgnLogger logger = PgnLogger.getLogger(Board.class);
     final static int
             // boardData:
@@ -126,12 +126,16 @@ public class Board {
         return Util.getValue(boardData, FLAGS_MASK, FLAGS_OFFSET);
     }
 
-    public void setEnpassantX(int enpass) {
-        boardData = Util.setValue(boardData, enpass, COORD_MASK, ENPASS_OFFSET);
+    private static int calcEnpass(String square) {
+        return (int) (square.charAt(0) - 'a');
     }
 
     public void setEnpassant(Square enpass) {
         setEnpassantX(enpass.getX());
+    }
+
+    public void setEnpassantX(int enpass) {
+        boardData = Util.setValue(boardData, enpass, COORD_MASK, ENPASS_OFFSET);
     }
 
     public int getEnpassantX() {
@@ -139,10 +143,6 @@ public class Board {
             return -1;
         }
         return Util.getValue(boardData, COORD_MASK, ENPASS_OFFSET);
-    }
-
-    private static int calcEnpass(String square) {
-        return (int) (square.charAt(0) - 'a');
     }
 
     public Square getEnpassant() {
@@ -341,10 +341,10 @@ public class Board {
     public String toString() {
         String res = "";
 
-        res += "   a b c d e f g h\n";
-        for (int j = Config.BOARD_SIZE - 1; j >= 0; j--) {
+        res += "   a b c d e f g h".substring(2 * getXSize() + 2) + "\n";
+        for (int j = getYSize() - 1; j >= 0; j--) {
             res += (j + 1) + " ";
-            for (int i = 0; i < Config.BOARD_SIZE; i++) {
+            for (int i = 0; i < getXSize(); i++) {
                 char ch;
                 int piece = getPiece(i, j);
                 ch = Config.FEN_PIECES.charAt(piece);
@@ -355,7 +355,7 @@ public class Board {
             }
             res += "  " + (j + 1) + "\n";
         }
-        res += "   a b c d e f g h\n";
+        res += "   a b c d e f g h".substring(2 * getXSize() + 2) + "\n";
         return res;
     }
 
@@ -368,14 +368,14 @@ public class Board {
         try {
             thisPack = new Pack(this.pack());
         } catch (Config.PGNException e) {
-            logger.error(String.format("Position invalid for packing %s", this.toString()), e);
+            logger.error(e.getMessage(), e);
             return false;
         }
         try {
             thatPack = new Pack(((Board)that).pack());
             return thisPack.equalPosition(thatPack);
         } catch (Config.PGNException e) {
-            logger.error(String.format("Position invalid for packing %s", that.toString()), e);
+            logger.error(e.getMessage(), e);
             return false;
         }
     }
@@ -395,17 +395,18 @@ public class Board {
     public void copyBoard(int[][] from) {
         for (int j = 0; j < from.length; ++j) {
             int line = 0;
+            int y = Config.BOARD_SIZE - from.length + j;
             for (int i = from[j].length - 1; i >= 0; --i) {
                 int piece = from[j][i];
                 line = (line << 4) + piece;
                 if(piece == Config.WHITE_KING) {
-                    setWKing(i, j);
+                    setWKing(i, y);
                 }
                 if(piece == Config.BLACK_KING) {
-                    setBKing(i, j);
+                    setBKing(i, y);
                 }
             }
-            board[j] = line;
+            board[y] = line;
         }
     }
 
@@ -615,7 +616,7 @@ public class Board {
                     color = 1;
                 }
                 int index = (piece & ~Config.BLACK) / 2;
-                if(index == Config.PAWN) {
+                if((piece & ~Config.BLACK) == Config.PAWN) {
                     if(y == 0 || y == Config.BOARD_SIZE - 1) {
                         return 9 + color;           // Row for pawn!
                     }
@@ -625,9 +626,9 @@ public class Board {
                     return 15 + color;           // >16 pieces
                 }
                 if (++count[index][color] > count[index][2]) {
-                    return 17 + color;           // Impossible pieces
+                    return 17 + color;           // Impossible number of pieces
                 }
-                if(index * 2 == Config.KING) {
+                if((piece & ~Config.BLACK) == Config.KING) {
                     king[color] = new Square(x, y);
                 }
             }
@@ -646,8 +647,8 @@ public class Board {
                 int e = count[i][color] - count[i][3];
                 if(e > 0) {
                     extra[color] += e;
-                    if(extra[color] > count[Config.PAWN / 2][3]) {
-                        return 17 + color;           // Impossible pieces
+                    if(extra[color] > count[Config.PAWN / 2][3] - count[Config.PAWN / 2][color]) {
+                        return 17 + color;           // Impossible pieces - more extra pieces than missing pawns
                     }
                 }
             }
@@ -660,7 +661,7 @@ public class Board {
             if (this.getReversiblePlyNum() > 0) {
                 return 11;
             }
-            if(this.getEnpassantX() == -1) {
+            if(this.getEnpassant().getX() == -1) {
                 return 14;
             }
         }
@@ -837,8 +838,9 @@ public class Board {
         if (y == 0) {
             n = x;
         }
-        if (n == 0)
-            return false;
+        if (n == 0) {
+            return true;    // for the sake of simplicity consider 0-distanced cells as obstructed
+        }
 
         n = Math.abs(n) - 1;
         y = move.from.y;
@@ -990,15 +992,19 @@ public class Board {
         probe.from = move.to.clone();
 
         for( probe.to.y = probe.from.y - 1; probe.to.y <= probe.from.y + 1; ++probe.to.y ) {
-            if( probe.to.y < 0 )
+            if( probe.to.y < 0 ) {
                 continue;
-            if( probe.to.y >= Config.BOARD_SIZE )
+            }
+            if( probe.to.y >= Config.BOARD_SIZE ) {
                 break;
+            }
             for( probe.to.x = probe.from.x - 1; probe.to.x <= probe.from.x + 1; ++probe.to.x ) {
-                if( probe.to.x < 0 )
+                if( probe.to.x < 0 ) {
                     continue;
-                if( probe.to.x >= Config.BOARD_SIZE )
+                }
+                if( probe.to.x >= Config.BOARD_SIZE ) {
                     break;
+                }
                 int piece = getPiece(probe.to);
                 if( piece == Config.EMPTY || (piece & Config.BLACK) != (probe.piece & Config.BLACK)) {
                     if (validateKingMove(probe)) {
@@ -1202,6 +1208,9 @@ public class Board {
             BitStream.Writer writer = new BitStream.Writer();
             pack(writer);
             byte[] buf = writer.getBits();
+            if(buf.length > PACK_SIZE * 4) {
+                throw new Config.PGNException(String.format("Invalid position to pack: \n%s", this.toString()));
+            }
 
             int n = -1;
             for (int i = 0; i < ints.length; ++i) {

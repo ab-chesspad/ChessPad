@@ -81,7 +81,6 @@ public class Util {
                 throw new Config.PGNException("invalid move " + _moveText);
             newMove.to.x = x;
             newMove.to.y = y;
-//            newMove.pieceTaken = moveHandler.getBoard().getPiece(x, y);  // can be empty: en passant
 
             // Re5, Rae5, Rxe5, R1xe5, Rbxe5, e4, dxe5, dxe8=Q+, etc.
             ch = moveText.charAt(0);

@@ -36,7 +36,7 @@ public class PgnLogger {
     public void debug(Object message) {
         // D/com.ab.droid.chesspad.ChessPad: board onSquareClick (e1)
         if(separateTagFromMsg) {
-            System.out.println(String.format("D/%s:\n%s", name, message.toString()));
+            System.out.println(String.format("D/%s: %s", name, message.toString()));
         } else {
             System.out.println(String.format("D/%s: %s", name, message.toString()));
         }

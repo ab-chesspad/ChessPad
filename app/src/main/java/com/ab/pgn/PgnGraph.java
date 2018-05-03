@@ -156,6 +156,19 @@ public class PgnGraph {
         }
     }
 
+    public void merge(PgnItem.Pgn pgn, int start, int end) throws Config.PGNException {
+        List<PgnItem> items = pgn.getChildrenNames(null, start, end);
+
+        for(PgnItem _item : items ) {
+            PgnItem.Item item = (PgnItem.Item)_item;
+            PgnGraph thatPgnGraph = new PgnGraph(item);
+            // todo:
+
+        }
+        modified = true;
+    }
+
+
     public String getTitle() {
         return PgnItem.getTitle(pgn.getHeaders(), pgn.index);
     }
@@ -277,7 +290,7 @@ public class PgnGraph {
     public void toEnd() {
         Board board = getBoard();
         if(board == null) {
-            // quick end dirty
+            // quick and dirty
             board = getInitBoard();
         }
         Board prevBoard = null;
@@ -305,7 +318,7 @@ public class PgnGraph {
     public Move getNextMove(Move move) {
         Board board = getBoard(move);
         if(board == null) {
-            // sanity check
+            // sanity check, should never happen
             return null;
         }
         return board.getMove();
@@ -370,6 +383,9 @@ public class PgnGraph {
         if(piece != newMove.piece) {
             return false;
         }
+        if((board.getFlags() & Config.BLACK) != (piece & Config.BLACK)) {
+            return false;
+        }
         piece = newMove.getColorlessPiece();
         if(piece == Config.KING) {
             if(!board.validateKingMove(newMove)) {
@@ -387,9 +403,6 @@ public class PgnGraph {
                         if (board.getPiece(test.from) == newMove.piece &&
                                 !(test.from.x == newMove.from.x && test.from.y == newMove.from.y)) {
                             if (board.validatePgnMove(test, Config.VALIDATE_PGN_MOVE)) {
-                                if(!board.validateOwnKingCheck(test)) {
-                                    return false;
-                                }
                                 if(test.from.x != newMove.from.x) {
                                     newMove.moveFlags |= Config.FLAGS_X_AMBIG;
                                 } else if(test.from.y != newMove.from.y) {
@@ -541,8 +554,11 @@ public class PgnGraph {
                     newMove.variation = prev.variation;
                     prev.variation = newMove;
                 }
-                newBoard.incrementInMoves(1);
+                newBoard.setInMoves(oldBoard.getInMoves() + 1);
+            } else {
+                newBoard.setInMoves(oldBoard.getInMoves());
             }
+            logger.debug(String.format("move %s, old in=%s, new in=%s", getNumberedMove(newMove), oldBoard.getInMoves(), newBoard.getInMoves()));
             moveLine.addLast(newMove);
             modified = true;
             return;
@@ -628,10 +644,12 @@ public class PgnGraph {
         Board board = getBoard(move);
         logger.debug(String.format("delPositionsAfter %s, %s\n%s", board.getInMoves(), move.toString(), board.toString()));
         while(move != null) {
-            if(getBoard(move) == null) {
-                logger.error(String.format("board == null after %s", move.toString()));
-            }
             board = getBoard(move);
+            if(board == null) {
+                // should never happen
+                logger.error(String.format("board == null after %s", move.toString()));
+                return;
+            }
             if(board.getInMoves() > 0) {
                 board.incrementInMoves(-1);
                 logger.debug(String.format("decrement inMoves to %s, %s\n%s", board.getInMoves(), move.toString(), board.toString()));
@@ -716,17 +734,21 @@ public class PgnGraph {
             entry.getValue().setVisited(false);
         }
         String pgn = toPgn(null, rootMove);
-        checkMissingVertices();
         return pgn;
     }
 
-    private void checkMissingVertices() {
+    // sanity check
+    int getNumberOfMissingVertices() {
+        int count = 0;
         for(Map.Entry<Pack, Board> entry : positions.entrySet()) {
             if (!entry.getValue().wasVisited()) {
+                // should never happen
                 String msg = String.format("missed position: \n%s", entry.getValue().toString());
                 logger.error(msg);
+                ++count;
             }
         }
+        return count;
     }
 
     private class TraverseData {

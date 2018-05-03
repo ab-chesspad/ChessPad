@@ -22,15 +22,22 @@ import java.util.List;
 public class PgnItemTest extends BaseTest {
 
     @Test
+    public void testRoot() throws IOException {
+        File root = new File("xyz");
+        PgnItem.setRoot(root);
+        Assert.assertEquals(PgnItem.getRoot().getAbsolutePath(), root.getAbsolutePath());
+    }
+
+        @Test
 //    @Ignore("Just prints dir content")
     public void testDir() throws Exception {
         int testItemIndex = 1;
-        PgnItem dir = new PgnItem.Dir(TEST_ROOT);
-        List<PgnItem> list = dir.getChildrenNames(null);
+        PgnItem dir = new PgnItem.Dir("");
+        List<PgnItem> list = dir.getChildrenNames(null, 0, -1);
         for (PgnItem item : list) {
             logger.debug(String.format("%s, %s", item.getClass().toString(), item.getName()));
             if (item instanceof PgnItem.Pgn || item instanceof PgnItem.Zip) {
-                List<PgnItem> items = item.getChildrenNames(null);
+                List<PgnItem> items = item.getChildrenNames(null, 0, -1);
                 for (PgnItem p : items) {
                     logger.debug(String.format("\t%s", p.toString()));
                     if (p instanceof PgnItem.Item) {
@@ -41,7 +48,7 @@ public class PgnItemTest extends BaseTest {
                         }
                     } else if (p instanceof PgnItem.Pgn) {
                         // zip
-                        List<PgnItem> children = p.getChildrenNames(null);
+                        List<PgnItem> children = p.getChildrenNames(null, 0, -1);
                         for (PgnItem c : children) {
                             logger.debug(String.format("\t\t%s", c.toString()));
                             if (c.index == testItemIndex) {
@@ -56,20 +63,31 @@ public class PgnItemTest extends BaseTest {
     }
 
     @Test
-//    @Ignore("Just prints file content")
     public void testZip() throws Exception {
         int testItemIndex = 1;
-        PgnItem zip = new PgnItem.Zip(TEST_ROOT + "books1.zip");
-        List<PgnItem> list = zip.getChildrenNames(null);
+        PgnItem zip = new PgnItem.Zip("books1.zip");
+        Assert.assertEquals(3, zip.getLength());
+        List<PgnItem> list = zip.getChildrenNames(null, 0, -1);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames(null);
+            List<PgnItem> items = pgn.getChildrenNames(null, 0, -1);
             for (PgnItem item : items) {
                 if (item.index == testItemIndex) {
                     PgnItem.getPgnItem((PgnItem.Item)item, null);
                 }
                 logger.debug(item.toString());
             }
+        }
+    }
+
+    @Test
+    public void testZipPgn() throws Exception {
+        PgnItem pgn = new PgnItem.Pgn("books1.zip/list1.pgn");
+        List<PgnItem> list = pgn.getChildrenNames(null, 0, -1);
+        Assert.assertEquals(9300, pgn.getLength());  // set in pgn.getChildrenNames()
+        Assert.assertEquals(2, list.size());
+        for (PgnItem item : list) {
+            logger.debug(String.format("%s, %s", item.getClass().toString(), item.toString()));
         }
     }
 
@@ -162,10 +180,11 @@ public class PgnItemTest extends BaseTest {
         PgnItem.copy(origFile, testFile);
 
         PgnItem zip = new PgnItem.Zip(testFile.getAbsolutePath());
-        List<PgnItem> list = zip.getChildrenNames(null);
+        Assert.assertEquals(3, zip.getLength());
+        List<PgnItem> list = zip.getChildrenNames(null, 0, -1);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames(null);
+            List<PgnItem> items = pgn.getChildrenNames(null, 0, -1);
             for (PgnItem src : items) {
                 PgnItem.Item item = (PgnItem.Item)src;
                 PgnItem.getPgnItem(item, null);
@@ -187,16 +206,16 @@ public class PgnItemTest extends BaseTest {
 
         int testItemIndex = 1;
         PgnItem dir = new PgnItem.Dir(root.getAbsolutePath());
-        List<PgnItem> list = dir.getChildrenNames(null);
+        List<PgnItem> list = dir.getChildrenNames(null, 0, -1);
         for (PgnItem item : list) {
             logger.debug(String.format("%s, %s", item.getClass().toString(), item.getName()));
             if (item instanceof PgnItem.Pgn || item instanceof PgnItem.Zip) {
-                List<PgnItem> items = item.getChildrenNames(null);
+                List<PgnItem> items = item.getChildrenNames(null, 0, -1);
                 for (PgnItem p : items) {
                     logger.debug(String.format("\t%s", p.toString()));
                     if (p instanceof PgnItem.Pgn) {
                         // zip
-                        List<PgnItem> children = p.getChildrenNames(null);
+                        List<PgnItem> children = p.getChildrenNames(null, 0, -1);
                         for (PgnItem c : children) {
                             logger.debug(String.format("\t\t%s", c.toString()));
                             if (c.index == testItemIndex) {

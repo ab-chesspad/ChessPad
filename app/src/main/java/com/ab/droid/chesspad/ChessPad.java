@@ -3,6 +3,7 @@ package com.ab.droid.chesspad;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Environment;
@@ -18,23 +19,23 @@ import com.ab.pgn.Board;
 import com.ab.pgn.Config;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
-import com.ab.pgn.PgnItem;
 import com.ab.pgn.PgnGraph;
+import com.ab.pgn.PgnItem;
 import com.ab.pgn.Square;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+
+//import android.hardware.usb.UsbDevice;
 
 /**
  * main activity
@@ -211,6 +212,7 @@ public class ChessPad extends AppCompatActivity {
         new Sample().createPgnTest();
     }
 
+//    @RequiresApi(api = Build.VERSION_CODES.HONEYCOMB_MR1)
     @Override
     public void onResume() {
         super.onResume();
@@ -265,6 +267,7 @@ public class ChessPad extends AppCompatActivity {
                 // will crash anyway
             }
         }
+
         chessPadView.redraw();
         if(mode == Mode.Setup) {
             setup.setChessPadView(chessPadView);
@@ -284,6 +287,13 @@ public class ChessPad extends AppCompatActivity {
             Log.d(DEBUG_TAG, "onPause() 1", e);
         }
         popups.dismiss();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        chessPadView.redraw();
+        chessPadView.invalidate();
     }
 
     public Mode getMode() {
@@ -713,7 +723,11 @@ public class ChessPad extends AppCompatActivity {
             popups.launchDialog(Popups.DialogType.SaveModified);
         } else {
             if (mode == Mode.Setup) {
-                pgnGraph = setup.toPgnGraph();
+                if(item == null) {
+                    pgnGraph = setup.toPgnGraph();
+                } else {
+                    pgnGraph = new PgnGraph(item);
+                }
                 cancelSetup();
             } else {
                 if(item == null) {
@@ -740,7 +754,7 @@ public class ChessPad extends AppCompatActivity {
     }
 
     public void savePgnGraph(final boolean updateMoves, final CPPostExecutor cpPostExecutor) throws Config.PGNException {
-        new CPAsyncTask(chessPadView.cpProgressBar, new CPExecutor() {
+        new CPAsyncTask(chessPadView, new CPExecutor() {
             @Override
             public void onPostExecute() throws Config.PGNException {
                 Log.d(DEBUG_TAG, String.format("savePgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));

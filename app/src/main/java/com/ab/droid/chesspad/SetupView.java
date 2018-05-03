@@ -314,6 +314,7 @@ public class SetupView {
 
     private void createPiecesView(RelativeLayout relativeLayout, int x, int y, int[][] _pieces) {
         final Board pieces = new Board(_pieces);
+        String s = pieces.toString();
         piecesView = ChessPadView.drawBoardView(chessPad, relativeLayout, x, y, new BoardHolder() {
             @Override
             public Board getBoard() {

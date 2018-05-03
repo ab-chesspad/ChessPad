@@ -65,14 +65,6 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         public int getValue() {
             return value;
         }
-
-        public static PgnItemType command(int v) {
-            return values[v];
-        }
-
-        public static int total() {
-            return values.length;
-        }
     }
 
     final static PgnLogger logger = PgnLogger.getLogger(PgnItem.class);
@@ -85,7 +77,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
     protected int length = 0;
     protected transient int offset = 0;
 
-    public abstract List<PgnItem> getChildrenNames(OffsetHandler offsetHandler) throws Config.PGNException;
+    public abstract List<PgnItem> getChildrenNames(OffsetHandler offsetHandler, int start, int end) throws Config.PGNException;
 
     public static void setRoot(File root) {
         PgnItem.root = root;
@@ -153,7 +145,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         if(this.length == 0) {
             List<PgnItem> children = null;
             try {
-                children = getChildrenNames(null);
+                children = getChildrenNames(null, 0, -1);
                 this.length = children.size();
             } catch (Config.PGNException e) {
                 logger.error(String.format("%s, getChildrenNames(null)", this.getName()), e);
@@ -217,7 +209,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
             return -1;
         }
         int offset = parent.getAbsolutePath().length() + 1;
-        List<PgnItem> siblings = parent.getChildrenNames(null);
+        List<PgnItem> siblings = parent.getChildrenNames(null, 0, -1);
         for(int i = 0; i < siblings.size(); ++i) {
             PgnItem sibling = siblings.get(i);
             String siblingName = sibling.getName() + "/";
@@ -368,11 +360,9 @@ public abstract class PgnItem implements Comparable<PgnItem> {
                 line = line.trim();
                 if (line.startsWith(TAG_START) && line.endsWith(TAG_END)) {
                     if (inText) {
-                        if (item != null) {
-                            item.moveText = new String(sb);
-                            if (!entryHandler.handle(item, null)) {
-                                return;
-                            }
+                        item.moveText = new String(sb);
+                        if (!entryHandler.handle(item, null)) {
+                            return;
                         }
                         sb.delete(0, sb.length());
                         if (parseItems) {
@@ -399,10 +389,8 @@ public abstract class PgnItem implements Comparable<PgnItem> {
                     }
                 }
             }
-            if (item != null) {
-                item.moveText = new String(sb);
-                entryHandler.handle(item, null);
-            }
+            item.moveText = new String(sb);
+            entryHandler.handle(item, null);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -682,24 +670,29 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             return toString(true, false);
         }
 
-        public String toString(boolean cr2Space, boolean escapeTags) {
+        public StringBuilder headersToString(boolean cr2Space, boolean escapeTags) {
             StringBuilder sb = new StringBuilder();
             String sep = "";
             for (Pair<String, String> h : headers) {
                 String hName = h.first;
-                if(escapeTags) {
+                if (escapeTags) {
                     hName = escapeTag(hName);
                 }
                 String hValue = h.second;
-                if(hValue == null || hValue.isEmpty()) {
+                if (hValue == null || hValue.isEmpty()) {
                     hValue = "?";
                 }
-                if(escapeTags) {
+                if (escapeTags) {
                     hValue = escapeTag(hValue);
                 }
                 sb.append(sep).append("[").append(hName).append(" \"").append(hValue).append("\"]");
                 sep = "\n";
             }
+            return sb;
+        }
+
+        public String toString(boolean cr2Space, boolean escapeTags) {
+            StringBuilder sb = headersToString(cr2Space, escapeTags);
             if(moveText != null && !moveText.isEmpty()) {
                 sb.append("\n");
                 if(cr2Space) {
@@ -717,8 +710,8 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
-        public List<PgnItem> getChildrenNames(OffsetHandler offsetHandler) {
-            throw new RuntimeException("Pgn Item cannot contain children");
+        public List<PgnItem> getChildrenNames(OffsetHandler offsetHandler, int start, int end) {
+            throw new RuntimeException("Pgn.Item cannot contain children");
         }
 
         public void save(OffsetHandler offsetHandler) throws Config.PGNException {
@@ -821,7 +814,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
-        public List<PgnItem> getChildrenNames(final OffsetHandler offsetHandler) throws Config.PGNException {
+        public List<PgnItem> getChildrenNames(final OffsetHandler offsetHandler, final int start, final int end) throws Config.PGNException {
             final int[] offset = {0};
             final List<PgnItem> items = new LinkedList<>();
             ((Dir)getParent()).walkThroughGrandChildren(this, new EntryHandler() {
@@ -874,7 +867,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
-        public List<PgnItem> getChildrenNames(OffsetHandler offsetHandler) throws Config.PGNException {
+        public List<PgnItem> getChildrenNames(OffsetHandler offsetHandler, int start, int end) throws Config.PGNException {
             final List<PgnItem> fileList = new ArrayList<>();
             walkThroughChildren(new EntryHandler() {
                 @Override
@@ -949,6 +942,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                     if(!_found) {
                         return true;
                     }
+                    gChild.length = entry.length;
                     parsePgnItems(gChild, br, entryHandler);
                     return false;
                 }

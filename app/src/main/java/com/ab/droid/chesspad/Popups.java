@@ -378,7 +378,7 @@ public class Popups {
                     Log.d(DEBUG_TAG, String.format("selectedSquare %s", selectedValue.toString()));
                     dismissDlg();
                     final PgnItem.Item actualItem = (PgnItem.Item) selectedValue;
-                    new CPAsyncTask(chessPad.chessPadView.cpProgressBar, new CPExecutor() {
+                    new CPAsyncTask(chessPad.chessPadView, new CPExecutor() {
                         @Override
                         public void onPostExecute() {
                             Log.d(DEBUG_TAG, String.format("getPgnItem end, thread %s", Thread.currentThread().getName()));
@@ -809,7 +809,7 @@ public class Popups {
             }
             init(null, null, initSelection);
             if (parentItem != null) {
-                new CPAsyncTask(chessPad.chessPadView.cpProgressBar, new CPExecutor() {
+                new CPAsyncTask(chessPad.chessPadView, new CPExecutor() {
                     @Override
                     public void onPostExecute() {
                         Log.d(DEBUG_TAG, String.format("Child list %d items long, thread %s", pgnItemList.size(), Thread.currentThread().getName()));
@@ -839,7 +839,8 @@ public class Popups {
                                 int percent = offset * 100 / totalLength;
                                 progressPublisher.publishProgress(percent);
                             }
-                        });
+                        }, 0, -1
+                        );
                     }
                 }).execute();
             }

@@ -27,7 +27,7 @@ import java.io.IOException;
  * full ChessPad screen
  * Created by Alexander Bootman on 8/20/16.
  */
-public class ChessPadView extends View {
+public class ChessPadView extends View implements ProgressBarHolder{
     protected final String DEBUG_TAG = this.getClass().getName();
 
     private final ChessPad chessPad;
@@ -61,14 +61,23 @@ public class ChessPadView extends View {
 
         if(chessPad.getMode() == ChessPad.Mode.Game) {
             setupView = null;
-            gameView = new GameView(chessPad, relativeLayoutMain);
+            if(gameView == null) {
+                gameView = new GameView(chessPad, relativeLayoutMain);
+            }
             gameView.draw();
         } else {
             gameView = null;
-            setupView = new SetupView(chessPad, relativeLayoutMain);
+            if(setupView == null) {
+                setupView = new SetupView(chessPad, relativeLayoutMain);
+            }
             setupView.draw();
         }
+        boolean showProgressBar = false;
+        if(cpProgressBar != null) {
+            showProgressBar = cpProgressBar.isVisible();
+        }
         cpProgressBar = new CpProgressBar(chessPad, relativeLayoutMain);
+        cpProgressBar.show(showProgressBar);
         invalidate();
     }
 
@@ -263,6 +272,11 @@ public class ChessPadView extends View {
         }
     }
 
+    @Override
+    public CpProgressBar getProgressBar() {
+        return cpProgressBar;
+    }
+
     // how to redraw after keyboard dismissal?
     // remove?
     static class CpEditText extends AppCompatEditText {
@@ -295,7 +309,7 @@ public class ChessPadView extends View {
         editText.setBackgroundColor(Color.GREEN);
         editText.setTextColor(Color.RED);
         editText.setPadding(1,1,1,1);
-        editText.setGravity(Gravity.CENTER | Gravity.CENTER);
+        editText.setGravity(Gravity.CENTER);
         editText.setSingleLine();
         editText.setInputType(InputType.TYPE_CLASS_NUMBER);
         editText.setText(stringWrapper.getValue());
@@ -339,6 +353,7 @@ public class ChessPadView extends View {
     }
 
     public static class CpProgressBar {
+        private boolean isVisible;
         private ProgressBar progressBar;
         private TextView progressText;
 
@@ -361,16 +376,21 @@ public class ChessPadView extends View {
             progressText.setSingleLine();
             progressText.setBackgroundColor(Color.RED);
             progressText.setTextColor(Color.WHITE);
-            progressText.setGravity(Gravity.CENTER | Gravity.CENTER);
-            progressText.setText("Wait...");
+            progressText.setGravity(Gravity.CENTER);
             progressText.setVisibility(View.GONE);
             ChessPadView.addView(relativeLayout, progressText, x, y, w, h);
+            isVisible = false;
+        }
+
+        public boolean isVisible() {
+            return this.isVisible;
         }
 
         public void show(boolean bShow) {
             if(progressBar == null) {
                 return;
             }
+            isVisible = bShow;
             if(bShow) {
                 progressBar.setVisibility(View.VISIBLE);
                 progressText.setVisibility(View.VISIBLE);
@@ -421,4 +441,5 @@ public class ChessPadView extends View {
     public interface ChangeObserver {
         void onValueChanged(Object value);
     }
+
 }

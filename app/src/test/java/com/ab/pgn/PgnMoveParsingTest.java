@@ -293,10 +293,10 @@ public class PgnMoveParsingTest extends BaseTest {
             return null;
         }
         PgnItem zip = new PgnItem.Zip(path);
-        List<PgnItem> list = zip.getChildrenNames(null);
+        List<PgnItem> list = zip.getChildrenNames(null, 0, -1);
         Assert.assertEquals("Zip file unsuitable for this test, must contain a single pgn file", list.size(), 1);
         PgnItem pgn = list.get(0);
-        return pgn.getChildrenNames(null);
+        return pgn.getChildrenNames(null, 0, -1);
     }
 
     @Test
@@ -338,7 +338,7 @@ public class PgnMoveParsingTest extends BaseTest {
             return null;
         }
         PgnItem pgn = new PgnItem.Pgn(path);
-        return pgn.getChildrenNames(null);
+        return pgn.getChildrenNames(null, 0, -1);
     }
 
     @Test
@@ -349,10 +349,10 @@ public class PgnMoveParsingTest extends BaseTest {
         File testFile = new File(String.format("%s/test.zip", root));
         PgnItem.copy(new File(TEST_ROOT + "adams.zip"), testFile);
         PgnItem zip = new PgnItem.Zip(testFile.getAbsolutePath());
-        List<PgnItem> list = zip.getChildrenNames(null);
+        List<PgnItem> list = zip.getChildrenNames(null, 0, -1);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames(null);
+            List<PgnItem> items = pgn.getChildrenNames(null, 0, -1);
             for (PgnItem item : items) {
                 logger.debug(item.toString());
                 PgnGraph pgnGraph = new PgnGraph((PgnItem.Item) item);
@@ -401,10 +401,10 @@ public class PgnMoveParsingTest extends BaseTest {
         File testFile = new File(String.format("%s/test.zip", root));
         PgnItem.copy(new File(TEST_ROOT + "newyork1924.zip"), testFile);
         PgnItem zip = new PgnItem.Zip(testFile.getAbsolutePath());
-        List<PgnItem> list = zip.getChildrenNames(null);
+        List<PgnItem> list = zip.getChildrenNames(null, 0, -1);
         for (PgnItem pgn : list) {
             logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<PgnItem> items = pgn.getChildrenNames(null);
+            List<PgnItem> items = pgn.getChildrenNames(null, 0, -1);
             for (PgnItem item : items) {
                 logger.debug(item.toString());
                 PgnGraph pgnGraph = new PgnGraph((PgnItem.Item) item);
