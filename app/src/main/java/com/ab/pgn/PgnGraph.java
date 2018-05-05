@@ -30,10 +30,13 @@ public class PgnGraph {
 
     private void init(Board initBoard, PgnItem.Item pgn) throws Config.PGNException {
         if(pgn == null) {
-            this.pgn = new PgnItem.Item("dummy");
+            pgn = new PgnItem.Item("dummy");
+        } else if(pgn.headers == null ) {
+            pgn.headers = new LinkedList<>();
+        }
+        this.pgn = pgn;
+        if(pgn.headers.size() == 0 ) {
             setSTR();
-        } else {
-            this.pgn = pgn;
         }
         modified = false;
         parsingError = null;

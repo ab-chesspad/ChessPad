@@ -93,7 +93,13 @@ public class PgnItemTest extends BaseTest {
 
     @Test
     public void testParsePgnItems() throws Config.PGNException {
-        String pgn = "[Event \"\\\"Lloyds Bank\\\" op\"]\n" +
+        String pgn =
+                "{No headers pgn} 1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4\n" +
+                "\n" +
+                "[\"]\n" +
+                "{Empty header pgn} 1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4\n" +
+                "\n" +
+                "[Event \"\\\"Lloyds Bank\\\" op\"]\n" +
                 "[Site \"London\"]\n" +
                 "[Date \"1984.??.??\"]\n" +
                 "[Round \"1\"]\n" +
@@ -165,6 +171,7 @@ public class PgnItemTest extends BaseTest {
 
             }
         });
+        Assert.assertEquals(5, items.size());
 
         for (PgnItem p : items) {
             logger.debug(p.toString());
