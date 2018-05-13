@@ -851,4 +851,5 @@ public class PgnGraph {
             moveLine.addLast(variationPair.first);
         }
     }
+
 }

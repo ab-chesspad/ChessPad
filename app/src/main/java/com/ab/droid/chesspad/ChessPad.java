@@ -70,6 +70,7 @@ public class ChessPad extends AppCompatActivity {
         ShowGlyphs(++i),
         ShowFiles(++i),
         Append(++i),
+        Merge(++i),
         EditHeaders(++i),
         ;
 
@@ -123,6 +124,7 @@ public class ChessPad extends AppCompatActivity {
 
     public enum MenuCommand {
         Load,
+        Merge,
         Save,
         Append,
         Setup,
@@ -197,6 +199,8 @@ public class ChessPad extends AppCompatActivity {
     protected List<MenuItem> getMenuItems() {
         List<MenuItem> menuItems = new LinkedList<>();
         menuItems.add(new MenuItem(MenuCommand.Load, getResources().getString(R.string.menu_load)));
+        boolean enableMerge = mode == Mode.Game && pgnGraph.getInitBoard().equals(new Board());
+        menuItems.add(new MenuItem(MenuCommand.Merge, getResources().getString(R.string.menu_merge), enableMerge));
         menuItems.add(new MenuItem(MenuCommand.Save, getResources().getString(R.string.menu_save), isSaveable()));
         menuItems.add(new MenuItem(MenuCommand.Append, getResources().getString(R.string.menu_append), mode == Mode.Game));
         if(mode == Mode.Game) {
@@ -689,6 +693,10 @@ public class ChessPad extends AppCompatActivity {
 
             case Append:
                 popups.launchDialog(Popups.DialogType.Append);
+                break;
+
+            case Merge:
+                popups.launchDialog(Popups.DialogType.Merge);
                 break;
 
             case Setup:

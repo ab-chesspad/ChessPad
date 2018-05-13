@@ -2,6 +2,9 @@ package com.ab.droid.chesspad;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.support.v7.widget.AppCompatEditText;
 import android.support.v7.widget.AppCompatImageButton;
@@ -296,25 +299,29 @@ public class ChessPadView extends View implements ProgressBarHolder{
 */
     }
 
-    public static CpEditText createLabeledEditText(Context context, RelativeLayout relativeLayout, int x, int y, int w1, int w2, int h, int rscLabel, final StringWrapper stringWrapper) {
+    public static void createLabel(Context context, RelativeLayout relativeLayout, int x, int y, int w1, int h, int rscLabel) {
         TextView label = new TextView(context);
         label.setBackgroundColor(Color.GRAY);
         label.setTextColor(Color.BLACK);
-        label.setPadding(0,0,0,0);
+//        label.setPadding(0,0,0,0);
+        label.setPadding(Metrics.xSpacing, Metrics.ySpacing, Metrics.xSpacing, Metrics.ySpacing);
         label.setGravity(Gravity.START | Gravity.CENTER);
         label.setText(rscLabel);
         addTextView(relativeLayout, label, x, y, w1, h);
+    }
+
+    public static CpEditText createLabeledEditText(Context context, RelativeLayout relativeLayout, int x, int y, int w1, int w2, int h, int rscLabel, final StringWrapper stringWrapper) {
+        createLabel(context, relativeLayout, x, y, w1, h, rscLabel);
 
         CpEditText editText = new CpEditText(context);
         editText.setBackgroundColor(Color.GREEN);
         editText.setTextColor(Color.RED);
-        editText.setPadding(1,1,1,1);
+        editText.setPadding(Metrics.xSpacing, Metrics.ySpacing, Metrics.xSpacing, Metrics.ySpacing);
         editText.setGravity(Gravity.CENTER);
         editText.setSingleLine();
         editText.setInputType(InputType.TYPE_CLASS_NUMBER);
-        editText.setText(stringWrapper.getValue());
         addTextView(relativeLayout, editText, x + w1 + 2 * Metrics.xSpacing, y, w2, h);
-
+        editText.setText(stringWrapper.getValue());
         editText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -442,4 +449,53 @@ public class ChessPadView extends View implements ProgressBarHolder{
         void onValueChanged(Object value);
     }
 
+    public static class CpToggleButton extends ChessPadView.CpImageButton {
+        private boolean pressed;
+        private ChessPad chessPad;
+
+        public CpToggleButton(ChessPad chessPad, RelativeLayout rl, int size, int x, int y, int rscNormal, final int flag ) {
+            super(chessPad, rscNormal );
+            this.chessPad = chessPad;
+            pressed = false;
+            RelativeLayout.LayoutParams	lp = new RelativeLayout.LayoutParams(size, size);
+            lp.setMargins(x, y, 0, 0);
+            rl.addView( this, lp );
+            setOnClickListener( new OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    toggle();
+                    if(flag != 0) {
+                        CpToggleButton.this.chessPad.setup.setFlag(isChecked(), flag);
+                        CpToggleButton.this.chessPad.setup.validate();
+                    }
+                }
+            });
+            if(flag != 0) {
+                setChecked(chessPad.setup.getFlag(flag) != 0);
+            }
+        }
+
+        @Override
+        public void onDraw( Canvas canvas ) {
+            super.onDraw( canvas );
+            if( pressed ) {
+                Bitmap check = BitmapFactory.decodeResource( chessPad.getResources(), R.drawable.chk );
+                canvas.drawBitmap(check, 3, 3, null);
+            }
+        }
+
+        public void toggle() {
+            pressed = !pressed;
+            invalidate();
+        }
+
+        public void setChecked( boolean pressed ) {
+            this.pressed = pressed;
+            invalidate();
+        }
+
+        public boolean isChecked() {
+            return pressed;
+        }
+    }
 }

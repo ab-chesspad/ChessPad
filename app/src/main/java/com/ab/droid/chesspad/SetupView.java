@@ -40,12 +40,9 @@ public class SetupView {
 
     private TextView setupStatus;
 
-    private Bitmap check;
-
     public SetupView(ChessPad chessPad, RelativeLayout relativeLayoutMain) {
         this.chessPad = chessPad;
         this.relativeLayoutMain = relativeLayoutMain;
-        check = BitmapFactory.decodeResource( chessPad.getResources(), R.drawable.chk );
     }
 
     public void draw() {
@@ -160,13 +157,13 @@ public class SetupView {
         // white / black move buttons
         x = 0;
         y = Metrics.squareSize * 2 + Metrics.ySpacing;
-        final CpToggleButton btnWhiteMove = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw, 0 );
+        final ChessPadView.CpToggleButton btnWhiteMove = new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw, 0);
         y += toggleButtonSize + Metrics.ySpacing;
-        final CpToggleButton btnBlackMove = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb , 0);
+        final ChessPadView.CpToggleButton btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb , 0);
         btnBlackMove.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                CpToggleButton btn = (CpToggleButton)v;
+                ChessPadView.CpToggleButton btn = (ChessPadView.CpToggleButton)v;
                 chessPad.setup.setFlag(!btn.isChecked(), Config.FLAGS_BLACK_MOVE); // reversed check
                 btn.toggle();
                 btnWhiteMove.toggle();
@@ -176,7 +173,7 @@ public class SetupView {
         btnWhiteMove.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                CpToggleButton btn = (CpToggleButton)v;
+                ChessPadView.CpToggleButton btn = (ChessPadView.CpToggleButton)v;
                 chessPad.setup.setFlag(btn.isChecked(), Config.FLAGS_BLACK_MOVE); // reversed check
                 btn.toggle();
                 btnBlackMove.toggle();
@@ -187,15 +184,19 @@ public class SetupView {
         // castle buttons
         x = toggleButtonSize + Metrics.xSpacing;
         y = Metrics.squareSize * 2 + Metrics.ySpacing;
-        CpToggleButton btnWhiteQueenCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_W_QUEEN_OK );
+        ChessPadView.CpToggleButton btnWhiteQueenCastle =
+                new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_W_QUEEN_OK);
         x += toggleButtonSize + Metrics.xSpacing;
-        CpToggleButton btnWhiteKingCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_W_KING_OK );
+        ChessPadView.CpToggleButton btnWhiteKingCastle =
+                new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_W_KING_OK);
 
         x = toggleButtonSize + Metrics.xSpacing;
         y += toggleButtonSize + Metrics.ySpacing;
-        CpToggleButton btnBlackQueenCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_B_QUEEN_OK );
+        ChessPadView.CpToggleButton btnBlackQueenCastle =
+                new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_B_QUEEN_OK);
         x += toggleButtonSize + Metrics.xSpacing;
-        CpToggleButton btnBlackKingCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_B_KING_OK );
+        ChessPadView.CpToggleButton btnBlackKingCastle =
+                new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_B_KING_OK);
 
         // texts:
         x += toggleButtonSize + 2 * Metrics.xSpacing;
@@ -263,13 +264,13 @@ public class SetupView {
 
         x = 2 * Metrics.squareSize + 2 * Metrics.xSpacing;
         y = y0;
-        final CpToggleButton btnWhiteMove = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw, 0 );
+        final ChessPadView.CpToggleButton btnWhiteMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw, 0 );
         x += toggleButtonSize + Metrics.xSpacing;
-        final CpToggleButton btnBlackMove = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb , 0);
+        final ChessPadView.CpToggleButton btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb , 0);
         btnBlackMove.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                CpToggleButton btn = (CpToggleButton)v;
+                ChessPadView.CpToggleButton btn = (ChessPadView.CpToggleButton)v;
                 btn.toggle();
                 btnWhiteMove.toggle();
                 chessPad.setup.setFlag(btn.isChecked(), Config.FLAGS_BLACK_MOVE);
@@ -280,7 +281,7 @@ public class SetupView {
         btnWhiteMove.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                CpToggleButton btn = (CpToggleButton)v;
+                ChessPadView.CpToggleButton btn = (ChessPadView.CpToggleButton)v;
                 btn.toggle();
                 btnBlackMove.toggle();
                 chessPad.setup.setFlag(!btn.isChecked(), Config.FLAGS_BLACK_MOVE);
@@ -292,15 +293,15 @@ public class SetupView {
         // castle buttons
         x = 2 * Metrics.squareSize + 2 * Metrics.xSpacing;
         y = y0 + Metrics.squareSize + Metrics.ySpacing;
-        CpToggleButton btnWhiteQueenCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_W_QUEEN_OK );
+        ChessPadView.CpToggleButton btnWhiteQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_W_QUEEN_OK );
         y += toggleButtonSize + Metrics.ySpacing;
-        CpToggleButton btnWhiteKingCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_W_KING_OK );
+        ChessPadView.CpToggleButton btnWhiteKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_W_KING_OK );
 
         x += Metrics.squareSize + Metrics.xSpacing;
         y = y0 + Metrics.squareSize + Metrics.ySpacing;
-        CpToggleButton btnBlackQueenCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_B_QUEEN_OK );
+        ChessPadView.CpToggleButton btnBlackQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle, Config.FLAGS_B_QUEEN_OK );
         y += toggleButtonSize + Metrics.ySpacing;
-        CpToggleButton btnBlackKingCastle = new CpToggleButton( relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_B_KING_OK );
+        ChessPadView.CpToggleButton btnBlackKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle, Config.FLAGS_B_KING_OK );
         y0 = y + toggleButtonSize + Metrics.ySpacing;
 
         x = 2 * Metrics.squareSize + 2 * Metrics.xSpacing;
@@ -368,53 +369,6 @@ public class SetupView {
         title.setText(chessPad.setup.getTitleText());
         boardView.invalidate();
         piecesView.invalidate();
-    }
-
-    public class CpToggleButton extends ChessPadView.CpImageButton {
-        private boolean pressed;
-
-        public CpToggleButton( RelativeLayout rl, int size, int x, int y, int rscNormal, final int flag ) {
-            super(chessPad, rscNormal );
-            pressed = false;
-            RelativeLayout.LayoutParams	lp = new RelativeLayout.LayoutParams(size, size);
-            lp.setMargins(x, y, 0, 0);
-            rl.addView( this, lp );
-            setOnClickListener( new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    toggle();
-                    if(flag != 0) {
-                        chessPad.setup.setFlag(isChecked(), flag);
-                        chessPad.setup.validate();
-                    }
-                }
-            });
-            if(flag != 0) {
-                setChecked(chessPad.setup.getFlag(flag) != 0);
-            }
-        }
-
-        @Override
-        public void onDraw( Canvas canvas ) {
-            super.onDraw( canvas );
-            if( pressed ) {
-                canvas.drawBitmap(check, 3, 3, null);
-            }
-        }
-
-        public void toggle() {
-            pressed = !pressed;
-            invalidate();
-        }
-
-        public void setChecked( boolean pressed ) {
-            this.pressed = pressed;
-            invalidate();
-        }
-
-        public boolean isChecked() {
-            return pressed;
-        }
     }
 
 }

@@ -12,6 +12,7 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -22,6 +23,7 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,7 +44,7 @@ import java.util.List;
  */
 public class Popups {
     protected final String DEBUG_TAG = this.getClass().getName();
-    public boolean DEBUG = false;
+    public boolean DEBUG = true;
 
     private static int j = -1;
 
@@ -56,6 +58,7 @@ public class Popups {
         ShowMessage(++j),
         Load(++j),
         Append(++j),
+        Merge(++j),
         Headers(++j),
         SaveModified(++j),
         ;
@@ -100,6 +103,7 @@ public class Popups {
     private boolean fileListShown = false;
     protected Move promotionMove;
     private Dialog currentAlertDialog;
+    private MergeData mergeData;
 
     protected DialogType dialogType = DialogType.None;
     private String dialogMsg = null;
@@ -127,6 +131,12 @@ public class Popups {
             writer.write(dialogType.getValue(), 4);
             writer.writeString(dialogMsg);
             PgnItem.serialize(writer, editHeaders);
+            if(mergeData == null) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                mergeData.serialize(writer);
+            }
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -144,6 +154,9 @@ public class Popups {
                 dialogMsg = null;
             }
             editHeaders = PgnItem.unserializeHeaders(reader);
+            if (reader.read(1) == 1) {
+                mergeData = new MergeData(reader);
+            }
             afterUnserialize();
         } catch (IOException e) {
             throw new Config.PGNException(e);
@@ -235,25 +248,26 @@ public class Popups {
                 dlgAppend();
                 break;
 
+            case Merge:
+                dlgMerge();
+                break;
+
             case Headers:
                 if(chessPad.mode == ChessPad.Mode.Game) {
                     pgnItem = chessPad.pgnGraph.getPgn();
                     if (pgnItem != null) {
-                        CPHeaderListAdapter adapter;
                         if (editHeaders == null) {
-                            adapter = new CPHeaderListAdapter((PgnItem.Item) pgnItem);
-                        } else {
-                            adapter = new CPHeaderListAdapter(editHeaders);
+                            editHeaders = ((PgnItem.Item) pgnItem).cloneHeaders(Config.HEADER_FEN);     // skip FEN
+                            editHeaders.add(new Pair<>(ADD_HEADER_LABEL, ""));
                         }
-                        launchDialog(dialogType, null, 0, adapter, DialogButton.OkCancel);
                     }
                 } else {
                     if (editHeaders == null) {
                         editHeaders = PgnItem.cloneHeaders(chessPad.setup.getHeaders());
                     }
-                    CPHeaderListAdapter adapter = new CPHeaderListAdapter(editHeaders);
-                    launchDialog(dialogType, null, 0, adapter, DialogButton.OkCancel);
                 }
+                CPHeaderListAdapter adapter = new CPHeaderListAdapter(editHeaders);
+                launchDialog(dialogType, null, 0, adapter, DialogButton.OkCancel);
                 break;
 
             case DeleteYesNo:
@@ -434,6 +448,10 @@ public class Popups {
                         Log.e(DEBUG_TAG, "append, onExecuteException, thread " + Thread.currentThread().getName(), e);
                     }
                 });
+                break;
+
+            case Merge:
+                Log.d(DEBUG_TAG, "'merge' is not implemented");
                 break;
 
             case Headers:
@@ -689,6 +707,166 @@ public class Popups {
         mDialog.show();
     }
 
+    private void createMergeParamPane(RelativeLayout rlPane) {
+        int height = (2 * Metrics.squareSize - 2 * Metrics.ySpacing) / 3;
+        int x = Metrics.xSpacing;
+        int y = Metrics.ySpacing;
+        int w1 = Metrics.moveLabelWidth / 2;
+        int w2 = w1;
+        ChessPadView.CpEditText startEditText = ChessPadView.createLabeledEditText(chessPad, rlPane, x, y,
+                w1, w2, height, R.string.alert_merge_start_label, mergeData.startStringWrapper);
+
+        x += w1 + w2 + 8 * Metrics.xSpacing;
+        ChessPadView.CpEditText endEditText = ChessPadView.createLabeledEditText(chessPad, rlPane, x, y,
+                w1, w2, height, R.string.alert_merge_end_label, mergeData.endStringWrapper);
+
+        x += w1 + w2 + 8 * Metrics.xSpacing;
+        w1 = Metrics.cpScreenWidth - x - 20;
+        final TextView includeHeaders = new TextView(chessPad);
+        includeHeaders.setSingleLine();
+        includeHeaders.setBackgroundColor(Color.GREEN);
+        includeHeaders.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        includeHeaders.setText(R.string.alert_annotate_label);
+        ChessPadView.addTextView(rlPane, includeHeaders, x, y, w1, height);
+        int res = 0;
+        if(mergeData.includeHeaders) {
+            res = R.drawable.check;
+        }
+        includeHeaders.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
+        includeHeaders.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    mergeData.includeHeaders = !mergeData.includeHeaders;
+                    int res = 0;
+                    if(mergeData.includeHeaders) {
+                        res = R.drawable.check;
+                    }
+                    includeHeaders.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
+                }
+                // true if the event was handled and should not be given further down to other views.
+                return true;
+            }
+        });
+    }
+
+    private void dlgMerge() {
+        PgnItem.Item pgnItem = chessPad.pgnGraph.getPgn();
+        if(mergeData == null) {
+            mergeData = new MergeData(pgnItem);
+        }
+        final Dialog mDialog = new Dialog(chessPad);
+        mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        mDialog.setContentView(R.layout.dlg_merge);
+        RelativeLayout rlHeaders = (RelativeLayout)mDialog.findViewById(R.id.controls_pane_merge);
+        createMergeParamPane(rlHeaders);
+
+        final Button btnOk = (Button) mDialog.findViewById(R.id.ok_button);
+        btnOk.setEnabled(false);
+        mergeData.setChangeObserver(new ChessPadView.ChangeObserver() {
+            @Override
+            public void onValueChanged(Object value) {
+                btnOk.setEnabled(((MergeData)value).isMergeSetupOk());
+            }
+        });
+
+        final TextView textView = ((TextView) mDialog.findViewById(R.id.file_name));
+        textView.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String text = s.toString().toLowerCase();
+                mergeData.pgnPathWrapper.setValue(text);
+            }
+        });
+        PgnItem path = chessPad.currentPath;
+        textView.setText(getTruncatedPath(path));
+        while ((path instanceof PgnItem.Item) || (path instanceof PgnItem.Pgn)) {
+            textView.setText(getTruncatedPath(path));
+            path = path.getParent();
+        }
+        final ListView fileListView = (ListView) mDialog.findViewById(R.id.file_list);
+        if (fileListShown) {
+            fileListView.setVisibility(View.VISIBLE);
+        } else {
+            fileListView.setVisibility(View.GONE);
+        }
+        btnOk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (fileListShown) {
+                    fileListShown = false;
+                    fileListView.setVisibility(View.GONE);
+                } else {
+                    String fileName = textView.getText().toString();
+                    Log.d(DEBUG_TAG, String.format("onClick: %s", DialogType.Merge.toString()));
+                    try {
+                        File appendToFile = new File(PgnItem.getRoot(), fileName);
+                        returnFromDiaqlog(DialogType.Merge, appendToFile.getAbsoluteFile(), 0);
+                    } catch (Config.PGNException e) {
+                        Log.e(DEBUG_TAG, String.format("onClick: %s", DialogType.Merge.toString()), e);
+                        Toast.makeText(chessPad, R.string.toast_err_file, Toast.LENGTH_LONG).show();
+                    }
+                    mDialog.cancel();
+                }
+            }
+        });
+        mDialog.findViewById(R.id.lookup_button).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                fileListShown = true;
+                fileListView.setVisibility(View.VISIBLE);
+                final PgnItem pgnItem = chessPad.pgnGraph.getPgn();
+                if (pgnItem != null) {
+                    try {
+                        PgnItem path = chessPad.currentPath;
+                        textView.setText(getTruncatedPath(path));
+                        while ((path instanceof PgnItem.Item) || (path instanceof PgnItem.Pgn)) {
+                            textView.setText(getTruncatedPath(path));
+                            path = path.getParent();
+                        }
+
+                        int selectedIndex = pgnItem.parentIndex(path);
+                        final CPPgnItemListAdapter mAdapter = getPgnItemListAdapter(path, selectedIndex);
+                        fileListView.setAdapter(mAdapter);
+                        fileListView.setFastScrollEnabled(true);
+                        fileListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                            @Override
+                            public void onItemClick(AdapterView<?> parent, View view, int clicked, long id) {
+                                PgnItem newPath = (PgnItem) mAdapter.getItem(clicked);
+                                textView.setText(getTruncatedPath(newPath));
+                                if (newPath instanceof PgnItem.Pgn) {
+                                    fileListShown = false;
+                                    fileListView.setVisibility(View.GONE);
+                                } else if (newPath instanceof PgnItem.Item) {
+                                    Log.e(DEBUG_TAG, String.format("Invalid selection %s", newPath.toString()));
+                                } else {
+                                    chessPad.currentPath = newPath;
+                                    try {
+                                        int selectedIndex = pgnItem.parentIndex(newPath);
+                                        mAdapter.refresh(chessPad.currentPath, selectedIndex);
+                                    } catch (Config.PGNException e) {
+                                        Log.e(DEBUG_TAG, String.format("onClick 2: %s", DialogType.Merge.toString()), e);
+                                    }
+                                }
+                            }
+                        });
+                    } catch (Config.PGNException e) {
+                        Log.e(DEBUG_TAG, String.format("onClick 1: %s", DialogType.Merge.toString()), e);
+                    }
+                }
+            }
+        });
+
+        currentAlertDialog = mDialog;
+        mDialog.show();
+    }
+
     private CPPgnItemListAdapter getPgnItemListAdapter(PgnItem parentItem, int initSelection) throws Config.PGNException {
         if(cpPgnItemListAdapter == null || cpPgnItemListAdapter.isChanged(parentItem)) {
             cpPgnItemListAdapter = new CPPgnItemListAdapter(parentItem, initSelection);
@@ -905,34 +1083,26 @@ public class Popups {
     }
 
     private class CPHeaderListAdapter extends CPArrayAdapter {
-        CPHeaderListAdapter(PgnItem.Item thisItem) throws Config.PGNException {
-            editHeaders = thisItem.cloneHeaders(Config.HEADER_FEN);     // skip FEN
-            editHeaders.add(new Pair<>(ADD_HEADER_LABEL, ""));
+        List<Pair<String, String>> headerList;
+
+        CPHeaderListAdapter(List<Pair<String, String>> headers) {
+            headerList = headers;
             refresh();
         }
 
-        CPHeaderListAdapter(List<Pair<String, String>> headers) throws Config.PGNException {
-            editHeaders = headers;
-            refresh();
-        }
-
-        void refresh() throws Config.PGNException {
+        void refresh() {
             init(null, null, -1);
             notifyDataSetChanged();
         }
 
         @Override
         public Object getItem(int position) {
-            return editHeaders.get(position);
+            return headerList.get(position);
         }
 
         @Override
         public int getCount() {
-            if(editHeaders == null) {
-                Log.e(DEBUG_TAG, "getCount, editHeaders == null");
-                return 0;
-            }
-            return editHeaders.size();
+            return headerList.size();
         }
 
         @Override
@@ -954,7 +1124,7 @@ public class Popups {
             rowViewHolder.labelView.setTag(position);
             rowViewHolder.valueView.setTag(position);
             rowViewHolder.actionButton.setTag(position);
-            Pair<String, String> header = editHeaders.get(position);
+            Pair<String, String> header = headerList.get(position);
             String labelText = header.first;
             rowViewHolder.labelView.setText(labelText);
             rowViewHolder.valueView.setText(header.second);
@@ -979,7 +1149,7 @@ public class Popups {
                 });
             }
 
-            if (position == editHeaders.size() - 1) {
+            if (position == headerList.size() - 1) {
                 rowViewHolder.labelView.setEnabled(true);
                 rowViewHolder.actionButton.setImageResource(android.R.drawable.ic_input_add);
             } else {
@@ -993,10 +1163,11 @@ public class Popups {
                     if (!hasFocus) {
                         int position = Integer.valueOf(v.getTag().toString());
                         String text = ((TextView) v).getText().toString();
-                        String value = editHeaders.get(position).second;
-                        Log.d(DEBUG_TAG, String.format("%s, label %s -> %s>", position, editHeaders.get(position).first, text));
+                        Pair<String, String> header = headerList.get(position);
+                        String value = header.second;
+                        Log.d(DEBUG_TAG, String.format("%s, label %s -> %s>", position, header.first, text));
                         Pair<String, String> newHeader = new Pair<>(text, value);
-                        editHeaders.set(position, newHeader);
+                        headerList.set(position, newHeader);
                     }
                 }
             });
@@ -1006,11 +1177,12 @@ public class Popups {
                     Log.d(DEBUG_TAG, String.format("header value %d, focus %b", position, hasFocus));
                     if (!hasFocus) {
                         int position = Integer.valueOf(v.getTag().toString());
-                        String label = editHeaders.get(position).first;
+                        Pair<String, String> header = headerList.get(position);
+                        String label = header.first;
                         String text = ((TextView) v).getText().toString();
-                        Log.d(DEBUG_TAG, String.format("%s, %s: %s -> %s>", position, label, editHeaders.get(position).second, text));
+                        Log.d(DEBUG_TAG, String.format("%s, %s: %s -> %s>", position, label, header.second, text));
                         Pair<String, String> newHeader = new Pair<>(label, text);
-                        editHeaders.set(position, newHeader);
+                        headerList.set(position, newHeader);
                     }
                 }
             });
@@ -1029,4 +1201,102 @@ public class Popups {
         }
     }
 
+    private static class MergeData {
+        boolean includeHeaders;
+        ChessPadView.StringWrapper startStringWrapper;
+        ChessPadView.StringWrapper endStringWrapper;
+        ChessPadView.StringWrapper pgnPathWrapper;
+        int start, end;
+        String pgnPath;
+        ChessPadView.ChangeObserver changeObserver;
+
+        public MergeData(PgnItem.Item target) {
+            start = 0;
+            end = -1;
+            pgnPath = target.getParent().getAbsolutePath();
+            init();
+        }
+
+        private void init() {
+            pgnPathWrapper = new ChessPadView.StringWrapper(pgnPath, new ChessPadView.ChangeObserver() {
+                @Override
+                public void onValueChanged(Object value) {
+                    pgnPath = (String)value;
+                    if(MergeData.this.changeObserver != null) {
+                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    }
+                }
+            });
+
+            String s;
+            s = "" + start;
+            startStringWrapper = new ChessPadView.StringWrapper(s, new ChessPadView.ChangeObserver() {
+                @Override
+                public void onValueChanged(Object value) {
+                    String s = (String)value;
+                    if( s.isEmpty()) {
+                        MergeData.this.start = 0;
+                    } else {
+                        MergeData.this.start = Integer.valueOf(s);
+                    }
+                    if(MergeData.this.changeObserver != null) {
+                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    }
+                }
+            });
+            s = "" + end;
+            endStringWrapper = new ChessPadView.StringWrapper(s, new ChessPadView.ChangeObserver() {
+                @Override
+                public void onValueChanged(Object value) {
+                    String s = (String)value;
+                    if( s.isEmpty()) {
+                        MergeData.this.end = -1;
+                    } else {
+                        MergeData.this.end = Integer.valueOf(s);
+                    }
+                    if(MergeData.this.changeObserver != null) {
+                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    }
+                }
+            });
+        }
+
+        public void setChangeObserver(ChessPadView.ChangeObserver changeObserver) {
+            this.changeObserver = changeObserver;
+        }
+
+        public boolean isMergeSetupOk() {
+            if (!pgnPath.endsWith(PgnItem.EXT_PGN)) {
+                return false;
+            }
+            return start == 0 && end == -1 || start <= end;
+        }
+
+        private void serialize(BitStream.Writer writer) throws Config.PGNException {
+            try {
+                writer.write(start, 16);
+                writer.write(end, 16);
+                if(includeHeaders) {
+                    writer.write(1, 1);
+                } else {
+                    writer.write(0, 1);
+                }
+                writer.writeString(pgnPath);
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
+            }
+        }
+
+        private MergeData(BitStream.Reader reader) throws Config.PGNException {
+            try {
+                start = reader.read(16);
+                end = reader.read(16);
+                includeHeaders = reader.read(1) == 1;
+                pgnPath = reader.readString();
+                init();
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
+            }
+        }
+    }
 }

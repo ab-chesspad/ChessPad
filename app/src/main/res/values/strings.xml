@@ -3,15 +3,17 @@
     <string name="dummy_content">DUMMY\nCONTENT</string>
 
     <string name="app_name">ChessPad</string>
-	<string name="about">&#032;ChessPad %s\n PGN editor\n ab.chesspad@gmail.com\n\nFull info including source code:\nhttps://github.com/ab-chesspad/ChessPad
+	<string name="about">\u00A0ChessPad %s\n PGN editor\n ab.chesspad@gmail.com\n\nFull info including source code:\nhttps://github.com/ab-chesspad/ChessPad
 	</string>
 
     <string name="err_empty_new_tag_name">New tag name is empty</string>
     <string name="err_tag_name_exists">Tag name exists already</string>
     <string name="toast_err_file">Could not save the specified file, check if the name is valid</string>
 
-    <string name="alert_append_title">Append / Save As</string>
-    <string name="alert_append_label">Full Path to Pgn File:</string>
+    <string name="alert_pgn_path_label">Full Path to Pgn File:</string>
+    <string name="alert_merge_start_label">Start:</string>
+    <string name="alert_merge_end_label">End:</string>
+    <string name="alert_annotate_label">Annotate</string>
 
     <string name="alert_msg_wait">Please wait...</string>
 

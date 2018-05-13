@@ -161,7 +161,7 @@ public class Setup implements ChessPadView.ChangeObserver {
 
     public void setFlag(boolean set, int flag) {
         if (set) {
-            getBoard().setFlags(flag);
+            getBoard().raiseFlags(flag);
         } else {
             getBoard().clearFlags(flag);
         }
@@ -190,6 +190,10 @@ public class Setup implements ChessPadView.ChangeObserver {
     public void onAnyValueChanged() {
         int errNum = 0;
         if(chessPadView != null) {
+            int hmClock = Integer.valueOf(this.hmClock.getValue());
+            board.setReversiblePlyNum(hmClock);
+//            int moveNum = Integer.valueOf(this.moveNum.getValue());
+//            board.setPlyNum(hmClock);
             String enPass = this.enPass.getValue();
             if(enPass != null && !enPass.isEmpty()) {
                 Square sq = new Square(enPass);
@@ -206,7 +210,7 @@ public class Setup implements ChessPadView.ChangeObserver {
                 }
                 if(errNum == 0) {
                     board.setEnpassant(sq);
-                    board.setFlags(Config.FLAGS_ENPASSANT_OK);
+                    board.raiseFlags(Config.FLAGS_ENPASSANT_OK);
                 } else {
                     board.clearFlags(Config.FLAGS_ENPASSANT_OK);
                 }
