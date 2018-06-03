@@ -16,6 +16,7 @@ public class Config {
     public static final int
             MY_BUF_SIZE = 0x2000,
             STRING_BUF_SIZE = 0x1000,
+            PGN_OUTPUT_LINE_SIZE = 128,     // or a little more
             BOARD_SIZE = 8,
 
             // pieces, as defined in Config.FEN_PIECES
@@ -111,6 +112,8 @@ public class Config {
             HEADER_Black = "Black",
             HEADER_Result = "Result",
             HEADER_FEN = "FEN",
+
+            HEADER_UNKNOWN_VALUE = "?",
             dummy_str = null;
 
     // STR - Seven Tag Roster

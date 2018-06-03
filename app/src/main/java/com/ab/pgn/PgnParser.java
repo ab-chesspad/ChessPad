@@ -1,6 +1,6 @@
 package com.ab.pgn;
 
-import java.io.IOException;
+import java.util.Observer;
 import java.util.StringTokenizer;
 
 /**
@@ -14,10 +14,15 @@ public class PgnParser {
             dummy_str = null;
 
 
-    public static void parseMoves(String moveText, MoveTextHandler moveTextHandler) throws Config.PGNException {
+    public static void parseMoves(String moveText, MoveTextHandler moveTextHandler, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         StringTokenizer st = new StringTokenizer(moveText, DELIMITERS, true);
+        int offset = 0;
+        PgnItem.ProgressNotifier progressNotifier = new PgnItem.ProgressNotifier(progressObserver);
         while (st.hasMoreTokens()) {
             String token = st.nextToken(DELIMITERS).trim();
+            offset += token.length() + 1;   // approximate
+            progressNotifier.setOffset(offset, moveText.length());
+            token = token.trim();
             if(token.isEmpty() || token.equals(".")) {
                 continue;
             }
@@ -43,6 +48,8 @@ public class PgnParser {
                         ++count;
                     }
                 } while(count > 0);
+                offset += comment.length() + 1;   // approximate
+                progressNotifier.setOffset(offset, moveText.length());
                 comment.deleteCharAt(comment.length() - 1);
                 token = new String(comment).replaceAll("(?s)\\s+", " ");
                 if (!Config.COMMENT_CLOSE.equals(token.substring(0, 1))) {    // ignore empty comments
@@ -53,7 +60,9 @@ public class PgnParser {
                     || token.equals(Config.PGN_NULL_MOVE)
                     || token.equals(Config.PGN_NULL_MOVE_ALT)
                     ) {
-                moveTextHandler.onMove(token);
+                if(!moveTextHandler.onMove(token)) {
+                    return;         // abort
+                }
             } else if (Config.VARIANT_OPEN.equals(ch)) {
                 moveTextHandler.onVariantOpen();
             } else if (Config.VARIANT_CLOSE.equals(ch)) {
@@ -67,7 +76,8 @@ public class PgnParser {
 
         void onGlyph(String value);
 
-        void onMove(String moveText) throws Config.PGNException;
+        // return false to abort
+        boolean onMove(String moveText) throws Config.PGNException;
 
         void onVariantOpen();
 

@@ -1,5 +1,6 @@
 package com.ab.pgn;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.*;
 
@@ -10,6 +11,12 @@ import java.util.*;
 public class PgnGraph {
     public static boolean DEBUG = false;    // todo: config
     final static PgnLogger logger = PgnLogger.getLogger(PgnGraph.class);
+
+    enum MergeState {
+        Search,
+        Merge,
+        Skip,
+    }
 
     protected Move rootMove = new Move(Config.FLAGS_NULL_MOVE);     // can hold initial comment
     protected PgnItem.Item pgn;                 // headers and moveText
@@ -52,7 +59,7 @@ public class PgnGraph {
         }
     }
 
-    public PgnGraph(PgnItem.Item item) throws Config.PGNException {
+    public PgnGraph(PgnItem.Item item, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         Board initBoard;
         String fen = item.getHeader(Config.HEADER_FEN);
         if (fen == null) {
@@ -65,7 +72,7 @@ public class PgnGraph {
         if (parsingErrorNum == 0) {
             init(initBoard, item);
             try {
-                PgnParser.parseMoves(item.getMoveText(), new CpMoveTextHandler());
+                PgnParser.parseMoves(item.getMoveText(), new CpMoveTextHandler(this), progressObserver);
             } catch (Exception e) {
                 logger.error(e.getMessage());
                 parsingError = e.getMessage();
@@ -159,19 +166,6 @@ public class PgnGraph {
         }
     }
 
-    public void merge(PgnItem.Pgn pgn, int start, int end) throws Config.PGNException {
-        List<PgnItem> items = pgn.getChildrenNames(null, start, end);
-
-        for(PgnItem _item : items ) {
-            PgnItem.Item item = (PgnItem.Item)_item;
-            PgnGraph thatPgnGraph = new PgnGraph(item);
-            // todo:
-
-        }
-        modified = true;
-    }
-
-
     public String getTitle() {
         return PgnItem.getTitle(pgn.getHeaders(), pgn.index);
     }
@@ -243,7 +237,7 @@ public class PgnGraph {
         return pgn;
     }
 
-    public void save(boolean updateMoves, PgnItem.OffsetHandler offsetHandler) throws Config.PGNException {
+    public void save(boolean updateMoves, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         if (pgn != null) {
             if (updateMoves) {
                 if (!this.getInitBoard().equals(new Board()) && pgn.getHeader(Config.HEADER_FEN) == null) {
@@ -252,7 +246,7 @@ public class PgnGraph {
                 }
                 pgn.setMoveText(this.toPgn());
             }
-            pgn.save(offsetHandler);
+            pgn.save(progressObserver);
             modified = false;
         }
     }
@@ -516,9 +510,18 @@ public class PgnGraph {
         return getMoveNum(getBoard(move.packData));
     }
 
-    // todo: simplify!
     public void addMove(Move newMove) throws Config.PGNException {
-        Board board = getBoard();
+        addMove(newMove, null);
+    }
+
+    // todo: simplify!
+    public void addMove(Move newMove, Board prevBoard) throws Config.PGNException {
+        Board board;
+        if(prevBoard == null) {
+            board = getBoard();
+        } else {
+            board = prevBoard;
+        }
         Board newBoard = board.clone();
         newBoard.doMove(newMove);
         newMove.packData = newBoard.pack();
@@ -562,7 +565,9 @@ public class PgnGraph {
                 newBoard.setInMoves(oldBoard.getInMoves());
             }
             logger.debug(String.format("move %s, old in=%s, new in=%s", getNumberedMove(newMove), oldBoard.getInMoves(), newBoard.getInMoves()));
-            moveLine.addLast(newMove);
+            if(prevBoard == null) {
+                moveLine.addLast(newMove);
+            }
             modified = true;
             return;
         }
@@ -590,7 +595,9 @@ public class PgnGraph {
                 }
             }
         }
-        moveLine.addLast(newMove);
+        if(prevBoard == null) {
+            moveLine.addLast(newMove);
+        }
         modified = true;
     }
 
@@ -728,7 +735,6 @@ public class PgnGraph {
             sb.insert(0, vsb);
             sb.insert(0, td.pgnText);
         }
-
         return new String(sb);
     }
 
@@ -737,7 +743,19 @@ public class PgnGraph {
             entry.getValue().setVisited(false);
         }
         String pgn = toPgn(null, rootMove);
-        return pgn;
+
+        // quick and dirty:
+        StringBuilder res = new StringBuilder(pgn.length() + 1000);
+        int index = 0;
+        while(index < pgn.length()) {
+            int e = pgn.indexOf(" ", index + Config.PGN_OUTPUT_LINE_SIZE);
+            if(e == -1) {
+                e = pgn.length();
+            }
+            res.append(pgn.substring(index, e)).append("\n");
+            index = e;
+        }
+        return new String(res);
     }
 
     // sanity check
@@ -782,13 +800,225 @@ public class PgnGraph {
         return false;
     }
 
-    private class CpMoveTextHandler implements PgnParser.MoveTextHandler {
-        private Move newMove;
-        private boolean startVariation;                     // flag for pgn parsing
-        private LinkedList<Pair<Move, Move>> variations = new LinkedList<>(); // stack for pgn parsing
+    public int merge(final PgnItem.Pgn pgn, final int start, final int end, final boolean annotate,
+                      PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
+        final PgnItem.ProgressNotifier progressNotifier = new PgnItem.ProgressNotifier(progressObserver);
+        final int[] merged = {0};
+        final Move mergeMove = this.getCurrentMove();
+        final int[] offset = {0};
+        final int[] index = {0};
+        ((PgnItem.Dir)pgn.getParent()).walkThroughGrandChildren(pgn, new PgnItem.EntryHandler() {
+            @Override
+            public boolean handle(PgnItem entry, BufferedReader br) throws Config.PGNException {
+                entry.offset = offset[0];
+                index[0] = entry.getIndex();
+                int index1 = entry.getIndex() + 1;  // start and end 1-based
+                if(index1 >= start) {
+                    if(merge(mergeMove, (PgnItem.Item)entry, annotate)) {
+                        ++merged[0];
+                    }
+                }
+                return end == -1 || index1 < end;
+            }
 
-        public CpMoveTextHandler() throws Config.PGNException {
-            newMove = rootMove;     // to put initial comment
+            @Override
+            public boolean getMoveText(PgnItem entry) {
+                int index1 = entry.getIndex() + 1;  // start and end 1-based
+                return index1 >= start;
+            }
+
+            @Override
+            public void addOffset(int length, int totalLength) {
+                offset[0] += length;
+                if(end == -1) {
+                    progressNotifier.setOffset(offset[0], pgn.getLength());
+                } else {
+                    progressNotifier.setOffset(index[0], end - start + 1);
+                }
+            }
+        });
+        return merged[0];
+    }
+
+    public boolean merge(final Move mergeMove, final PgnItem.Item item, final boolean annotate) throws Config.PGNException {
+        final Pack mergePack = new Pack(mergeMove.packData);
+        while(!mergeMove.equals(moveLine.getLast())) {
+            moveLine.removeLast();
+        }
+        final boolean[] merged = {false};
+        try {
+            final PgnGraph mergeCandidate = new PgnGraph();
+            PgnParser.parseMoves(item.getMoveText(), new CpMoveTextHandler(mergeCandidate) {
+                int skipVariantLevel = 0;
+                Move newMove;
+                boolean addComment = false;
+                MergeState mergeState = MergeState.Search;
+
+                @Override
+                public void onComment(String value) {
+                    if(mergeState != MergeState.Merge|| value == null || value.isEmpty()) {
+                        return;
+                    }
+                    if(newMove.comment != null && !newMove.comment.isEmpty()) {
+                        value += "; " + newMove.comment;
+                    }
+                    newMove.comment = value;
+                }
+
+                @Override
+                public void onGlyph(String value) {
+                    if(mergeState != MergeState.Merge) {
+                        return;
+                    }
+                    newMove.glyph = Integer.valueOf(value.substring(1));
+                }
+
+                @Override
+                public boolean onMove(String moveText) throws Config.PGNException {
+                    super.onMove(moveText);
+                    Move currentMove = pgnGraph.getCurrentMove();
+
+                    if(DEBUG) {
+                        System.out.print(String.format("\n%" + (variations.size() + 1) + "s%s %s, level=%s ", "",
+                                pgnGraph.getNumberedMove(currentMove), mergeState.toString(), variations.size()));
+                    }
+
+                    Move prevMove = pgnGraph.moveLine.get(pgnGraph.moveLine.size() - 2);
+                    Pack pack = new Pack(prevMove.packData);
+
+                    switch (mergeState) {
+                        case Search:
+//                            Pack pack = new Pack(currentMove.packData);
+                            if (mergePack.equals(pack)) {
+                                mergeState = MergeState.Merge;
+                                if(DEBUG) {
+                                    System.out.print(mergeState.toString());
+                                }
+                                addComment = true;
+                                merged[0] = true;
+                                // fall through!
+                            } else {
+                                Board board = pgnGraph.getBoard();
+                                int numberOfPieces = new Pack(currentMove.packData).getNumberOfPieces();
+                                if (numberOfPieces < mergePack.getNumberOfPieces()) {
+                                    mergeState = MergeState.Skip;
+                                    if(DEBUG) {
+                                        System.out.print(mergeState.toString());
+                                    }
+                                    skipVariantLevel = variations.size();
+//                                    return false;   // handle only pgns without variations
+                                    return skipVariantLevel > 0;
+                                }
+                                break;
+                            }
+
+                        case Merge:
+                            Board prevBoard = PgnGraph.this.positions.get(pack);
+                            if(prevBoard == null) {
+                                String msg = String.format("When merging cannot find position \n%s after %s for %s",
+                                        pgnGraph.getBoard(), prevMove.toString(true), currentMove.toString(true));
+                                logger.error(msg);
+                                mergeState = MergeState.Skip;
+                                skipVariantLevel = variations.size();
+                                return skipVariantLevel > 0;
+                            }
+                            newMove = currentMove.clone();
+                            Board currentBoard = PgnGraph.this.getBoard(currentMove);
+                            if(currentBoard == null) {
+                                PgnGraph.this.addMove(newMove, prevBoard);
+                            } else {
+                                // find move in current graph?
+                                newMove = currentMove.clone();
+                            }
+                            if (annotate && addComment) {
+                                String tag;
+                                if ((newMove.moveFlags & Config.FLAGS_BLACK_MOVE) == 0) {
+                                    tag = Config.HEADER_White;
+                                } else {
+                                    tag = Config.HEADER_Black;
+                                }
+                                String comment = "";
+                                String sep = "";
+
+                                String header = item.getHeader(tag);
+                                if(header != null) {
+                                    String[] parts = header.split(",\\s*");
+                                    comment = parts[0];
+                                    if (parts.length == 1) {
+                                        logger.debug("no last-name, first-name");
+                                        parts = header.split("\\s+");
+                                        comment = parts[parts.length - 1];
+                                    }
+                                }
+                                if(comment.isEmpty() || comment.equals(Config.HEADER_UNKNOWN_VALUE)) {
+                                    comment = "";
+                                    sep = "";
+                                } else {
+                                    sep = ", ";
+                                }
+                                header = item.getHeader(Config.HEADER_Result);
+                                if(header != null && !header.isEmpty() && !header.equals(Config.HEADER_UNKNOWN_VALUE)) {
+                                    comment += sep + header;
+                                }
+                                onComment(comment);
+                            }
+                            addComment = false;
+                            break;
+
+                        case Skip:
+                            break;
+
+                    }
+                    return true;
+                }
+
+//                @Override
+//                public void onVariantOpen() {
+//                    super.onVariantOpen();
+//                }
+
+                @Override
+                public void onVariantClose() {
+                    super.onVariantClose();
+                    if(mergeState == MergeState.Skip) {
+                        if (skipVariantLevel > variations.size()) {
+                            mergeState = MergeState.Search;
+                            skipVariantLevel = 0;
+                        }
+                    }
+//
+//                        case Merge:
+//                            Pair<Move, Move> variationPair = variations.getLast();
+//                            while (variationPair.second != PgnGraph.this.moveLine.removeLast()) ;
+//                            PgnGraph.this.moveLine.addLast(variationPair.first);
+//                            break;
+//                    }
+//                    Pair<Move, Move> variationPair = variations.removeLast();
+//                    while (variationPair.second != pgnGraph.moveLine.removeLast()) ;
+//                    pgnGraph.moveLine.addLast(variationPair.first);
+                }
+            }, new PgnItem.ProgressObserver() {
+                @Override
+                public void setProgress(int progress) {
+//                    logger.debug(String.format("\t offset=%s", progress));
+                }
+            });
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+            parsingError = e.getMessage();
+        }
+        return merged[0];
+    }
+
+    private static class CpMoveTextHandler implements PgnParser.MoveTextHandler {
+        protected PgnGraph pgnGraph;
+        protected Move newMove;
+        protected boolean startVariation;                     // flag for pgn parsing
+        protected LinkedList<Pair<Move, Move>> variations = new LinkedList<>(); // stack for pgn parsing
+
+        public CpMoveTextHandler(PgnGraph pgnGraph) throws Config.PGNException {
+            this.pgnGraph = pgnGraph;
+            newMove = pgnGraph.rootMove;     // to put initial comment
         }
 
         @Override
@@ -805,17 +1035,20 @@ public class PgnGraph {
         }
 
         @Override
-        public void onMove(String moveText) throws Config.PGNException {
+        public boolean onMove(String moveText) throws Config.PGNException {
             Move lastMove = null;
             if(startVariation) {
-                lastMove = PgnGraph.this.moveLine.removeLast();
+                lastMove = pgnGraph.moveLine.removeLast();
             }
 
-            Board board = PgnGraph.this.getBoard();
+            Board board = pgnGraph.getBoard();
+            if(board == null) {
+                board = null;
+            }
             newMove = new Move(board.getFlags() & Config.FLAGS_BLACK_MOVE);
             Util.parseMove(newMove, moveText);
 
-            if (!PgnGraph.this.validatePgnMove(newMove)) {
+            if (!pgnGraph.validatePgnMove(newMove)) {
                 Board snapshot = board.clone();
                 snapshot.incrementPlyNum(1);   // ??
                 String msg = String.format("invalid move %s%s for:\n%s", getMoveNum(snapshot), newMove.toString(), board.toString());
@@ -823,9 +1056,8 @@ public class PgnGraph {
                 throw new Config.PGNException(msg);
             }
 
-            Move move;
             if(startVariation) {
-                if((move = board.getMove()) == null) {
+                if((board.getMove()) == null) {
                     // should never happen
                     String msg = String.format("invalid variation %s%s for:\n%s", getMoveNum(board), newMove.toString(), board.toString());
                     logger.error(msg);
@@ -833,8 +1065,9 @@ public class PgnGraph {
                 Pair<Move, Move> variationPair = new Pair<>(lastMove, newMove);
                 variations.addLast(variationPair);
             }
-            addMove(newMove);
+            pgnGraph.addMove(newMove);
             startVariation = false;
+            return true;
         }
 
         @Override
@@ -845,10 +1078,10 @@ public class PgnGraph {
         @Override
         public void onVariantClose() {
             // resore move line to prior to variation start
-            logger.debug(String.format("onVariantClose %s\n%s", newMove.toString(), PgnGraph.this.getBoard().toString()));
+//            logger.debug(String.format("onVariantClose %s\n%s", newMove.toString(), pgnGraph.getBoard().toString()));
             Pair<Move, Move> variationPair = variations.removeLast();
-            while(variationPair.second != moveLine.removeLast());
-            moveLine.addLast(variationPair.first);
+            while(variationPair.second != pgnGraph.moveLine.removeLast());
+            pgnGraph.moveLine.addLast(variationPair.first);
         }
     }
 

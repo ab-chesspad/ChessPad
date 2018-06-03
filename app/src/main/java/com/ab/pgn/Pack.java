@@ -9,6 +9,7 @@ import java.util.Arrays;
  */
 public class Pack {
     private static int[] equalityMask = new int[Board.PACK_SIZE];
+    private int numberOfPieces = -1;
     static {
         for(int i = 0; i < Board.PACK_SIZE; ++i) {
             if(i == 2) {
@@ -50,7 +51,10 @@ public class Pack {
     }
 
     public int getNumberOfPieces() {
-        return getNumberOfPieces(ints);
+        if(numberOfPieces < 0) {
+            numberOfPieces = getNumberOfPieces(ints);
+        }
+        return numberOfPieces;
     }
 
     public static int getNumberOfPieces(int[] ints) {

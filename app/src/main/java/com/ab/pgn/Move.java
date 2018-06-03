@@ -117,16 +117,13 @@ public class Move {
         }
     }
 
+    // cannot do full check with flags because it is called in PgnGraph.addMove
     public boolean isSameAs(Move that) {
         if(that == null) {
             return false;
         }
-
         if((this.moveFlags & Config.FLAGS_NULL_MOVE) != 0 || (that.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             return (this.moveFlags & Config.FLAGS_NULL_MOVE) == (that.moveFlags & Config.FLAGS_NULL_MOVE);
-        }
-        if(this.moveFlags != that.moveFlags) {
-            return false;
         }
         if(this.piece != that.piece) {
             return false;
@@ -137,7 +134,7 @@ public class Move {
         if(!this.from.equals(that.from)) {
             return false;
         }
-        return new Pack(this.packData).equals(new Pack(that.packData));
+        return this.to.equals(that.to);
     }
 
     public Move getVariation() {

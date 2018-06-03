@@ -33,14 +33,16 @@ public class PgnGraphTest extends BaseTest {
             }
 
             @Override
-            public void addOffset(int length) {
+            public void addOffset(int length, int totalLength) {
 
             }
         });
 
         for (PgnItem item : items) {
-            logger.debug(item.toString());
-            res.add(new PgnGraph((PgnItem.Item) item));
+            if(DEBUG) {
+                logger.debug(item.toString());
+            }
+            res.add(new PgnGraph((PgnItem.Item) item, null));
         }
         return res;
     }
@@ -48,15 +50,19 @@ public class PgnGraphTest extends BaseTest {
     private List<PgnGraph> testParsing(String pgn) throws Config.PGNException {
         List<PgnGraph> pgnGraphs = _parse(pgn);
         for (PgnGraph pgnGraph : pgnGraphs) {
-            logger.debug(pgnGraph.getInitBoard().toFEN());
-            logger.debug(pgnGraph.getBoard().toFEN());
+            if(DEBUG) {
+                logger.debug(pgnGraph.getInitBoard().toFEN());
+                logger.debug(pgnGraph.getBoard().toFEN());
+            }
             String finalFen = pgnGraph.pgn.getHeader(MY_HEADER);
             if(finalFen != null) {
                 Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
             }
             String headers = new String(((PgnItem.Item)pgnGraph.getPgn()).headersToString(true, false));
             String resPgn = headers + "\n" + pgnGraph.toPgn();
-            System.out.println(resPgn);
+            if(DEBUG) {
+                System.out.println(resPgn);
+            }
             Assert.assertEquals(0, pgnGraph.getNumberOfMissingVertices());
 
             List<PgnGraph> resPgnGraphs = _parse(resPgn);
@@ -171,25 +177,25 @@ public class PgnGraphTest extends BaseTest {
         PgnGraph graph = graphs.get(0);
         String s = graph.toPgn();
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.endsWith("4. c3 $21 {main; v2; v1} "));
+        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1}"));
         System.out.println(s);
     }
 
     @Test
     public void testDelMainMove() throws Config.PGNException {
         String pgn =
-                "[White \"merge\"]\n" +
-                "[Black \"variations\"]\n" +
-                "{Merge variations test}" +
-                "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
-                "\n";
+            "[White \"merge\"]\n" +
+            "[Black \"variations\"]\n" +
+            "{Merge variations test}" +
+            "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
+            "\n";
         List<PgnGraph> graphs = _parse(pgn);
         Assert.assertTrue(graphs.size() == 1);
         PgnGraph graph = graphs.get(0);
         String s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.endsWith("4. c3 $21 {main; v2; v1} "));
+        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1}"));
 
         graph.delCurrentMove();
         s = graph.toPgn();
@@ -199,12 +205,12 @@ public class PgnGraphTest extends BaseTest {
         graph.delCurrentMove();
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        Assert.assertTrue(s.endsWith("3. Bc4 {main} "));
+        Assert.assertTrue(s.trim().endsWith("3. Bc4 {main}"));
 
         graph.delCurrentMove();
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        Assert.assertTrue(s.endsWith("2. ... Nc6 {main} "));
+        Assert.assertTrue(s.trim().endsWith("2. ... Nc6 {main}"));
 
         // test navigation through graph
         graph.toInit();
@@ -243,8 +249,8 @@ public class PgnGraphTest extends BaseTest {
         // delete the whole graph
         graph.delCurrentMove();
         Assert.assertEquals(1, graph.moveLine.size());
-        s = graph.toPgn();
-        Assert.assertEquals(String.format("{%s} ", TEST_COMMENT), s);
+        s = graph.toPgn().trim();
+        Assert.assertEquals(String.format("{%s}", TEST_COMMENT), s);
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Assert.assertTrue(graph.isModified());
@@ -255,11 +261,11 @@ public class PgnGraphTest extends BaseTest {
     @Test
     public void testDelVariantMove() throws Config.PGNException {
         String pgn =
-                "[White \"merge\"]\n" +
-                        "[Black \"variations\"]\n" +
-                        "{Merge variations test}" +
-                        "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
-                        "\n";
+            "[White \"merge\"]\n" +
+            "[Black \"variations\"]\n" +
+            "{Merge variations test}" +
+            "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
+            "\n";
         List<PgnGraph> graphs = _parse(pgn);
         Assert.assertTrue(graphs.size() == 1);
         PgnGraph graph = graphs.get(0);
@@ -271,7 +277,7 @@ public class PgnGraphTest extends BaseTest {
         String s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.endsWith(String.format("4. c3 $%s {main; v2; v1} ", TEST_GLYPH)));
+        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1}", TEST_GLYPH)));
 
         graph.toPrevVar();                      // 1. ... e5
         List<Move> variations = graph.getVariations();
@@ -281,7 +287,7 @@ public class PgnGraphTest extends BaseTest {
 
         graph.delCurrentMove();
         s = graph.toPgn();
-        Assert.assertTrue(s.endsWith(String.format("4. c3 $%s {main; v2; v1} ", TEST_GLYPH)));
+        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1}", TEST_GLYPH)));
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Move m = new Move(0);
@@ -292,11 +298,11 @@ public class PgnGraphTest extends BaseTest {
     @Test
     public void testParsingError() throws Config.PGNException {
         String pgn =
-                "[White \"merge\"]\n" +
-                "[Black \"variations\"]\n" +
-                "{Merge variations test}" +
-                "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c5{main}\n" +
-                "\n";
+            "[White \"merge\"]\n" +
+            "[Black \"variations\"]\n" +
+            "{Merge variations test}" +
+            "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c5{main}\n" +
+            "\n";
         List<PgnGraph> graphs = _parse(pgn);
         Assert.assertTrue(graphs.size() == 1);
         PgnGraph graph = graphs.get(0);
@@ -307,11 +313,11 @@ public class PgnGraphTest extends BaseTest {
     @Test
     public void testRepetition() throws Config.PGNException {
         String pgn =
-                "[White \"white\\\\repetition, promotion\"]\n" +
-                "[Black \"black \\\"black\\\"\"]\n" +
-                "[FEN \"r3kbnr/pPp2p1p/4p3/3pP3/8/5P2/P1PP2pP/RNBQK2R w KQkq - 92 3\"]\n" +
-                "3. Nc3 Bd6 4. Nb1 Bf8 5. Nc3 Bd6 6. Nb1 Bf8 {creates 3-fold repetition}" +
-                "\n";
+            "[White \"white\\\\repetition, promotion\"]\n" +
+            "[Black \"black \\\"black\\\"\"]\n" +
+            "[FEN \"r3kbnr/pPp2p1p/4p3/3pP3/8/5P2/P1PP2pP/RNBQK2R w KQkq - 92 3\"]\n" +
+            "3. Nc3 Bd6 4. Nb1 Bf8 5. Nc3 Bd6 6. Nb1 Bf8 {creates 3-fold repetition}" +
+            "\n";
         List<PgnGraph> graphs = _parse(pgn);
         Assert.assertTrue(graphs.size() == 1);
         PgnGraph graph = graphs.get(0);
@@ -327,5 +333,98 @@ public class PgnGraphTest extends BaseTest {
         Assert.assertTrue(res);
         graph.addUserMove(move);
         Assert.assertEquals(100, graph.getBoard().getReversiblePlyNum());
+    }
+
+    @Test
+    public void testMergeSicilianMisc2() throws Config.PGNException {
+        String pgn =
+            "[White \"Staunton, Howard\"]\n" +
+            "[Black \"Cochrane, John Miles\"]\n" +
+            "1.e4 c5 2.c4 e5" +
+            "\n";
+        List<PgnGraph> graphs = _parse(pgn);
+        Assert.assertTrue(graphs.size() == 1);
+        PgnGraph graph = graphs.get(0);
+        graph.toPrev();
+        Move m = graph.getCurrentMove();
+        Board b = graph.getBoard();
+
+        PgnItem.Pgn pgnItem = new PgnItem.Pgn("SicilianMisc2.pgn");
+        int merged = graph.merge(pgnItem, -1, -1, true, null);
+
+/*
+        int merged = graph.merge(pgnItem, -1, -1, true, new PgnItem.OffsetObserver() {
+            @Override
+            public void setOffset(int offset, int totalLength) {
+                pgnOffset[0] = offset;
+                pgnLength[0] = totalLength;
+            }
+        });
+*/
+        logger.debug(String.format("merged %s items", merged));
+/*
+        logger.debug(String.format("\t totalLength=%s, offset=%s", pgnLength[0], pgnOffset[0]));
+        Assert.assertTrue(pgnLength[0] >= pgnOffset[0]);
+*/
+        String s = graph.toPgn();
+        logger.debug(s);
+    }
+
+    @Test
+    public void testMergeMaxLangeAttack() throws Config.PGNException {
+        String pgn =
+            "[White \"Max Lange\"]\n" +
+            "[Black \"Attack\"]\n" +
+            "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4.d4" +
+            "\n";
+        List<PgnGraph> graphs = _parse(pgn);
+        Assert.assertTrue(graphs.size() == 1);
+        PgnGraph graph = graphs.get(0);
+        Move m = graph.getCurrentMove();
+        Board b = graph.getBoard();
+
+        PgnItem.Pgn pgnItem = new PgnItem.Pgn("GiuocoPiano.zip/GiuocoPiano.pgn");
+        int merged = graph.merge(pgnItem, -1, -1, true, new PgnItem.ProgressObserver() {
+            @Override
+            public void setProgress(int progress) {
+                if(DEBUG) {
+                    logger.debug(String.format("\t offset=%s", progress));
+                }
+            }
+        });
+        logger.debug(String.format("merged %s items", merged));
+        String s = graph.toPgn();
+        logger.debug(s);
+    }
+
+    @Test
+    public void testMergeMaxLangeAttackMain() throws Config.PGNException {
+        Board.DEBUG = false;
+        PgnGraph.DEBUG = true;
+        String targetPgn =
+            "[White \"Max Lange Attack\"]\n" +
+            "[Black \"Main\"]\n" +
+            "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. O-O Bc5" +
+            "\n";
+        List<PgnGraph> graphs = _parse(targetPgn);
+        Assert.assertTrue(graphs.size() == 1);
+        PgnGraph targetGraph = graphs.get(0);
+//        targetGraph.toInit();
+//        for (int i = 0; i < 8; ++i) {
+//            targetGraph.toNext();
+//        }
+        Move m = targetGraph.getCurrentMove();
+        Board b = targetGraph.getBoard();
+
+        PgnItem.Pgn pgnItem = new PgnItem.Pgn("MaxLange-0.pgn");
+        int merged = targetGraph.merge(pgnItem, -1, -1, true, new PgnItem.ProgressObserver() {
+            @Override
+            public void setProgress(int progress) {
+//                logger.debug(String.format("\t offset=%s", progress));
+            }
+        });
+        logger.debug(String.format("merged %s items", merged));
+        String s = targetGraph.toPgn();
+        logger.debug(s);
     }
 }

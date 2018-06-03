@@ -341,7 +341,7 @@ public class Board {
     public String toString() {
         String res = "";
 
-        res += "   a b c d e f g h".substring(2 * getXSize() + 2) + "\n";
+        res += "   a b c d e f g h".substring(0, 2 * getXSize() + 2) + "\n";
         for (int j = getYSize() - 1; j >= 0; j--) {
             res += (j + 1) + " ";
             for (int i = 0; i < getXSize(); i++) {
@@ -355,7 +355,7 @@ public class Board {
             }
             res += "  " + (j + 1) + "\n";
         }
-        res += "   a b c d e f g h".substring(2 * getXSize() + 2) + "\n";
+        res += "   a b c d e f g h".substring(0, 2 * getXSize() + 2) + "\n";
         return res;
     }
 

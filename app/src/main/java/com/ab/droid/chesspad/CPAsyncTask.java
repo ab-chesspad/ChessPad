@@ -74,8 +74,11 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     @Override
     public void publishProgress(int progress) {
         if(progress - oldProgress >= 1) {
-            super.publishProgress(progress);
             oldProgress = progress;
+            if(progress > 100) {
+                progress = 100;
+            }
+            super.publishProgress(progress);
         }
     }
 

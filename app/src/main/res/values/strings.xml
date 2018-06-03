@@ -28,6 +28,7 @@
     <string name="msg_del_game">Do you want to remove irreversibly the whole game from pgn file?</string>
     <string name="msg_3_fold_repetition">Three-fold repetition</string>
     <string name="msg_50_reversible_moves">50 consecutive reversible moves</string>
+    <string name="msg_merge_count">Merged %d games</string>
 
     <string name="menu_load">Load</string>
     <string name="menu_merge">Merge</string>

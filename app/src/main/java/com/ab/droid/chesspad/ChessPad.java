@@ -724,44 +724,115 @@ public class ChessPad extends AppCompatActivity {
     }
 
     // after loading a new item or ending setup
+    // in Setup on 'setup ok' (null)
+    // after ending Append (null)
+    // after SaveModified?, savePgnGraph, (null)
+    // after SaveModified, negative, (null)
+    // after load, new item
     public void setPgnGraph(PgnItem.Item item ) throws Config.PGNException {
         if(pgnGraph.isModified()) {
             Log.d(DEBUG_TAG, String.format("setPgnGraph %s, old is modified", item));
             nextPgnItem = item;
             popups.launchDialog(Popups.DialogType.SaveModified);
         } else {
-            if (mode == Mode.Setup) {
-                if(item == null) {
-                    pgnGraph = setup.toPgnGraph();
-                } else {
-                    pgnGraph = new PgnGraph(item);
-                }
-                cancelSetup();
-            } else {
-                if(item == null) {
-                    item = nextPgnItem;
-                }
-                if(item != null) {
-                    pgnGraph = new PgnGraph(item);
-                    String parsingError = pgnGraph.getParsingError();
-                    if(parsingError != null) {
-                        popups.dlgMessage(Popups.DialogType.ShowMessage, parsingError, R.drawable.exclamation, Popups.DialogButton.Ok);
-                    } else {
-                        int parsingErrorNum = pgnGraph.getParsingErrorNum();
-                        if(parsingErrorNum != 0) {
-                            popups.dlgMessage(Popups.DialogType.ShowMessage, getSetupErr(parsingErrorNum), R.drawable.exclamation, Popups.DialogButton.Ok);
-                        }
-                    }
-                }
-                chessPadView.redraw();
+            if (mode == Mode.Game && item == null) {
+                item = nextPgnItem;
             }
+
+            if (item == null && setup != null) {
+                pgnGraph = setup.toPgnGraph();
+            } else if(item != null){
+                loadPgnGraph(item, new CPPostExecutor() {
+                    @Override
+                    public void onPostExecute() throws Config.PGNException {
+                        chessPadView.invalidate();
+                    }
+
+                    @Override
+                    public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                        Log.e(DEBUG_TAG, "load, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                        popups.crashAlert(R.string.crash_cannot_load);
+                    }
+                });
+            }
+            cancelSetup();
             nextPgnItem = null;
             selectedSquare = null;
             popups.promotionMove = null;
         }
     }
 
+    public void loadPgnGraph(final PgnItem.Item item, final CPPostExecutor cpPostExecutor) throws Config.PGNException {
+        new CPAsyncTask(chessPadView, new CPExecutor() {
+            @Override
+            public void onPostExecute() throws Config.PGNException {
+                Log.d(DEBUG_TAG, String.format("savePgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));
+                if(cpPostExecutor != null) {
+                    cpPostExecutor.onPostExecute();
+                }
+            }
+
+            @Override
+            public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                Log.e(DEBUG_TAG, "savePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                popups.crashAlert(R.string.crash_cannot_save);
+            }
+
+            @Override
+            public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
+                Log.d(DEBUG_TAG, String.format("loadPgnGraph start, thread %s", Thread.currentThread().getName()));
+                pgnGraph = new PgnGraph(item, new PgnItem.ProgressObserver() {
+                    @Override
+                    public void setProgress(int progress) {
+                        Log.d(DEBUG_TAG, String.format("Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
+                        progressPublisher.publishProgress(progress);
+
+                    }
+                });
+            }
+        }).execute();
+    }
+
+    public void mergePgnGraph(final Popups.MergeData mergeData, final CPPostExecutor cpPostExecutor) throws Config.PGNException {
+        final PgnItem.Pgn _pgn = new PgnItem.Pgn(mergeData.pgnPath);
+        final int[] merged = {0};
+        new CPAsyncTask(chessPadView, new CPExecutor() {
+            @Override
+            public void onPostExecute() throws Config.PGNException {
+                Log.d(DEBUG_TAG, String.format("mergePgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));
+                if(cpPostExecutor != null) {
+                    cpPostExecutor.onPostExecute();
+                }
+                String msg = String.format(getResources().getString(R.string.msg_merge_count), merged[0]);
+                Toast.makeText(ChessPad.this, msg, Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                Log.e(DEBUG_TAG, "mergePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                popups.crashAlert(R.string.crash_cannot_save);
+            }
+
+            @Override
+            public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
+                Log.d(DEBUG_TAG, String.format("mergePgnGraph start, thread %s", Thread.currentThread().getName()));
+                merged[0] = pgnGraph.merge(_pgn, mergeData.start, mergeData.end, mergeData.includeHeaders,
+                    new PgnItem.ProgressObserver() {
+                        @Override
+                        public void setProgress(int progress) {
+                            Log.d(DEBUG_TAG, String.format("Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
+                            progressPublisher.publishProgress(progress);
+
+                        }
+                });
+            }
+        }).execute();
+    }
+
     public void savePgnGraph(final boolean updateMoves, final CPPostExecutor cpPostExecutor) throws Config.PGNException {
+        if(pgnGraph.getPgn().getIndex() == -1) {
+            popups.cpPgnItemListAdapter = null;     // enforce reload
+        }
         new CPAsyncTask(chessPadView, new CPExecutor() {
             @Override
             public void onPostExecute() throws Config.PGNException {
@@ -780,16 +851,12 @@ public class ChessPad extends AppCompatActivity {
             @Override
             public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
                 Log.d(DEBUG_TAG, String.format("savePgnGraph start, thread %s", Thread.currentThread().getName()));
-                pgnGraph.save(updateMoves, new PgnItem.OffsetHandler() {
+                pgnGraph.save(updateMoves, new PgnItem.ProgressObserver() {
                     @Override
-                    public void setOffset(int offset) {
-                        int totalLength = pgnGraph.getPgn().getParent().getLength();
-                        Log.d(DEBUG_TAG, String.format("setOffset %d, total %d, thread %s", offset, totalLength, Thread.currentThread().getName()));
-                        if(totalLength == 0) {
-                            return;
-                        }
-                        int percent = offset * 100 / totalLength;
-                        progressPublisher.publishProgress(percent);
+                    public void setProgress(int progress) {
+                        Log.d(DEBUG_TAG, String.format("Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
+                        progressPublisher.publishProgress(progress);
+
                     }
                 });
             }

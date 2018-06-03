@@ -108,7 +108,7 @@ public class Popups {
     protected DialogType dialogType = DialogType.None;
     private String dialogMsg = null;
     private List<Pair<String, String>> editHeaders;
-    private CPPgnItemListAdapter cpPgnItemListAdapter;
+    CPPgnItemListAdapter cpPgnItemListAdapter;
 
     public Popups(ChessPad chessPad) {
         this.chessPad = chessPad;
@@ -412,16 +412,11 @@ public class Popups {
                         @Override
                         public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
                             Log.d(DEBUG_TAG, String.format("getPgnItem start, thread %s", Thread.currentThread().getName()));
-                            PgnItem.getPgnItem(actualItem, new PgnItem.OffsetHandler() {
+                            PgnItem.getPgnItem(actualItem, new PgnItem.ProgressObserver() {
                                 @Override
-                                public void setOffset(int offset) {
-                                    int totalLength = actualItem.getOffset();
-                                    Log.e(DEBUG_TAG, String.format("setOffset %d, total %d, thread %s", offset, totalLength, Thread.currentThread().getName()));
-                                    if(totalLength == 0) {
-                                        return;
-                                    }
-                                    int percent = offset * 100 / totalLength;
-                                    progressPublisher.publishProgress(percent);
+                                public void setProgress(int progress) {
+                                    Log.d(DEBUG_TAG, String.format("Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
+                                    progressPublisher.publishProgress(progress);
                                 }
                             });
                         }
@@ -434,7 +429,7 @@ public class Popups {
                 break;
 
             case Append:
-                PgnItem.Pgn pgn = new PgnItem.Pgn(selectedValue.toString());
+                final PgnItem.Pgn pgn = new PgnItem.Pgn(selectedValue.toString());
                 chessPad.pgnGraph.getPgn().setParent(pgn);
                 chessPad.pgnGraph.getPgn().setIndex(-1);
                 chessPad.savePgnGraph(true, new CPPostExecutor() {
@@ -451,7 +446,17 @@ public class Popups {
                 break;
 
             case Merge:
-                Log.d(DEBUG_TAG, "'merge' is not implemented");
+                chessPad.mergePgnGraph(mergeData, new CPPostExecutor() {
+                    @Override
+                    public void onPostExecute() throws Config.PGNException {
+                        chessPad.setPgnGraph(null);
+                    }
+
+                    @Override
+                    public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                        Log.e(DEBUG_TAG, "mergePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                    }
+                });
                 break;
 
             case Headers:
@@ -780,8 +785,7 @@ public class Popups {
 
             @Override
             public void afterTextChanged(Editable s) {
-                String text = s.toString().toLowerCase();
-                mergeData.pgnPathWrapper.setValue(text);
+                mergeData.pgnPathWrapper.setValue(s.toString());
             }
         });
         PgnItem path = chessPad.currentPath;
@@ -925,12 +929,30 @@ public class Popups {
 
             if (values != null) {
                 Object value = values.get(position);
-                textView.setText(value.toString());
-                if (value instanceof ChessPad.MenuItem) {
-                    if (((ChessPad.MenuItem) value).isEnabled()) {
-                        textView.setTextColor(Color.BLACK);
-                    } else {
-                        textView.setTextColor(Color.LTGRAY);
+                if (value instanceof Move) {
+                    Move move = (Move)value;
+                    String text = move.toString().trim();
+                    if(move.glyph != 0) {
+                        String[] glyphs = getResources().getStringArray(R.array.glyphs);
+                        String glyph = glyphs[move.glyph].split("\\s+")[0];
+                        text += " " + glyph;
+                    }
+                    if(move.comment != null) {
+                        int len = 40;
+                        if(len > move.comment.length()) {
+                            len = move.comment.length();
+                        }
+                        text += ", " + move.comment.substring(0, len);
+                    }
+                    textView.setText(text);
+                } else {
+                    textView.setText(value.toString());
+                    if (value instanceof ChessPad.MenuItem) {
+                        if (((ChessPad.MenuItem) value).isEnabled()) {
+                            textView.setTextColor(Color.BLACK);
+                        } else {
+                            textView.setTextColor(Color.LTGRAY);
+                        }
                     }
                 }
             } else {
@@ -1006,19 +1028,13 @@ public class Popups {
                     @Override
                     public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
                         Log.d(DEBUG_TAG, String.format("parentItem.getChildrenNames start, thread %s", Thread.currentThread().getName()));
-                        pgnItemList = parentItem.getChildrenNames(new PgnItem.OffsetHandler() {
+                        pgnItemList = parentItem.getChildrenNames(new PgnItem.ProgressObserver() {
                             @Override
-                            public void setOffset(int offset) {
-                                int totalLength = parentItem.getLength();
-                                Log.d(DEBUG_TAG, String.format("setOffset %d, total %d, thread %s", offset, totalLength, Thread.currentThread().getName()));
-                                if(totalLength == 0) {
-                                    return;
-                                }
-                                int percent = offset * 100 / totalLength;
-                                progressPublisher.publishProgress(percent);
+                            public void setProgress(int progress) {
+                                Log.d(DEBUG_TAG, String.format("Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
+                                progressPublisher.publishProgress(progress);
                             }
-                        }, 0, -1
-                        );
+                        });
                     }
                 }).execute();
             }
@@ -1201,7 +1217,7 @@ public class Popups {
         }
     }
 
-    private static class MergeData {
+    static class MergeData {
         boolean includeHeaders;
         ChessPadView.StringWrapper startStringWrapper;
         ChessPadView.StringWrapper endStringWrapper;
@@ -1211,7 +1227,7 @@ public class Popups {
         ChessPadView.ChangeObserver changeObserver;
 
         public MergeData(PgnItem.Item target) {
-            start = 0;
+            start = -1;
             end = -1;
             pgnPath = target.getParent().getAbsolutePath();
             init();
@@ -1228,23 +1244,33 @@ public class Popups {
                 }
             });
 
-            String s;
-            s = "" + start;
+            String s = "";
+            if(start > 0) {
+                s += start;
+            }
             startStringWrapper = new ChessPadView.StringWrapper(s, new ChessPadView.ChangeObserver() {
                 @Override
                 public void onValueChanged(Object value) {
                     String s = (String)value;
                     if( s.isEmpty()) {
-                        MergeData.this.start = 0;
+                        MergeData.this.start = -1;
                     } else {
-                        MergeData.this.start = Integer.valueOf(s);
+                        try {
+                            MergeData.this.start = Integer.valueOf(s);
+                        } catch (Exception e) {
+                            // ignore
+                            return;
+                        }
                     }
                     if(MergeData.this.changeObserver != null) {
                         MergeData.this.changeObserver.onValueChanged(MergeData.this);
                     }
                 }
             });
-            s = "" + end;
+            s = "";
+            if(end > 0) {
+                s += end;
+            }
             endStringWrapper = new ChessPadView.StringWrapper(s, new ChessPadView.ChangeObserver() {
                 @Override
                 public void onValueChanged(Object value) {
@@ -1252,7 +1278,12 @@ public class Popups {
                     if( s.isEmpty()) {
                         MergeData.this.end = -1;
                     } else {
-                        MergeData.this.end = Integer.valueOf(s);
+                        try {
+                            MergeData.this.end = Integer.valueOf(s);
+                        } catch (Exception e) {
+                            // ignore
+                            return;
+                        }
                     }
                     if(MergeData.this.changeObserver != null) {
                         MergeData.this.changeObserver.onValueChanged(MergeData.this);
@@ -1269,7 +1300,7 @@ public class Popups {
             if (!pgnPath.endsWith(PgnItem.EXT_PGN)) {
                 return false;
             }
-            return start == 0 && end == -1 || start <= end;
+            return end == -1 || start <= end;
         }
 
         private void serialize(BitStream.Writer writer) throws Config.PGNException {
