@@ -16,6 +16,7 @@
         >
         <activity android:name=".ChessPad"
             android:descendantFocusability="beforeDescendants"
+            android:windowSoftInputMode="adjustPan"
             android:configChanges="keyboardHidden|orientation|screenSize"
             >
             <intent-filter>

@@ -21,6 +21,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -435,7 +436,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
 
     public static Item getPgnItem(PgnItem parent, int index) throws Config.PGNException {
         if (index < 0 || parent == null || !(parent instanceof Pgn)) {
-            throw new Config.PGNException(String.format("invalid parent type or invalid index"));
+            throw new Config.PGNException("invalid parent type or invalid index");
         }
         Item item = new Item(parent, String.format("item%s", index));
         item.index = index;
@@ -872,7 +873,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
                 @Override
                 public void addOffset(int length, int totalLength) {
-                    logger.debug(String.format("Dir addOffset %d, total %d", length, totalLength));
+                    logger.debug(String.format(Locale.getDefault(), "Dir addOffset %d, total %d", length, totalLength));
                 }
             }, true);
             this.length = fileList.size();  // update
@@ -1069,7 +1070,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         /**
              * @param item to replace, set moveText = null to delete; set item.index = -1 to add a new Item
              * @param fos
-             * @throws IOException
+             * @throws Config.PGNException
              */
         @Override
         int saveGrandChild(final Item item, FileOutputStream fos, final ProgressNotifier progressNotifier) throws Config.PGNException {

@@ -29,17 +29,19 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     @Override
     protected void onPreExecute() {
         super.onPreExecute();
-        if(progressBarHolder != null) {
-            progressBarHolder.getProgressBar().show(true);
-            progressBarHolder.getProgressBar().update(oldProgress);
+        ChessPadView.CpProgressBar cpProgressBar;
+        if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
+            cpProgressBar.show(true);
+            cpProgressBar.update(oldProgress);
         }
     }
 
     @Override
     protected void onPostExecute(Config.PGNException param) {
         super.onPostExecute(param);
-        if(progressBarHolder != null) {
-            progressBarHolder.getProgressBar().show(false);
+        ChessPadView.CpProgressBar cpProgressBar;
+        if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
+            cpProgressBar.show(false);
         }
         try {
             if(param == null) {
@@ -66,8 +68,9 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     @Override
     protected void onProgressUpdate(Integer... values) {
         super.onProgressUpdate(values);
-        if(progressBarHolder != null) {
-            progressBarHolder.getProgressBar().update(values[0]);
+        ChessPadView.CpProgressBar cpProgressBar;
+        if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
+            cpProgressBar.update(values[0]);
         }
     }
 
@@ -90,10 +93,10 @@ interface ProgressPublisher {
 
 interface CPPostExecutor {
     void onPostExecute() throws Config.PGNException;
-    void onExecuteException(Config.PGNException e) throws Config.PGNException;
 }
 
 interface CPExecutor extends CPPostExecutor{
+    void onExecuteException(Config.PGNException e) throws Config.PGNException;
     void doInBackground(ProgressPublisher progressPublisher) throws Config.PGNException;
 }
 

@@ -6,7 +6,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Point;
-import android.support.v4.view.MotionEventCompat;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -86,13 +85,17 @@ public class BoardView extends View {
     // translate board coords to local screen coords
     protected Point board2screen(int x, int y) {
         Point res = new Point();
+        Board board = boardHolder.getBoard();
+        if(board == null) {
+            return res;
+        }
         if (boardHolder.isReversed()) {
-            int xSize = boardHolder.getBoard().getXSize();
+            int xSize = board.getXSize();
             res.x = margin + (xSize - 1 - x) * squareSize;
             res.y = margin + y * squareSize;
         } else {
             res.x = margin + x * squareSize;
-            int ySize = boardHolder.getBoard().getYSize();
+            int ySize = board.getYSize();
             res.y = margin + (ySize - 1 - y) * squareSize;
         }
         return res;
@@ -101,12 +104,16 @@ public class BoardView extends View {
     // translate local screen coords to board coords
     protected Square screen2board(int x, int y) {
         Square res = new Square();
+        Board board = boardHolder.getBoard();
+        if(board == null) {
+            return res;
+        }
         if (boardHolder.isReversed()) {
-            res.x = boardHolder.getBoard().getXSize() - 1 - (x - margin) / squareSize;
+            res.x = board.getXSize() - 1 - (x - margin) / squareSize;
             res.y = (y - margin) / squareSize;
         } else {
             res.x = (x - margin) / squareSize;
-            res.y = boardHolder.getBoard().getYSize() - 1 - (y - margin) / squareSize;
+            res.y = board.getYSize() - 1 - (y - margin) / squareSize;
         }
         return res;
     }
@@ -118,6 +125,9 @@ public class BoardView extends View {
 
     private void drawBoard(Canvas canvas) {
         Board board = boardHolder.getBoard();
+        if(board == null) {
+            return;
+        }
         for (int x = 0; x < board.getXSize(); ++x) {
             for (int y = 0; y < board.getYSize(); ++y) {
                 int i = (x + y) % bgBitmaps.length;
@@ -146,12 +156,16 @@ public class BoardView extends View {
         public boolean onTouch(View v, MotionEvent event) {
             Square clicked = screen2board((int) event.getX(), (int) event.getY());
 //            Log.d(DEBUG_TAG, String.format("BoardView (%s) %s", clicked.toString(), event.toString()));
+            Board board = boardHolder.getBoard();
+            if(board == null) {
+                return true;
+            }
 
-            int action = MotionEventCompat.getActionMasked(event);
+            int action = event.getActionMasked();
             switch (action) {
                 case (MotionEvent.ACTION_DOWN):
-                    if (clicked.getX() < 0 || clicked.getX() >= boardHolder.getBoard().getXSize() ||
-                            clicked.getY() < 0 || clicked.getY() >= boardHolder.getBoard().getYSize()) {
+                    if (clicked.getX() < 0 || clicked.getX() >= board.getXSize() ||
+                            clicked.getY() < 0 || clicked.getY() >= board.getYSize()) {
                         return true;
                     }
                     selected = clicked;

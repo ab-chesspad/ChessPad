@@ -314,11 +314,6 @@ public class Popups {
                                 public void onPostExecute() throws Config.PGNException {
                                     chessPad.setPgnGraph(null);
                                 }
-
-                                @Override
-                                public void onExecuteException(Config.PGNException e) throws Config.PGNException {
-                                    Log.e(DEBUG_TAG, "savePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                                }
                             });
                         } else {
                             dismissDlg();
@@ -437,11 +432,6 @@ public class Popups {
                     public void onPostExecute() throws Config.PGNException {
                         chessPad.setPgnGraph(null);
                     }
-
-                    @Override
-                    public void onExecuteException(Config.PGNException e) throws Config.PGNException {
-                        Log.e(DEBUG_TAG, "append, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                    }
                 });
                 break;
 
@@ -450,11 +440,6 @@ public class Popups {
                     @Override
                     public void onPostExecute() throws Config.PGNException {
                         chessPad.setPgnGraph(null);
-                    }
-
-                    @Override
-                    public void onExecuteException(Config.PGNException e) throws Config.PGNException {
-                        Log.e(DEBUG_TAG, "mergePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
                     }
                 });
                 break;
@@ -516,7 +501,6 @@ public class Popups {
 
     // todo: fix sizes
     private void launchDialog(final DialogType dialogType, String msg, int icon, final CPArrayAdapter arrayAdapter, DialogButton button) {
-        EditText editText;  // fictitious view to enable keyboard display for CPHeadersAdapter
         if (currentAlertDialog != null) {
             return;
         }
@@ -531,8 +515,6 @@ public class Popups {
                 }
             }
         };
-        editText = new EditText(chessPad);
-        editText.setVisibility(View.GONE);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(chessPad);
 
@@ -564,23 +546,25 @@ public class Popups {
                             }
                         }
                     })
-                    .setView(editText)
             ;
+            EditText editText = new EditText(chessPad);  // fictitious view to enable keyboard display for CPHeadersAdapter
+            editText.setVisibility(View.GONE);
+            builder.setView(editText);
         }
         if (button == DialogButton.YesNoCancel) {
-            builder = builder.setNegativeButton(R.string.no, dialogClickListener);
-            builder = builder.setPositiveButton(R.string.yes, dialogClickListener);
-            builder = builder.setNeutralButton(R.string.cancel, dialogClickListener);
+            builder.setNegativeButton(R.string.no, dialogClickListener);
+            builder.setPositiveButton(R.string.yes, dialogClickListener);
+            builder.setNeutralButton(R.string.cancel, dialogClickListener);
         } else {
             if (button == DialogButton.YesNo) {
-                builder = builder.setNegativeButton(R.string.no, dialogClickListener);
-                builder = builder.setPositiveButton(R.string.yes, dialogClickListener);
+                builder.setNegativeButton(R.string.no, dialogClickListener);
+                builder.setPositiveButton(R.string.yes, dialogClickListener);
             }
             if (button == DialogButton.OkCancel) {
-                builder = builder.setNegativeButton(R.string.cancel, dialogClickListener);
+                builder.setNegativeButton(R.string.cancel, dialogClickListener);
             }
             if (button == DialogButton.Ok || button == DialogButton.OkCancel) {
-                builder = builder.setPositiveButton(R.string.ok, dialogClickListener);
+                builder.setPositiveButton(R.string.ok, dialogClickListener);
             }
         }
         currentAlertDialog = builder.create();
@@ -606,9 +590,9 @@ public class Popups {
         final Dialog mDialog = new Dialog(chessPad);
         mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         mDialog.setContentView(R.layout.dlg_append);
-        final Button btnOk = (Button) mDialog.findViewById(R.id.ok_button);
+        final Button btnOk = (Button)mDialog.findViewById(R.id.ok_button);
         btnOk.setEnabled(false);
-        final TextView textView = ((TextView) mDialog.findViewById(R.id.file_name));
+        final TextView textView = (TextView)mDialog.findViewById(R.id.file_name);
         textView.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -634,7 +618,7 @@ public class Popups {
             textView.setText(getTruncatedPath(path));
             path = path.getParent();
         }
-        final ListView listView = (ListView) mDialog.findViewById(R.id.file_list);
+        final ListView listView = (ListView)mDialog.findViewById(R.id.file_list);
         if (fileListShown) {
             listView.setVisibility(View.VISIBLE);
         } else {
@@ -766,7 +750,7 @@ public class Popups {
         RelativeLayout rlHeaders = (RelativeLayout)mDialog.findViewById(R.id.controls_pane_merge);
         createMergeParamPane(rlHeaders);
 
-        final Button btnOk = (Button) mDialog.findViewById(R.id.ok_button);
+        final Button btnOk = (Button)mDialog.findViewById(R.id.ok_button);
         btnOk.setEnabled(false);
         mergeData.setChangeObserver(new ChessPadView.ChangeObserver() {
             @Override
@@ -775,7 +759,7 @@ public class Popups {
             }
         });
 
-        final TextView textView = ((TextView) mDialog.findViewById(R.id.file_name));
+        final TextView textView = (TextView)mDialog.findViewById(R.id.file_name);
         textView.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -794,7 +778,7 @@ public class Popups {
             textView.setText(getTruncatedPath(path));
             path = path.getParent();
         }
-        final ListView fileListView = (ListView) mDialog.findViewById(R.id.file_list);
+        final ListView fileListView = (ListView)mDialog.findViewById(R.id.file_list);
         if (fileListShown) {
             fileListView.setVisibility(View.VISIBLE);
         } else {
@@ -872,7 +856,8 @@ public class Popups {
     }
 
     private CPPgnItemListAdapter getPgnItemListAdapter(PgnItem parentItem, int initSelection) throws Config.PGNException {
-        if(cpPgnItemListAdapter == null || cpPgnItemListAdapter.isChanged(parentItem)) {
+        if(cpPgnItemListAdapter == null || cpPgnItemListAdapter.isChanged(parentItem)
+                   || cpPgnItemListAdapter.getCount() == 0) {  // kludgy way to fix storage permission change problem
             cpPgnItemListAdapter = new CPPgnItemListAdapter(parentItem, initSelection);
         }
         cpPgnItemListAdapter.setSelectedIndex(initSelection);
@@ -919,7 +904,7 @@ public class Popups {
             if (convertView == null) {
                 convertView = layoutInflater.inflate(R.layout.list_view, null);
             }
-            TextView textView = (TextView) convertView.findViewById(R.id.listViewRow);
+            TextView textView = (TextView)convertView.findViewById(R.id.listViewRow);
             textView.setVisibility(View.VISIBLE);
             if (position == selectedIndex) {
                 textView.setBackgroundColor(Color.CYAN);
@@ -1002,7 +987,7 @@ public class Popups {
         }
 
         public void refresh(final PgnItem parentItem, int initSelection) throws Config.PGNException {
-            Log.d(DEBUG_TAG, "CPPgnItemListAdapter.refresh, thread " + Thread.currentThread().getName());
+//            Log.d(DEBUG_TAG, "CPPgnItemListAdapter.refresh, thread " + Thread.currentThread().getName());
             this.parentItem = parentItem;
             if (parentItem != null && !parentItem.getAbsolutePath().equals(PgnItem.getRoot().getAbsolutePath())) {
                 selectedIndexAdjustment = 1;
@@ -1027,7 +1012,7 @@ public class Popups {
 
                     @Override
                     public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
-                        Log.d(DEBUG_TAG, String.format("parentItem.getChildrenNames start, thread %s", Thread.currentThread().getName()));
+//                        Log.d(DEBUG_TAG, String.format("parentItem.getChildrenNames start, thread %s", Thread.currentThread().getName()));
                         pgnItemList = parentItem.getChildrenNames(new PgnItem.ProgressObserver() {
                             @Override
                             public void setProgress(int progress) {
@@ -1042,7 +1027,7 @@ public class Popups {
 
         @Override
         public int getCount() {
-            Log.d(DEBUG_TAG, "CPPgnItemListAdapter.getCount, thread " + Thread.currentThread().getName());
+//            Log.d(DEBUG_TAG, "CPPgnItemListAdapter.getCount, thread " + Thread.currentThread().getName());
             if (pgnItemList != null) {
                 return pgnItemList.size();
             }
@@ -1059,7 +1044,7 @@ public class Popups {
             if (convertView == null) {
                 convertView = layoutInflater.inflate(R.layout.list_view, null);
             }
-            TextView textView = (TextView) convertView.findViewById(R.id.listViewRow);
+            TextView textView = (TextView)convertView.findViewById(R.id.listViewRow);
             textView.setVisibility(View.VISIBLE);
             textView.setSingleLine();
             if (position == selectedIndex + selectedIndexAdjustment) {
@@ -1128,11 +1113,11 @@ public class Popups {
                 convertView = layoutInflater.inflate(R.layout.list_view, null);
                 rowViewHolder = new RowViewHolder();
                 convertView.setTag(rowViewHolder);
-                LinearLayout layout = (LinearLayout) convertView.findViewById(R.id.headerRowLayout);
+                LinearLayout layout = (LinearLayout)convertView.findViewById(R.id.headerRowLayout);
                 layout.setVisibility(View.VISIBLE);
-                rowViewHolder.labelView = (TextView) convertView.findViewById(R.id.headerLabel);
-                rowViewHolder.valueView = (TextView) convertView.findViewById(R.id.headerValue);
-                rowViewHolder.actionButton = (ImageButton) convertView.findViewById(R.id.headerActionButton);
+                rowViewHolder.labelView = (TextView)convertView.findViewById(R.id.headerLabel);
+                rowViewHolder.valueView = (TextView)convertView.findViewById(R.id.headerValue);
+                rowViewHolder.actionButton = (ImageButton)convertView.findViewById(R.id.headerActionButton);
             } else {
                 rowViewHolder = (RowViewHolder)convertView.getTag();
             }

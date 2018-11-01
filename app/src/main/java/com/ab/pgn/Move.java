@@ -43,16 +43,23 @@ public class Move {
         return m;
     }
 
+    private int promotedToSerialized(int piece) {
+        int serialized = (piece - Config.QUEEN) >> 1;
+        return  serialized;
+    }
+
+    private int serializedToPromoted(int serialized, int flags) {
+        int piece = (serialized << 1) + Config.QUEEN + (flags & Config.BLACK);
+        return  piece;
+    }
+
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
             from.serialize(writer);
             to.serialize(writer);
             writer.write(moveFlags, 16);
-            if (piecePromoted == Config.EMPTY) {
-                writer.write(0, 1);
-            } else {
-                writer.write(1, 1);
-                writer.write((piecePromoted & ~Config.PIECE_COLOR), 3);
+            if (piecePromoted != Config.EMPTY) {
+                writer.write(promotedToSerialized(piecePromoted), 2);
             }
             if (glyph == 0) {
                 writer.write(0, 1);
@@ -72,34 +79,17 @@ public class Move {
         new Pack(this.packData).serialize(writer);
     }
 
-    public Move(BitStream.Reader reader) throws Config.PGNException {
-        try {
-            from = new Square(reader);
-            to = new Square(reader);
-            moveFlags = reader.read(16);
-            if (reader.read(1) == 1) {
-                piecePromoted = reader.read(3) | (moveFlags & Config.PIECE_COLOR);
-            }
-            if (reader.read(1) == 1) {
-                glyph = reader.read(8);
-            }
-            if (reader.read(1) == 1) {
-                comment = reader.readString();
-            }
-            Pack pack = new Pack(reader);
-            packData = pack.getPackData();
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
-        }
-    }
-
     public Move(BitStream.Reader reader, Board board) throws Config.PGNException {
         try {
             from = new Square(reader);
             to = new Square(reader);
             moveFlags = reader.read(16);
-            if (reader.read(1) == 1) {
-                piecePromoted = reader.read(3) | (moveFlags & Config.PIECE_COLOR);
+            if(board != null) {
+                piece = board.getPiece(from);
+            }
+            if(piece == Config.WHITE_PAWN && to.getY() == Config.BOARD_SIZE - 1 ||
+                    piece == Config.BLACK_PAWN && to.getY() == 0) {
+                piecePromoted = serializedToPromoted(reader.read(2), moveFlags);
             }
             if (reader.read(1) == 1) {
                 glyph = reader.read(8);
@@ -107,8 +97,6 @@ public class Move {
             if (reader.read(1) == 1) {
                 comment = reader.readString();
             }
-
-            piece = board.getPiece(from);
 
             Pack pack = new Pack(reader);
             packData = pack.getPackData();

@@ -157,9 +157,9 @@ public class PgnMoveParsingTest extends BaseTest {
         List<PgnGraph> pgnGraphs = testParsing(pgn);
         for(PgnGraph pgnGraph : pgnGraphs) {
             BitStream.Writer writer = new BitStream.Writer();
-            pgnGraph.serialize(writer);
+            pgnGraph.serializePgnGraph(writer, TEST_SERIALIZATION_VERSION);
 
-            PgnGraph unserialized = new PgnGraph(new BitStream.Reader(writer));
+            PgnGraph unserialized = new PgnGraph(new BitStream.Reader(writer), TEST_SERIALIZATION_VERSION, null);
             unserialized.toEnd();
             pgnGraph.toEnd();
             Assert.assertEquals(pgnGraph.getBoard().toString(), unserialized.getBoard().toString());

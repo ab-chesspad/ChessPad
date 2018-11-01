@@ -1,5 +1,7 @@
 package com.ab.pgn;
 
+import android.annotation.SuppressLint;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.*;
@@ -9,7 +11,7 @@ import java.util.*;
  * Created by Alexander Bootman on 10/29/17.
  */
 public class PgnGraph {
-    public static boolean DEBUG = false;    // todo: config
+    public static boolean DEBUG = true;    // todo: config
     final static PgnLogger logger = PgnLogger.getLogger(PgnGraph.class);
 
     enum MergeState {
@@ -55,12 +57,13 @@ public class PgnGraph {
 
     private void setSTR() {
         for (String str : Config.STR) {
-            pgn.addHeader(new Pair<String, String>(str, "?"));
+            pgn.addHeader(new Pair<>(str, "?"));
         }
     }
 
     public PgnGraph(PgnItem.Item item, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         Board initBoard;
+        Date start = new Date();
         String fen = item.getHeader(Config.HEADER_FEN);
         if (fen == null) {
             initBoard = new Board();
@@ -78,7 +81,15 @@ public class PgnGraph {
                 parsingError = e.getMessage();
             }
         }
+        printDuration("Pgn loaded", start, new Date());
         modified = false;
+    }
+
+    private void printDuration(String msg, Date start, Date end) {
+        long duration = (end.getTime() - start.getTime()) / 1000;
+        long minutes = duration / 60;
+        long seconds = duration % 60;
+        logger.debug(String.format(Locale.getDefault(), "%s, duration %d:%d", msg, minutes, seconds));
     }
 
     public String getParsingError() {
@@ -89,12 +100,17 @@ public class PgnGraph {
         return parsingErrorNum;
     }
 
-    public void serialize(BitStream.Writer writer) throws Config.PGNException {
+    public void serializePgnGraph(BitStream.Writer writer, int versionCode) throws Config.PGNException {
         try {
+            writer.write(versionCode, 4);
+            Date start = new Date();
+            Board board = getInitBoard();
+            board.serialize(writer);
+            rootMove.serialize(writer);
             // 1. serialize positions
             writer.write(positions.size(), 32);
             for(Map.Entry<Pack, Board> entry : positions.entrySet()) {
-                Board board = entry.getValue();
+                board = entry.getValue();
                 board.serialize(writer);
                 Move move = board.getMove();
                 while(move != null) {
@@ -105,30 +121,42 @@ public class PgnGraph {
                 writer.write(0, 1);
             }
 
-            // 2. serialize line of moves
-            writer.write(moveLine.size(), 9);   // max 256 2-ply moves
-            for(Move move : moveLine) {
-                move.serialize(writer);
-            }
-
-            // 3. serialize headers, modified
+            // 2. serialize headers, modified
             pgn.serialize(writer);
             if (modified) {
                 writer.write(1, 1);
             } else {
                 writer.write(0, 1);
             }
+
+//            serializeMoveLine(writer, versionCode);
+
+            printDuration("Pgn serialized", start, new Date());
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
     }
 
-    public PgnGraph(BitStream.Reader reader) throws Config.PGNException {
+    @SuppressLint("DefaultLocale")
+    public PgnGraph(BitStream.Reader reader, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         try {
+            int oldVersionCode;
+            if (versionCode != (oldVersionCode = reader.read(4))) {
+                throw new Config.PGNException(String.format("Old serialization %d ignored", oldVersionCode));
+            }
+            Date start = new Date();
+            Board board = new Board(reader);
+            rootMove = new Move(reader, null);
+            moveLine.addLast(rootMove);
+            board = Board.unpack(rootMove.packData);
+            positions.put(new Pack(rootMove.packData), board);
             // 1. unserialize positions
             int positionsSize = reader.read(32);
             for( int i = 0; i < positionsSize; ++i) {
-                Board board = new Board(reader);
+                if (progressObserver != null) {
+                    progressObserver.setProgress(i * 100 / positionsSize);
+                }
+                board = new Board(reader);
                 Pack pack = new Pack(board.pack());
                 positions.put(pack, board);
                 Move prevMove = null;
@@ -143,25 +171,55 @@ public class PgnGraph {
                 }
             }
 
-            // 2. unserialize line of moves
-            int moveLineSize = reader.read(9);
-            Board board = null;
-            for( int i = 0; i < moveLineSize; ++i) {
-                Move move = new Move(reader);
-                if(board != null) {
-                    move.piece = board.getPiece(move.from);
-                }
-                board = this.getBoard(move);
-                moveLine.addLast(move);
-            }
-            rootMove = moveLine.getFirst();
-
-            // 3. unserialize headers, modified
+            // unserialize headers, modified
             pgn = (PgnItem.Item) PgnItem.unserialize(reader);
             if (reader.read(1) == 1) {
                 modified = true;
             }
+
+//            unserializeMoveLine(reader, versionCode);
+
+            printDuration("Pgn unserialized", start, new Date());
         } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public void serializeMoveLine(BitStream.Writer writer, int versionCode) throws Config.PGNException {
+        try {
+            writer.write(versionCode, 4);
+            writer.write(moveLine.size() - 1, 9);   // max 256 2-ply moves
+            boolean skip = true;
+            for(Move move : moveLine) {
+                if(skip) {
+                    skip = false;
+                    continue;
+                }
+                move.serialize(writer);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    public void unserializeMoveLine(BitStream.Reader reader, int versionCode) throws Config.PGNException {
+        try {
+            int oldVersionCode;
+            if (versionCode != (oldVersionCode = reader.read(4))) {
+                throw new Config.PGNException(String.format("Old serialization %d ignored", oldVersionCode));
+            }
+            int moveLineSize = reader.read(9);
+            Board board = getInitBoard();
+            for( int i = 0; i < moveLineSize; ++i) {
+                Move move = new Move(reader, board);
+//                move.piece = board.getPiece(move.from);
+                board = this.getBoard(move);
+                moveLine.addLast(move);
+            }
+//            rootMove = moveLine.getFirst();
+        } catch (Exception e) {
+//            rootMove = new Move(Config.FLAGS_NULL_MOVE);
             throw new Config.PGNException(e);
         }
     }
@@ -242,11 +300,13 @@ public class PgnGraph {
             if (updateMoves) {
                 if (!this.getInitBoard().equals(new Board()) && pgn.getHeader(Config.HEADER_FEN) == null) {
                     String fen = getInitBoard().toFEN();
-                    pgn.headers.add(new Pair<String, String>(Config.HEADER_FEN, fen));
+                    pgn.headers.add(new Pair<>(Config.HEADER_FEN, fen));
                 }
                 pgn.setMoveText(this.toPgn());
             }
+            Date start = new Date();
             pgn.save(progressObserver);
+            printDuration("Pgn saved", start, new Date());
             modified = false;
         }
     }
@@ -350,7 +410,7 @@ public class PgnGraph {
 
     public boolean isEnd() {
         Board board = getBoard();
-        return board.getMove() == null;
+        return board == null || board.getMove() == null;
     }
 
     public List<Move> getVariations() {
@@ -672,6 +732,97 @@ public class PgnGraph {
         }
     }
 
+    private void traverseGraph(Board prevBoard, Move move, TraverseEdgeHandler traverseEdgeHandler) {
+//        LinkedList<TraverseData> pgnParts = new LinkedList<>();
+//        boolean skipVariant = true;    // skip 1st variant because it will be handled in the caller
+//        Board board = prevBoard;
+//        boolean showMoveNum = true;
+        if(prevBoard != null && prevBoard.wasVisited()) {
+            return;
+        }
+        TraverseData traverseData = new TraverseData(prevBoard, move);
+        while (traverseData.move != null) {
+//            traverseData.nextBoard = positions.get(new Pack(traverseData.move.packData));
+            traverseEdgeHandler.visit(traverseData);
+//            TraverseData td = new TraverseData(traverseData.prevBoard, traverseData.move);
+            Move _move = traverseData.move;
+            while(_move.variation != null) {
+                _move = _move.variation;
+                traverseGraph(traverseData.prevBoard, _move, traverseEdgeHandler);
+//                Board nextBoard = this.getBoard(_move.packData);
+//                if(!nextBoard.wasVisited()) {
+//                    traverseGraph(traverseData.prevBoard, _move.variation, traverseEdgeHandler);
+//                }
+//                td.variantFirstMove = false;
+            }
+//
+//                if(!skipVariant) {
+//                    TraverseData td = new TraverseData(traverseData.prevBoard, traverseData.move.variation);
+//                    pgnParts.addLast(td);
+//                    traverseData.variantFirstMove = true;
+//                }
+//            }
+//            traverseEdgeHandler.visit(traverseData);
+            traverseData.prevBoard = traverseData.nextBoard;
+            traverseData.move = traverseData.prevBoard.getMove();
+            traverseData.nextBoard = this.getBoard(traverseData.move.packData);
+            if(traverseData.nextBoard.wasVisited()) {
+                break;
+            }
+            traverseData.nextBoard.setVisited(true);
+//            traverseData.move = traverseData.prevBoard.getMove();
+            traverseData.variantFirstMove = false;
+//            skipVariant = false;        // skip only variant of the 1st move
+        }
+    }
+
+    public String toPgn() {
+        for(Map.Entry<Pack, Board> entry : positions.entrySet()) {
+            entry.getValue().setVisited(false);
+        }
+/*
+        final StringBuilder res = new StringBuilder();
+        traverseGraph(null, rootMove, new TraverseEdgeHandler() {
+            @Override
+            public void visit(TraverseData traverseData) {
+                if(traverseData.move != rootMove) {
+                    boolean showMoveNum = true;
+                    if(!traverseData.variantFirstMove) {
+                        showMoveNum = (traverseData.prevBoard.getFlags() & Config.FLAGS_BLACK_MOVE) == 0;
+                    }
+                    if (showMoveNum) {
+                        res.append(PgnGraph.getMoveNum(traverseData.prevBoard));
+                    }
+                    res.append(traverseData.move.toString());
+                    if (traverseData.move.glyph > 0) {
+                        res.append(Config.PGN_GLYPH).append(traverseData.move.glyph).append(" ");
+                    }
+                }
+                if(traverseData.move.comment != null && !traverseData.move.comment.isEmpty()) {
+                    res.append(Config.COMMENT_OPEN).append(traverseData.move.comment).append(Config.COMMENT_CLOSE).append(" ");
+                }
+
+            }
+        });
+
+/*/
+        String pgn = toPgn(null, rootMove);
+
+        // quick and dirty:
+        StringBuilder res = new StringBuilder(pgn.length() * 13 / 10);
+        int index = 0;
+        while(index < pgn.length()) {
+            int e = pgn.indexOf(" ", index + Config.PGN_OUTPUT_LINE_SIZE);
+            if(e == -1) {
+                e = pgn.length();
+            }
+            res.append(pgn.substring(index, e)).append("\n");
+            index = e;
+        }
+//*/
+        return new String(res);
+    }
+
     private String toPgn(Board prevBoard, Move move) {
         LinkedList<TraverseData> pgnParts = new LinkedList<>();
         StringBuilder sb = new StringBuilder();
@@ -738,26 +889,6 @@ public class PgnGraph {
         return new String(sb);
     }
 
-    public String toPgn() {
-        for(Map.Entry<Pack, Board> entry : positions.entrySet()) {
-            entry.getValue().setVisited(false);
-        }
-        String pgn = toPgn(null, rootMove);
-
-        // quick and dirty:
-        StringBuilder res = new StringBuilder(pgn.length() + 1000);
-        int index = 0;
-        while(index < pgn.length()) {
-            int e = pgn.indexOf(" ", index + Config.PGN_OUTPUT_LINE_SIZE);
-            if(e == -1) {
-                e = pgn.length();
-            }
-            res.append(pgn.substring(index, e)).append("\n");
-            index = e;
-        }
-        return new String(res);
-    }
-
     // sanity check
     int getNumberOfMissingVertices() {
         int count = 0;
@@ -772,10 +903,32 @@ public class PgnGraph {
         return count;
     }
 
+    private interface TraverseEdgeHandler {
+        void visit(TraverseData traverseData);
+    }
+
     private class TraverseData {
         Board prevBoard;
         Move move;
+        Board nextBoard;
+        boolean variantFirstMove = true;
+
         String pgnText;
+
+        TraverseData() {
+        }
+
+        TraverseData(Board prevBoard, Move move) {
+            this.prevBoard = prevBoard;
+            this.move = move;
+            this.nextBoard = PgnGraph.this.getBoard(move.packData);
+        }
+
+        TraverseData(TraverseData that) {
+            this.prevBoard = that.prevBoard;
+            this.move = that.move;
+            this.nextBoard = that.nextBoard;
+        }
     }
 
     public boolean isRepetition(Move move) {

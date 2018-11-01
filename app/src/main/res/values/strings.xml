@@ -14,6 +14,7 @@
     <string name="alert_merge_start_label">Start:</string>
     <string name="alert_merge_end_label">End:</string>
     <string name="alert_annotate_label">Annotate</string>
+    <string name="alert_no_writable_dir">Android directory %s is not writable, check ChessPad permissions</string>
 
     <string name="alert_msg_wait">Please wait...</string>
 
@@ -28,7 +29,7 @@
     <string name="msg_del_game">Do you want to remove irreversibly the whole game from pgn file?</string>
     <string name="msg_3_fold_repetition">Three-fold repetition</string>
     <string name="msg_50_reversible_moves">50 consecutive reversible moves</string>
-    <string name="msg_merge_count">Merged %d games</string>
+    <string name="msg_merge_count">Merged %d game(s)</string>
 
     <string name="menu_load">Load</string>
     <string name="menu_merge">Merge</string>
@@ -42,10 +43,17 @@
     <string name="label_halfmove_clock">Halfmove clock: </string>
     <string name="label_move_num">Move number: </string>
 
-    <string name="crash_cannot_save">Cannot write file\nTry to select different directory.</string>
+    <string name="crash_cannot_save">Cannot write file. \nTry to select different directory.</string>
     <string name="crash_cannot_delete">Cannot delete pgn</string>
     <string name="crash_cannot_load">Cannot load pgn</string>
+    <string name="crash_cannot_restore">Cannot restore pgn</string>
     <string name="crash_cannot_list">Cannot list items</string>
+
+    <string name="label_header_action_button">Action Button</string>
+    <string name="label_lookup_button">Lookup Button</string>
+    <string name="hint_file_name">File Name</string>
+    <string name="hint_header_label">Header Label</string>
+    <string name="hint_header_value">Header Value</string>
 
     <string-array name="setup_errs">
         <item>0 Setup OK</item>

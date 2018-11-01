@@ -130,7 +130,7 @@ public class SetupView {
                 try {
                     chessPad.setPgnGraph(null);
                 } catch (Config.PGNException e) {
-                    Log.e(DEBUG_TAG, String.format("endSetup failed"), e);
+                    Log.e(DEBUG_TAG, "endSetup failed", e);
                 }
             }
             // true if the event was handled and should not be given further down to other views.

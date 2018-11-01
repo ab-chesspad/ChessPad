@@ -39,10 +39,13 @@ public class ChessPadView extends View implements ProgressBarHolder{
 
     private GameView gameView;
     private SetupView setupView;
+    static Bitmap checkBitmap = null;
 
     public ChessPadView(ChessPad chessPad) {
         super(chessPad);
         this.chessPad = chessPad;
+        // fix it!
+        checkBitmap = BitmapFactory.decodeResource( chessPad.getResources(), R.drawable.chk );
 
         try {
             chessPad.getSupportActionBar().hide();
@@ -98,6 +101,9 @@ public class ChessPadView extends View implements ProgressBarHolder{
 
     @Override
     public void invalidate() {
+        if(gameView == null && setupView == null) {
+            return;
+        }
         if(chessPad.getMode() == ChessPad.Mode.Game) {
             gameView.invalidate();
         } else {
@@ -479,8 +485,7 @@ public class ChessPadView extends View implements ProgressBarHolder{
         public void onDraw( Canvas canvas ) {
             super.onDraw( canvas );
             if( pressed ) {
-                Bitmap check = BitmapFactory.decodeResource( chessPad.getResources(), R.drawable.chk );
-                canvas.drawBitmap(check, 3, 3, null);
+                canvas.drawBitmap(checkBitmap, 3, 3, null);
             }
         }
 

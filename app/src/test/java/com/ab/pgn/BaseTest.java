@@ -38,6 +38,7 @@ public class BaseTest {
 
     public static final String MY_HEADER = "Final";
     public static final int ERR = -1;
+    public static final int TEST_SERIALIZATION_VERSION = 1;
 
     final PgnLogger logger = PgnLogger.getLogger(this.getClass(), true);
 

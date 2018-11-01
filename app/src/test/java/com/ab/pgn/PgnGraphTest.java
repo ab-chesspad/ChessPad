@@ -58,7 +58,7 @@ public class PgnGraphTest extends BaseTest {
             if(finalFen != null) {
                 Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
             }
-            String headers = new String(((PgnItem.Item)pgnGraph.getPgn()).headersToString(true, false));
+            String headers = new String(pgnGraph.getPgn().headersToString(true, false));
             String resPgn = headers + "\n" + pgnGraph.toPgn();
             if(DEBUG) {
                 System.out.println(resPgn);

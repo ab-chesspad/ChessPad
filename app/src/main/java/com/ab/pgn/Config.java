@@ -122,7 +122,7 @@ public class Config {
     public static final HashMap<String, Integer> old_glyph_translation;
 
     static {
-        old_glyph_translation = new HashMap<String, Integer>();
+        old_glyph_translation = new HashMap<>();
         old_glyph_translation.put("!", 1);
         old_glyph_translation.put("?", 2);
         old_glyph_translation.put("!!", 3);

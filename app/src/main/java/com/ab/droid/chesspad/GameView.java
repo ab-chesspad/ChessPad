@@ -17,6 +17,7 @@ import com.ab.pgn.Pair;
 import com.ab.pgn.Square;
 
 import java.util.List;
+import java.util.Locale;
 
 //import android.hardware.usb.UsbDevice;
 
@@ -274,7 +275,7 @@ public class GameView {
         if (g == 0) {
             glyph.setText("");
         } else {
-            glyph.setText(String.format("%s%d", Config.PGN_GLYPH, g));
+            glyph.setText(String.format(Locale.getDefault(), "%s%d", Config.PGN_GLYPH, g));
         }
         comment.setText(chessPad.pgnGraph.getComment());
         if (navigationEnabled) {

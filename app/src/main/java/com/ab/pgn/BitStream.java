@@ -143,7 +143,9 @@ public abstract class BitStream {
             int totalLen = 0;
             while(readBits > 0) {
                 if(bitIndex > 7) {
-                    is.read(bits);
+                    if(is.read(bits) < 0) {
+                        throw new IOException("Reading beyond input BitStream eof");
+                    }
                     bitIndex = 0;
                 }
                 int _val = (bits[0] & 0xff) >>> bitIndex;

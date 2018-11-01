@@ -259,7 +259,7 @@ public class PgnItemTest extends BaseTest {
                                 ((PgnItem.Item) c).save(new PgnItem.ProgressObserver() {
                                     @Override
                                     public void setProgress(int progress) {
-                                        pgnOffset[0] = Integer.valueOf(progress);
+                                        pgnOffset[0] = progress;
                                     }
                                 });
                                 logger.debug(String.format("\t offset=%s", pgnOffset[0]));
@@ -347,7 +347,7 @@ public class PgnItemTest extends BaseTest {
     @Test
     @Ignore("Just prints results")
     public void testSort() {
-        List<PgnItem> list = new ArrayList<PgnItem>(Arrays.asList(
+        List<PgnItem> list = new ArrayList<>(Arrays.asList(
             new PgnItem.Pgn("1.pgn"),
             new PgnItem.Pgn("2.pgn"),
             new PgnItem.Pgn("MaxLange-0.pgn"),

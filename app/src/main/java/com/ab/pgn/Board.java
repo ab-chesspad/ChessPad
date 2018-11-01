@@ -95,6 +95,15 @@ public class Board {
         }
     }
 
+    public void unserialize(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            this.boardData = reader.read(BOARD_DATA_PACK_LENGTH);
+            this.boardCounts = reader.read(BOARD_COUNTS_PACK_LENGTH);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
     public Board(BitStream.Reader reader) throws Config.PGNException {
         try {
             Board tmp = unpack(reader);
@@ -127,7 +136,7 @@ public class Board {
     }
 
     private static int calcEnpass(String square) {
-        return (int) (square.charAt(0) - 'a');
+        return square.charAt(0) - 'a';
     }
 
     public void setEnpassant(Square enpass) {
