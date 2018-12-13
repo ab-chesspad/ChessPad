@@ -1,5 +1,10 @@
 package com.ab.pgn;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+
 /**
  *
  * Created by Alexander Bootman on 10/29/17.
@@ -58,18 +63,21 @@ public class Util {
                 || moveText.equalsIgnoreCase(Config.PGN_K_CASTLE_ALT)
                 || moveText.equalsIgnoreCase(Config.PGN_Q_CASTLE_ALT)) {
             // 0-0, O-O, o-o-o, etc.
-            newMove.piece = Config.KING;
-            newMove.from.x = 4;
-            newMove.to.x = moveText.length() == 3 ? 6 : 2;
-            newMove.from.y =
-            newMove.to.y = (newMove.moveFlags & Config.FLAGS_BLACK_MOVE) == 0 ? 0 : 7;
+            newMove.setPiece(Config.KING);
+            newMove.setFromX(4);
+            newMove.setToX(moveText.length() == 3 ? 6 : 2);
+            int y = (newMove.moveFlags & Config.FLAGS_BLACK_MOVE) == 0 ? 0 : 7;
+            newMove.setFromY(y);
+            newMove.setToY(y);
             newMove.moveFlags |= Config.FLAGS_CASTLE;
         } else {
             ch = moveText.charAt(i);
             if (Character.isUpperCase(ch)) {
                 // dxe8=Q, etc.
-                newMove.piecePromoted = Config.FEN_PIECES.indexOf(ch);
-                newMove.piecePromoted |= (newMove.moveFlags & Config.FLAGS_BLACK_MOVE);
+                if(Config.PROMOTION_PIECES.indexOf(ch) < 0) {
+                    throw new Config.PGNException("invalid promotion " + _moveText);
+                }
+                newMove.setPiecePromoted(Config.FEN_PIECES.indexOf(ch));
                 i -= 2;        // verify '='?
             }
 
@@ -79,23 +87,22 @@ public class Util {
             int x = Square.fromX(moveText.charAt(--i));
             if (x < 0 || x > 7)
                 throw new Config.PGNException("invalid move " + _moveText);
-            newMove.to.x = x;
-            newMove.to.y = y;
+            newMove.setTo(x, y);
 
             // Re5, Rae5, Rxe5, R1xe5, Rbxe5, e4, dxe5, dxe8=Q+, etc.
             ch = moveText.charAt(0);
             if (Character.isUpperCase(ch)) {
                 // Re5, Rxe5, R1xe5, Rbxe5, etc.
-                newMove.piece = Config.FEN_PIECES.indexOf(ch);
+                newMove.setPiece(Config.FEN_PIECES.indexOf(ch));
             } else {
-                newMove.piece = Config.PAWN;
+                newMove.setPiece(Config.PAWN);
             }
 
             if (--i > 0) {
                 ch = moveText.charAt(i);
                 if (ch == Config.MOVE_CAPTURE.charAt(0)) {
-                    if (newMove.piece == Config.PAWN) {
-                        newMove.from.x = Square.fromX(moveText.charAt(0));
+                    if (newMove.getColorlessPiece() == Config.PAWN) {
+                        newMove.setFromX(Square.fromX(moveText.charAt(0)));
                     }
                     --i;
                 }
@@ -105,8 +112,8 @@ public class Util {
             if (i >= 0) {
                 ch = moveText.charAt(i);
                 if (Character.isDigit(ch)) {
-                    newMove.from.y = Square.fromY(ch);
-                    if (newMove.piece != Config.PAWN) {
+                    newMove.setFromY(Square.fromY(ch));
+                    if (newMove.getPiece() != Config.PAWN) {
                         newMove.moveFlags |= Config.FLAGS_Y_AMBIG;
                     }
                     --i;
@@ -115,8 +122,8 @@ public class Util {
             if (i >= 0) {
                 ch = moveText.charAt(i);
                 if (ch >= 'a' && ch <= 'h') {
-                    newMove.from.x = Square.fromX(ch);
-                    if (newMove.piece != Config.PAWN) {
+                    newMove.setFromX(Square.fromX(ch));
+                    if (newMove.getColorlessPiece() != Config.PAWN) {
                         newMove.moveFlags |= Config.FLAGS_X_AMBIG;
                     }
                     --i;
@@ -124,6 +131,19 @@ public class Util {
             }
 
         }
-        newMove.piece |= newMove.moveFlags & Config.FLAGS_BLACK_MOVE;
+    }
+
+    public static void writeString(DataOutputStream dos, String str) throws IOException {
+        byte[] b = str.getBytes();
+        dos.writeInt(b.length);
+        dos.write(b);
+    }
+
+    public static String readString(DataInputStream dis) throws IOException {
+        int len = dis.readInt();
+        byte[] b = new byte[len];
+        int l = dis.read(b);
+        assert len == l;
+        return new String(b);
     }
 }

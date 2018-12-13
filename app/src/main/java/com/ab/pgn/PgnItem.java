@@ -12,7 +12,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.DataInputStream;
 import java.io.InputStreamReader;
+import java.io.DataOutputStream;
 import java.io.OutputStream;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
@@ -220,6 +222,18 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         return -1;      // should not be here;
     }
 
+    protected void serializeBase(DataOutputStream os) throws Config.PGNException {
+        try {
+            os.write(getType().getValue()); // single byte
+            os.writeInt(length);
+            os.writeInt(offset);
+            os.writeInt(index);
+            Util.writeString(os, self.getAbsolutePath());
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
     protected void serializeBase(BitStream.Writer writer) throws Config.PGNException {
         try {
             writer.write(getType().getValue(), 3);
@@ -232,8 +246,21 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         }
     }
 
+    public abstract void serialize(DataOutputStream os) throws Config.PGNException;
+
     public abstract void serialize(BitStream.Writer writer) throws Config.PGNException;
     protected abstract PgnItemType getType();
+
+    private PgnItem(DataInputStream is) throws Config.PGNException {
+        try {
+            this.length = is.readInt();
+            this.offset = is.readInt();
+            this.index = is.readInt();
+            init(Util.readString(is));  // absolute path
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
 
     private PgnItem(BitStream.Reader reader) throws Config.PGNException {
         try {
@@ -299,6 +326,34 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         }
         res = name1.compareTo(name2);
         return res;
+    }
+
+    public static PgnItem unserialize(DataInputStream is) throws Config.PGNException {
+        try {
+            PgnItemType pgnItemType = PgnItemType.values[is.read()];    // single byte
+            PgnItem unserialized = null;
+            switch (pgnItemType) {
+                case Item:
+                    unserialized = new Item(is);
+                    break;
+
+                case Pgn:
+                    unserialized = new Pgn(is);
+                    break;
+
+                case Zip:
+                    unserialized = new Zip(is);
+                    break;
+
+                case Dir:
+                    unserialized = new Dir(is);
+                    break;
+            }
+            return unserialized;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+
     }
 
     public static PgnItem unserialize(BitStream.Reader reader) throws Config.PGNException {
@@ -556,6 +611,22 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         }
     }
 
+    public static void serialize(DataOutputStream os, List<Pair<String, String>> headers) throws Config.PGNException {
+        try {
+            if (headers == null) {
+                os.write(0);
+                return;
+            }
+            os.write(headers.size());
+            for (Pair<String, String> header : headers) {
+                Util.writeString(os, header.first);
+                Util.writeString(os, header.second);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
     public static void serialize(BitStream.Writer writer, List<Pair<String, String>> headers) throws Config.PGNException {
         try {
             if (headers == null) {
@@ -567,6 +638,24 @@ public abstract class PgnItem implements Comparable<PgnItem> {
                 writer.writeString(header.first);
                 writer.writeString(header.second);
             }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public static List<Pair<String, String>> unserializeHeaders(DataInputStream is) throws Config.PGNException {
+        try {
+            int totalHeaders = is.read();
+            if (totalHeaders == 0) {
+                return null;
+            }
+            List<Pair<String, String>> headers = new LinkedList<>();
+            for (int i = 0; i < totalHeaders; ++i) {
+                String label = Util.readString(is);
+                String value = Util.readString(is);
+                headers.add(new Pair<>(label, value));
+            }
+            return headers;
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -619,14 +708,22 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
+        public void serialize(DataOutputStream os) throws Config.PGNException {
+            serializeBase(os);
+            serialize(os, this.headers);
+        }
+
+        @Override
         public void serialize(BitStream.Writer writer) throws Config.PGNException {
-            try {
                 serializeBase(writer);
                 serialize(writer, this.headers);
+/*  11/18/2018 verify!!
+            try {
                 writer.writeString(this.moveText);
             } catch (IOException e) {
                 throw new Config.PGNException(e);
             }
+//*/
         }
 
         @Override
@@ -634,14 +731,21 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             return PgnItemType.Item;
         }
 
+        private Item(DataInputStream is) throws Config.PGNException {
+            super(is);
+            this.headers = unserializeHeaders(is);
+        }
+
         private Item(BitStream.Reader reader) throws Config.PGNException {
             super(reader);
-            try {
                 this.headers = unserializeHeaders(reader);
+/*  11/18/2018 verify!!
+            try {
                 this.moveText = reader.readString();
             } catch (IOException e) {
                 throw new Config.PGNException(e);
             }
+//*/
         }
 
         public String getMoveText() {
@@ -783,6 +887,11 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
+        public void serialize(DataOutputStream os) throws Config.PGNException {
+            serializeBase(os);
+        }
+
+        @Override
         public void serialize(BitStream.Writer writer) throws Config.PGNException {
             serializeBase(writer);
         }
@@ -790,6 +899,10 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         @Override
         protected PgnItemType getType() {
             return PgnItemType.Pgn;
+        }
+
+        private Pgn(DataInputStream is) throws Config.PGNException {
+            super(is);
         }
 
         private Pgn(BitStream.Reader reader) throws Config.PGNException {
@@ -840,6 +953,15 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         public Dir(PgnItem parent, String name) {
             super(parent, name);
+        }
+
+        private Dir(DataInputStream is) throws Config.PGNException {
+            super(is);
+        }
+
+        @Override
+        public void serialize(DataOutputStream os) throws Config.PGNException {
+            serializeBase(os);
         }
 
         private Dir(BitStream.Reader reader) throws Config.PGNException {
@@ -1023,6 +1145,10 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         public Zip(PgnItem parent, String name) {
             super(parent, name);
+        }
+
+        private Zip(DataInputStream is) throws Config.PGNException {
+            super(is);
         }
 
         private Zip(BitStream.Reader reader) throws Config.PGNException {

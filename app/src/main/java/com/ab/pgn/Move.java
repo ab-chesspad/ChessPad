@@ -1,46 +1,258 @@
 package com.ab.pgn;
 
+import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.DataOutputStream;
 
 /**
  * move - PgnGraph edge, stored in Board - PgnGraph vertex
  * Created by Alexander Bootman on 8/6/16.
  */
 public class Move {
-    public Square from;                         // from.x == -1 for null move or a placeholder
-    public Square to;
-    public int piecePromoted = Config.EMPTY;
+    final static int
+        // moveData:
+        COORD_MASK = Board.COORD_MASK,                          // 0x0007,
+        COORD_LENGTH = Board.COORD_LENGTH,                      //  3
+        FROM_X_OFFSET = 0,
+        FROM_Y_OFFSET = FROM_X_OFFSET + COORD_LENGTH,           //  3
+        TO_X_OFFSET = FROM_Y_OFFSET + COORD_LENGTH,             //  6
+        TO_Y_OFFSET = TO_X_OFFSET + COORD_LENGTH,               //  9
+        PIECE_PROMOTED_OFFSET = TO_Y_OFFSET + COORD_LENGTH,     // 12
+        PIECE_PROMOTED_LENGTH = 2,
+        PIECE_PROMOTED_MASK = 0x0003,
+        GLYPH_OFFSET = PIECE_PROMOTED_OFFSET + PIECE_PROMOTED_LENGTH,     // 14
+        GLYPH_LENGTH = 8,
+        GLYPH_MASK = 0x00ff,
+        // 22
+        PIECE_OFFSET = GLYPH_OFFSET + GLYPH_LENGTH,             // 22
+        PIECE_LENGTH = 3,
+        PIECE_MASK = 0x0007,
+        MOVEDATA_TOTAL_LEN = PIECE_OFFSET + PIECE_LENGTH,
+        MOVEDATA_MASK = (1 << MOVEDATA_TOTAL_LEN) - 1,
+
+        HAS_NEXT_MOVE_OFFSET = MOVEDATA_TOTAL_LEN,
+        HAS_VARIATION_OFFSET = HAS_NEXT_MOVE_OFFSET + 1,
+        HAS_COMMENT_OFFSET = HAS_VARIATION_OFFSET + 1,
+
+        HAS_NEXT_MOVE = 1 << HAS_NEXT_MOVE_OFFSET,
+        HAS_VARIATION = 1 << HAS_VARIATION_OFFSET,
+        HAS_COMMENT = 1 << HAS_COMMENT_OFFSET,
+
+        FROM_X_SET_OFFSET = 30,
+        FROM_Y_SET_OFFSET = 31,
+
+        dummy_int = 0;
+
+    private int moveData;        // from, to, piecePromoted, glyph, piece
+
     public int moveFlags;
     public String comment;
-    public int glyph;                           // one glyph per move, but can store more as bytes in the future
+    public Move variation;
 
-    transient public int piece = Config.EMPTY;
     transient public int[] packData;            // board after the move
-    transient public Move variation;
 
     public Move(Board board, Square from, Square to) {
         this.moveFlags = board.getFlags();
-        this.piece = board.getPiece(from.getX(), from.getY());
-        this.from = from;
-        this.to = to;
+        this.setPiece(board.getPiece(from.getX(), from.getY()));
+        this.setFrom(from);
+        this.setTo(to);
     }
 
     public Move(int flags) {
         this.moveFlags = flags;
-        from = new Square();
-        to = new Square();
+        this.moveData = 0;  // redundant
+        markFromXUnset();
+        markFromYUnset();
     }
 
     public Move clone() {
         Move m = new Move(this.moveFlags);
-        m.from = this.from.clone();
-        m.to = this.to.clone();
-        m.piece = this.piece;
-        m.piecePromoted = this.piecePromoted;
+        m.moveData = this.moveData;
         m.comment = this.comment;
-        m.glyph = this.glyph;
         // do not copy references
         return m;
+    }
+
+    public int getFromX() {
+        return Util.getValue(moveData, COORD_MASK, FROM_X_OFFSET);
+    }
+
+    public int getFromY() {
+        return Util.getValue(moveData, COORD_MASK, FROM_Y_OFFSET);
+    }
+
+    public Square getFrom() {
+        return new Square(getFromX(), getFromY());
+    }
+
+    public void setFromX(int x) {
+        moveData = Util.setValue(moveData, x, COORD_MASK, FROM_X_OFFSET);
+        markFromXSet();
+    }
+
+    public void setFromY(int y) {
+        moveData = Util.setValue(moveData, y, COORD_MASK, FROM_Y_OFFSET);
+        markFromYSet();
+    }
+
+    public void setFrom(int x, int y) {
+        setFromX(x);
+        setFromY(y);
+    }
+
+    public void setFrom(Square from) {
+        setFromX(from.getX());
+        setFromY(from.getY());
+    }
+
+    public boolean isFromSet() {
+        return isFromXSet() && isFromYSet();
+    }
+
+
+    public boolean isFromXSet() {
+        return Util.getValue(moveData, 1, FROM_X_SET_OFFSET) == 0;
+    }
+
+    private void markFromXSet() {
+        moveData = Util.clearBits(moveData, 1, 1, FROM_X_SET_OFFSET);
+    }
+
+    private void markFromXUnset() {
+        moveData = Util.setBits(moveData, 1, 1, FROM_X_SET_OFFSET);
+    }
+
+    public boolean isFromYSet() {
+        return Util.getValue(moveData, 1, FROM_Y_SET_OFFSET) == 0;
+    }
+
+    private void markFromYSet() {
+        moveData = Util.clearBits(moveData, 1, 1, FROM_Y_SET_OFFSET);
+    }
+
+    private void markFromYUnset() {
+        moveData = Util.setBits(moveData, 1, 1, FROM_Y_SET_OFFSET);
+    }
+
+    public int getToX() {
+        return Util.getValue(moveData, COORD_MASK, TO_X_OFFSET);
+    }
+
+    public int getToY() {
+        return Util.getValue(moveData, COORD_MASK, TO_Y_OFFSET);
+    }
+
+    public Square getTo() {
+        return new Square(getToX(), getToY());
+    }
+
+    public void setToX(int x) {
+        moveData = Util.setValue(moveData, x, COORD_MASK, TO_X_OFFSET);
+    }
+
+    public void setToY(int y) {
+        moveData = Util.setValue(moveData, y, COORD_MASK, TO_Y_OFFSET);
+    }
+
+    public void setTo(int x, int y) {
+        setToX(x);
+        setToY(y);
+    }
+
+    public void setTo(Square to) {
+        setToX(to.getX());
+        setToY(to.getY());
+    }
+
+    public int getPiecePromoted() {
+        if((moveFlags & Config.FLAGS_PROMOTION) == 0) {
+            return Config.EMPTY;
+        }
+        int bits = Util.getValue(moveData, PIECE_PROMOTED_MASK, PIECE_PROMOTED_OFFSET);
+        int piece = (bits << 1) + Config.QUEEN + (moveFlags & Config.BLACK);
+        return piece;
+    }
+
+    public void setPiecePromoted(int piecePromoted) {
+        int bits = (piecePromoted - Config.QUEEN) >> 1;
+        moveData = Util.setValue(moveData, bits, PIECE_PROMOTED_MASK, PIECE_PROMOTED_OFFSET);
+        moveFlags |= Config.FLAGS_PROMOTION;
+    }
+
+    public int getGlyph() {
+        return Util.getValue(moveData, GLYPH_MASK, GLYPH_OFFSET);
+    }
+
+    public void setGlyph(int glyph) {
+        moveData = Util.setValue(moveData, glyph, GLYPH_MASK, GLYPH_OFFSET);
+    }
+
+    public int getPiece() {
+        int bits = Util.getValue(moveData, PIECE_MASK, PIECE_OFFSET);
+        if(bits == 0) {
+            return Config.EMPTY;
+        }
+        int piece = (bits << 1) + (moveFlags & Config.BLACK);
+        return piece;
+    }
+
+    public void setPiece(int piece) {
+        int bits = piece >> 1;
+        moveData = Util.setValue(moveData, bits, PIECE_MASK, PIECE_OFFSET);
+    }
+
+    // flags contain HAS_NEXT_MOVE and HAS_VARIATION
+    public void serialize(DataOutputStream os, int flags) throws Config.PGNException {
+        try {
+            int moveData = this.moveData | flags;
+            if( comment != null) {
+                moveData |= HAS_COMMENT;
+            }
+            os.writeInt(moveData);
+            os.write(moveFlags >> 6);
+            if( comment != null) {
+                Util.writeString(os, comment);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public boolean hasVariation() {
+        return (this.moveData & Move.HAS_VARIATION) != 0;
+    }
+
+    public boolean hasNextMove() {
+        return (this.moveData & Move.HAS_NEXT_MOVE) != 0;
+    }
+
+    public void cleanupSerializationFlags() {
+        this.moveData &= ~(HAS_VARIATION | HAS_NEXT_MOVE | HAS_COMMENT);
+    }
+
+    public Move(DataInputStream is, Board previousBoard) throws Config.PGNException {
+        try {
+            this.moveData = is.readInt();
+            int v = is.read();
+            moveFlags = v << 6;
+
+            if(previousBoard != null) {
+                moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
+                setPiece(previousBoard.getPiece(getFrom()));
+                if((moveFlags & Config.FLAGS_ENPASSANT) != 0 || previousBoard.getPiece(getTo()) != Config.EMPTY) {
+                    moveFlags |= Config.FLAGS_CAPTURE;
+                }
+            }
+            if(getPiece() == Config.WHITE_PAWN && getTo().getY() == Config.BOARD_SIZE - 1 ||
+                    getPiece() == Config.BLACK_PAWN && getTo().getY() == 0) {
+                moveFlags |= Config.FLAGS_PROMOTION;
+            }
+            if((moveData & HAS_COMMENT) != 0) {
+                this.comment = Util.readString(is);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
     private int promotedToSerialized(int piece) {
@@ -54,18 +266,23 @@ public class Move {
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
+        serialize(writer, true);
+    }
+
+    public void serialize(BitStream.Writer writer, boolean serializePack) throws Config.PGNException {
         try {
-            from.serialize(writer);
-            to.serialize(writer);
-            writer.write(moveFlags, 16);
-            if (piecePromoted != Config.EMPTY) {
-                writer.write(promotedToSerialized(piecePromoted), 2);
+            getFrom().serialize(writer);
+            getTo().serialize(writer);
+            // serialize flags from FLAGS_ENPASSANT_OK to FLAGS_ENPASSANT
+            writer.write(moveFlags >> 6, 8);
+            if( (moveFlags & Config.FLAGS_PROMOTION) != 0) {
+                writer.write(promotedToSerialized(getPiecePromoted()), 2);
             }
-            if (glyph == 0) {
+            if (getGlyph() == 0) {
                 writer.write(0, 1);
             } else {
                 writer.write(1, 1);
-                writer.write(glyph, 8);
+                writer.write(getGlyph(), 8);
             }
             if (comment == null) {   // empty?
                 writer.write(0, 1);
@@ -76,30 +293,43 @@ public class Move {
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
-        new Pack(this.packData).serialize(writer);
+        if(serializePack) {
+            new Pack(this.packData).serialize(writer);
+        }
     }
 
-    public Move(BitStream.Reader reader, Board board) throws Config.PGNException {
+    public Move(BitStream.Reader reader, Board previousBoard) throws Config.PGNException {
+        this(reader, previousBoard, true);
+    }
+
+    public Move(BitStream.Reader reader, Board previousBoard, boolean unserializePack) throws Config.PGNException {
         try {
-            from = new Square(reader);
-            to = new Square(reader);
-            moveFlags = reader.read(16);
-            if(board != null) {
-                piece = board.getPiece(from);
+            setFrom(new Square(reader));
+            setTo(new Square(reader));
+            // unserialize flags from FLAGS_ENPASSANT_OK to FLAGS_ENPASSANT
+            moveFlags = reader.read(8) << 6;
+            if(previousBoard != null) {
+                moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
+                setPiece(previousBoard.getPiece(getFrom()));
+                if((moveFlags & Config.FLAGS_ENPASSANT) != 0 || previousBoard.getPiece(getTo()) != Config.EMPTY) {
+                    moveFlags |= Config.FLAGS_CAPTURE;
+                }
             }
-            if(piece == Config.WHITE_PAWN && to.getY() == Config.BOARD_SIZE - 1 ||
-                    piece == Config.BLACK_PAWN && to.getY() == 0) {
-                piecePromoted = serializedToPromoted(reader.read(2), moveFlags);
+            if(getPiece() == Config.WHITE_PAWN && getTo().getY() == Config.BOARD_SIZE - 1 ||
+                    getPiece() == Config.BLACK_PAWN && getTo().getY() == 0) {
+                setPiecePromoted(serializedToPromoted(reader.read(2), moveFlags));
+                moveFlags |= Config.FLAGS_PROMOTION;
             }
             if (reader.read(1) == 1) {
-                glyph = reader.read(8);
+                setGlyph(reader.read(8));
             }
             if (reader.read(1) == 1) {
                 comment = reader.readString();
             }
-
-            Pack pack = new Pack(reader);
-            packData = pack.getPackData();
+            if(unserializePack) {
+                Pack pack = new Pack(reader);
+                packData = pack.getPackData();
+            }
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -113,16 +343,16 @@ public class Move {
         if((this.moveFlags & Config.FLAGS_NULL_MOVE) != 0 || (that.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             return (this.moveFlags & Config.FLAGS_NULL_MOVE) == (that.moveFlags & Config.FLAGS_NULL_MOVE);
         }
-        if(this.piece != that.piece) {
+        if(this.getPiece() != that.getPiece()) {
             return false;
         }
-        if(this.piecePromoted != that.piecePromoted) {
+        if(this.getPiecePromoted() != that.getPiecePromoted()) {
             return false;
         }
-        if(!this.from.equals(that.from)) {
+        if(!this.getFrom().equals(that.getFrom())) {
             return false;
         }
-        return this.to.equals(that.to);
+        return this.getTo().equals(that.getTo());
     }
 
     public Move getVariation() {
@@ -141,6 +371,17 @@ public class Move {
         moveFlags |= Config.FLAGS_NULL_MOVE;
     }
 
+    public String toCommentedString() {
+        String res =  toString(false);
+        if(getGlyph() > 0) {
+            res += "$" + getGlyph() + " ";
+        }
+        if(comment != null) {
+            res += String.format("{%s}", comment);
+        }
+        return res;
+    }
+
     public String toString() {
         return toString(false);
     }
@@ -153,36 +394,34 @@ public class Move {
         }
 
         if ((moveFlags & Config.FLAGS_CASTLE) != 0) {
-            if (to.getX() - from.getX() > 0) {
+            if (getTo().getX() - getFrom().getX() > 0) {
                 res.append(Config.PGN_K_CASTLE);
             } else {
                 res.append(Config.PGN_Q_CASTLE);
             }
         } else {
-            if ((piece & ~Config.BLACK) != Config.PAWN) {
-                res.append(Config.FEN_PIECES.charAt(piece & ~Config.BLACK));
+            if ((getPiece() & ~Config.BLACK) != Config.PAWN) {
+                res.append(Config.FEN_PIECES.charAt(getPiece() & ~Config.BLACK));
             }
 
             if ((longNotation || (moveFlags & Config.FLAGS_X_AMBIG) != 0)) {
-                res.append(from.x2String());
+                res.append(getFrom().x2String());
             }
             if ((longNotation || (moveFlags & Config.FLAGS_Y_AMBIG) != 0)) {
-                res.append(from.y2String());
+                res.append(getFrom().y2String());
             }
-            if (!longNotation && getColorlessPiece() == Config.PAWN && to.x != from.x) {
-                res.append(from.x2String());
+            if (!longNotation && getColorlessPiece() == Config.PAWN && getTo().x != getFrom().x) {
+                res.append(getFrom().x2String());
             }
 
-            if ((moveFlags & Config.FLAGS_CAPTURE) != 0
-//                    || getColorlessPiece() == Config.PAWN && to.x != from.x
-                    ) {
+            if ((moveFlags & Config.FLAGS_CAPTURE) != 0) {
                 res.append(Config.MOVE_CAPTURE);
             }
 
-            res.append(to.toString());
+            res.append(getTo().toString());
 
-            if (piecePromoted != Config.EMPTY) {
-                res.append(Config.MOVE_PROMOTION).append(Config.FEN_PIECES.charAt(piecePromoted & ~Config.BLACK));
+            if (getPiecePromoted() != Config.EMPTY) {
+                res.append(Config.MOVE_PROMOTION).append(Config.FEN_PIECES.charAt(getPiecePromoted() & ~Config.BLACK));
             }
         }
         if ((moveFlags & Config.FLAGS_CHECKMATE) != 0) {
@@ -194,6 +433,6 @@ public class Move {
     }
 
     public int getColorlessPiece() {
-        return this.piece & ~Config.PIECE_COLOR;
+        return this.getPiece() & ~Config.PIECE_COLOR;
     }
 }

@@ -5,8 +5,13 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -27,7 +32,7 @@ public class PgnItemTest extends BaseTest {
         Assert.assertEquals(PgnItem.getRoot().getAbsolutePath(), root.getAbsolutePath());
     }
 
-        @Test
+    @Test
 //    @Ignore("Just prints dir content")
     public void testDir() throws Exception {
         int testItemIndex = 1;
@@ -379,5 +384,22 @@ public class PgnItemTest extends BaseTest {
             System.out.println(String.format("%s, %s", item.getClass().toString(), item.getName()));
         }
         logger.debug("done");
+    }
+
+    @Test
+    public void testDataStream() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        int val = 0xfedcba98;
+        dos.writeInt(val);
+        String str = "this is a test string";
+        Util.writeString(dos, str);
+        dos.flush();
+        dos.close();
+        DataInputStream dis = new DataInputStream(new ByteArrayInputStream(baos.toByteArray()));
+        int v = dis.readInt();
+        Assert.assertEquals(val, v);
+        String s = Util.readString(dis);
+        Assert.assertEquals(str, s);
     }
 }

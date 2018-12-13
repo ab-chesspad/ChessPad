@@ -85,7 +85,7 @@ public class DgtBoardWatcher implements DgtBoard.UpdateListener {
                     color = Config.BLACK;
                 }
                 if ((chunk.piece & Config.PIECE_COLOR) == color) {
-                    incompleteMove.piecePromoted = chunk.piece;
+                    incompleteMove.setPiecePromoted(chunk.piece);
                     if(validateMove(incompleteMove, definePositionFlags)) {
                         addMove(incompleteMove);
                         expectedPromotion = null;
@@ -200,18 +200,18 @@ public class DgtBoardWatcher implements DgtBoard.UpdateListener {
                 board.clearFlags(Config.FLAGS_B_KING_OK);
             }
         }
-        int piece = board.getPiece(move.from);
+        int piece = board.getPiece(move.getFrom());
         if((piece & Config.BLACK) != 0) {
             board.raiseFlags(Config.FLAGS_BLACK_MOVE);
             board.setPlyNum(1);
         }
 
         // enpassant:
-        if ((piece & ~Config.BLACK) == Config.PAWN && move.from.x != move.from.y) {
+        if ((piece & ~Config.BLACK) == Config.PAWN && move.getFrom().x != move.getFrom().y) {
             int hisPawn = piece ^ Config.BLACK;
-            if (board.getPiece(move.to) == Config.EMPTY && board.getPiece(move.to.x, move.from.y) == hisPawn) {
+            if (board.getPiece(move.getTo()) == Config.EMPTY && board.getPiece(move.getTo().x, move.getFrom().y) == hisPawn) {
                 board.raiseFlags(Config.FLAGS_ENPASSANT_OK);
-                board.setEnpassant(new Square(move.to.x, move.from.y));
+                board.setEnpassant(new Square(move.getTo().x, move.getFrom().y));
             }
         }
     }
@@ -219,12 +219,12 @@ public class DgtBoardWatcher implements DgtBoard.UpdateListener {
     private void setChunksForCastle(Move move) {
         int x0, x1;
         int piece;
-        if(move.piece == Config.WHITE_KING) {
+        if(move.getPiece() == Config.WHITE_KING) {
             piece = Config.WHITE_ROOK;
         } else {
             piece = Config.BLACK_ROOK;
         }
-        if(move.to.x == 6) {
+        if(move.getTo().x == 6) {
             // 0-0
             x0 = 7;
             x1 = 5;
@@ -233,17 +233,17 @@ public class DgtBoardWatcher implements DgtBoard.UpdateListener {
             x0 = 0;
             x1 = 3;
         }
-        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(x0, move.from.y, Config.EMPTY));
-        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(x1, move.from.y, piece));
+        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(x0, move.getFrom().y, Config.EMPTY));
+        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(x1, move.getFrom().y, piece));
     }
 
     private void setChunksForEnpassant(Move move) {
-        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(move.to.x, move.from.y, Config.EMPTY));
+        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(move.getTo().x, move.getFrom().y, Config.EMPTY));
     }
 
     private void setChunksForPromotion(Move move) {
-        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(move.to.x, move.to.y, Config.EMPTY));
-        expectedPromotion = move.to;
+        expectedChunks.add(dgtBoard.new BoardDataMoveChunk(move.getTo().x, move.getTo().y, Config.EMPTY));
+        expectedPromotion = move.getTo();
     }
 
     public static void main(String[] args) throws Config.PGNException, IOException {

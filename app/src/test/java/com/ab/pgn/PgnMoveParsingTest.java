@@ -71,11 +71,11 @@ public class PgnMoveParsingTest extends BaseTest {
     @Test
     public void testParsingVariants() throws Config.PGNException {
         String pgn =
-                "[White \"merge\"]\n" +
-                        "[Black \"variations \"]\n" +
-                        "\n" +
-                        "1. e4 Nf6 (1. ... Nc6 2. Nf3 (2. Nc3 Nf6) 2. ... Nf6 3. Nc3 e6) (1. ... e5 2. Bc4) 2. Nc3 Nc6 3. Nf3 e5" +
-                        "";
+            "[White \"merge\"]\n" +
+            "[Black \"variations \"]\n" +
+            "\n" +
+            "1. e4 Nf6 (1. ... Nc6 2. Nf3 (2. Nc3 Nf6) 2. ... Nf6 3. Nc3 e6) (1. ... e5 2. Bc4) 2. Nc3 Nc6 3. Nf3 e5" +
+            "";
         testParsing(pgn);
     }
 
@@ -157,8 +157,7 @@ public class PgnMoveParsingTest extends BaseTest {
         List<PgnGraph> pgnGraphs = testParsing(pgn);
         for(PgnGraph pgnGraph : pgnGraphs) {
             BitStream.Writer writer = new BitStream.Writer();
-            pgnGraph.serializePgnGraph(writer, TEST_SERIALIZATION_VERSION);
-
+            pgnGraph.serializeGraph(writer, TEST_SERIALIZATION_VERSION);
             PgnGraph unserialized = new PgnGraph(new BitStream.Reader(writer), TEST_SERIALIZATION_VERSION, null);
             unserialized.toEnd();
             pgnGraph.toEnd();

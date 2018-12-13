@@ -1,5 +1,7 @@
 package com.ab.pgn;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -84,6 +86,16 @@ public class Board {
 
     public Board(int[][] pieces) {
         copyBoard(pieces);
+    }
+
+    public void serialize(DataOutputStream os) throws Config.PGNException {
+        pack(os);
+    }
+
+    public Board(DataInputStream is) throws Config.PGNException {
+        Board tmp = unpack(is);
+        tmp.validate(null);
+        copy(tmp, this);
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
@@ -217,7 +229,6 @@ public class Board {
     public Square getWKing() {
         return new Square(getWKingX(), getWKingY());
     }
-
 
     public void setBKingX(int x) {
         boardData = Util.setValue(boardData, x, COORD_MASK, BK_X_OFFSET);
@@ -676,13 +687,13 @@ public class Board {
         }
 
         // verify if the other king is checked:
-        Move probe = newMove();
+        int i;
         if ((this.getFlags() & Config.FLAGS_BLACK_MOVE) == 0) {
-            probe.to = king[1];
+            i = 1;
         } else {
-            probe.to = king[0];
+            i = 0;
         }
-        return findAttack(probe.to, null) == null ? 0 : 12;
+        return findAttack(king[i], null) == null ? 0 : 12;
     }
 
     private int getPositionFlags() {
@@ -707,8 +718,8 @@ public class Board {
 
     // for pgn ambiguous moves QBNR and pawn, K for attack
     boolean validatePgnMove(Move move, int options) {
-        int dy = move.to.y - move.from.y;
-        int dx = move.to.x - move.from.x;
+        int dy = move.getToY() - move.getFromY();
+        int dx = move.getToX() - move.getFromX();
         int ady = Math.abs(dy);
         int adx = Math.abs(dx);
 
@@ -761,7 +772,7 @@ public class Board {
 
         // 3. validate own king is checked
         Square target;
-        if ((move.piece & Config.BLACK) == 0) {
+        if ((move.getPiece() & Config.BLACK) == 0) {
             target = tmp.getWKing();
         } else {
             target = tmp.getBKing();
@@ -775,7 +786,7 @@ public class Board {
         int final_y;
         int d;
         int hisPawn;
-        if ((move.piece & Config.BLACK) != 0) {
+        if ((move.getPiece() & Config.BLACK) != 0) {
             start_y = 6;
             final_y = 0;
             d = -1;
@@ -788,16 +799,16 @@ public class Board {
         }
         move.moveFlags &= ~Config.FLAGS_ENPASSANT_OK;
 
-        int dy = move.to.y - move.from.y;
-        int adx = Math.abs(move.to.x - move.from.x);
+        int dy = move.getToY() - move.getFromY();
+        int adx = Math.abs(move.getToX() - move.getFromX());
         if (dy != d) {
             if (dy == 2 * d) {
                 // initial 2-square move
-                if (adx == 0 && move.from.y == start_y
-                    && this.getPiece(move.from.x, start_y + d) == Config.EMPTY
-                    && this.getPiece(move.to) == Config.EMPTY) {
-                    if (this.getPiece(move.to.x - 1, move.to.y) == hisPawn
-                        || this.getPiece(move.to.x + 1, move.to.y) == hisPawn) {
+                if (adx == 0 && move.getFromY() == start_y
+                    && this.getPiece(move.getFromX(), start_y + d) == Config.EMPTY
+                    && this.getPiece(move.getTo()) == Config.EMPTY) {
+                    if (this.getPiece(move.getToX() - 1, move.getToY()) == hisPawn
+                        || this.getPiece(move.getToX() + 1, move.getToY()) == hisPawn) {
                         move.moveFlags |= Config.FLAGS_ENPASSANT_OK;
                     }
                     return true;
@@ -809,15 +820,15 @@ public class Board {
         boolean ok = false;
         if (adx == 0) {
             // regular 1-square move
-            if (this.getPiece(move.to) == Config.EMPTY) {
+            if (this.getPiece(move.getTo()) == Config.EMPTY) {
                 ok = true;
             }
         } else if (adx == 1) {
-            int pieceTaken = this.getPiece(move.to);
-            if (pieceTaken != Config.EMPTY && (pieceTaken & Config.BLACK) != (this.getPiece(move.from) & Config.BLACK)) {
+            int pieceTaken = this.getPiece(move.getTo());
+            if (pieceTaken != Config.EMPTY && (pieceTaken & Config.BLACK) != (this.getPiece(move.getFrom()) & Config.BLACK)) {
                 ok = true;
-            } else if (this.getEnpassantX() == move.to.x) {
-                pieceTaken = this.getPiece(move.to.x, move.to.y - d);
+            } else if (this.getEnpassantX() == move.getToX()) {
+                pieceTaken = this.getPiece(move.getToX(), move.getToY() - d);
                 if (pieceTaken == hisPawn) {
                     move.moveFlags |= Config.FLAGS_ENPASSANT | Config.FLAGS_CAPTURE;
                     ok = true;
@@ -825,9 +836,9 @@ public class Board {
             }
         }
 
-        if (ok && move.to.y == final_y) {
+        if (ok && move.getToY() == final_y) {
             if((options & (Config.VALIDATE_USER_MOVE | Config.VALIDATE_CHECK)) == 0) {
-                int piecePromoted = move.piecePromoted & ~Config.PIECE_COLOR;
+                int piecePromoted = move.getPiecePromoted() & ~Config.PIECE_COLOR;
                 if (piecePromoted < Config.QUEEN || piecePromoted > Config.ROOK) {
                     return false;
                 }
@@ -838,9 +849,9 @@ public class Board {
     }
 
     private boolean isObstructed(Move move) {
-        int y = move.to.y - move.from.y;
+        int y = move.getToY() - move.getFromY();
         int dy = (y == 0) ? 0 : (y > 0) ? 1 : -1;
-        int x = move.to.x - move.from.x;
+        int x = move.getToX() - move.getFromX();
         int dx = (x == 0) ? 0 : (x > 0) ? 1 : -1;
 
         int n = y;
@@ -852,8 +863,8 @@ public class Board {
         }
 
         n = Math.abs(n) - 1;
-        y = move.from.y;
-        x = move.from.x;
+        y = move.getFromY();
+        x = move.getFromX();
         for (int i = 0; i < n; ++i) {
             y += dy;
             x += dx;
@@ -865,23 +876,23 @@ public class Board {
     }
 
     boolean validateKingMove(Move move) {
-        int dy = move.to.y - move.from.y;
-        int dx = move.to.x - move.from.x;
+        int dy = move.getToY() - move.getFromY();
+        int dx = move.getToX() - move.getFromX();
         int ady = Math.abs(dy);
         int adx = Math.abs(dx);
 
-        Square rook = new Square(-1, move.to.y);
+        Square rook = new Square(-1, move.getToY());
 
         int clearX0, clearX1, checkedX0, checkedX1;
         if( adx <= 1 && ady <= 1 ) {
             checkedX0 =
-            checkedX1 = move.to.x;
+            checkedX1 = move.getToX();
         } else {
             move.moveFlags |= Config.FLAGS_CASTLE;
             // validate castle
             if( dy != 0 || adx != 2 )
                 return false;
-            if((move.piece & Config.BLACK) == 0) {
+            if((move.getPiece() & Config.BLACK) == 0) {
                 if( dx == -2 ) {
                     if((this.getFlags() & Config.FLAGS_W_QUEEN_OK) == 0) {
                         return false;
@@ -926,7 +937,7 @@ public class Board {
             }
             // validate obstruction
             for(int x = clearX0; x <= clearX1; ++x) {
-                if(getPiece(x, move.to.y) != Config.EMPTY) {
+                if(getPiece(x, move.getToY()) != Config.EMPTY) {
                     return false;                               // a piece between King and Rook
                 }
             }
@@ -936,7 +947,7 @@ public class Board {
         Board tmp = this.clone();
         tmp.doMove(move);
         for(int x = checkedX0; x <= checkedX1; ++x) {
-            Square target = new Square(x, move.to.y);
+            Square target = new Square(x, move.getToY());
             if(tmp.findAttack(target, null) != null) {
                 return false;                                   // checked
             }
@@ -959,65 +970,70 @@ public class Board {
     }
 
     // check if any piece attacks trg square, not necessarily a valid move
+    // except != null when verifying double-check
     Move findAttack(Square trg, Square except) {
-        Move probe = newMove();
-        if(except == null) {
-            probe.from = new Square(0, 0);
-        } else {
-            probe.from = except.clone();
-            ++probe.from.x;
-            if( probe.from.x == Config.BOARD_SIZE ) {
-                probe.from.x = 0;
-                ++probe.from.y;
+        int probeX = 0, probeY = 0;
+        if(except != null) {
+            probeX = except.getX() + 1;
+            probeY = except.getY();
+            if( probeX == Config.BOARD_SIZE ) {
+                probeX = 0;
+                ++probeY;
             }
         }
         int trgPiece = getPiece(trg);
-        probe.to = trg;
-        for (; probe.from.y < Config.BOARD_SIZE; ++probe.from.y) {
-            for (; probe.from.x < Config.BOARD_SIZE; ++probe.from.x) {
-                probe.piece = getPiece(probe.from);
-                if (probe.piece == Config.EMPTY || (this.getFlags() & Config.BLACK) != (probe.piece & Config.BLACK)) {
+        Move probeMove = newMove();
+        probeMove.setTo(trg);
+        for (; probeY < Config.BOARD_SIZE; ++probeY) {
+            for (; probeX < Config.BOARD_SIZE; ++probeX) {
+                int piece = getPiece(probeX, probeY);
+                if (piece == Config.EMPTY || (this.getFlags() & Config.BLACK) != (piece & Config.BLACK)) {
                     continue;
                 }
-                if (trgPiece == Config.EMPTY || (trgPiece & Config.BLACK) != (probe.piece & Config.BLACK)) {
-                    if (validatePgnMove(probe, Config.VALIDATE_CHECK)) {
-                        return probe;
+                if (trgPiece == Config.EMPTY || (trgPiece & Config.BLACK) != (piece & Config.BLACK)) {
+                    probeMove.setPiece(getPiece(probeX, probeY));
+                    probeMove.setFrom(probeX, probeY);
+                    if (validatePgnMove(probeMove, Config.VALIDATE_CHECK)) {
+                        return probeMove;
                     }
                 }
             }
-            probe.from.x = 0;
+            probeX = 0;
         }
         return null;
     }
 
     // move contains the attacking piece
     boolean validateCheckmate(Move move) {
-        Move probe = new Move(move.moveFlags ^ Config.FLAGS_BLACK_MOVE);
+        Move probeMove = new Move(move.moveFlags ^ Config.FLAGS_BLACK_MOVE);
+        int probeTo_x, probeTo_y;
 
         // 1. validate king moves
         // his move
         this.invertFlags(Config.FLAGS_BLACK_MOVE);
-        probe.piece = this.getPiece(move.to);
-        probe.from = move.to.clone();
+        int attackedPiece = this.getPiece(move.getTo());
+        probeMove.setPiece(attackedPiece);
+        probeMove.setFrom(move.getTo());
 
-        for( probe.to.y = probe.from.y - 1; probe.to.y <= probe.from.y + 1; ++probe.to.y ) {
-            if( probe.to.y < 0 ) {
+        for(probeTo_y = probeMove.getFromY() - 1; probeTo_y <= probeMove.getFromY() + 1; ++probeTo_y ) {
+            if( probeTo_y < 0 ) {
                 continue;
             }
-            if( probe.to.y >= Config.BOARD_SIZE ) {
+            if( probeTo_y >= Config.BOARD_SIZE ) {
                 break;
             }
-            for( probe.to.x = probe.from.x - 1; probe.to.x <= probe.from.x + 1; ++probe.to.x ) {
-                if( probe.to.x < 0 ) {
+            for(probeTo_x = probeMove.getFromX() - 1; probeTo_x <= probeMove.getFromX() + 1; ++probeTo_x ) {
+                if( probeTo_x < 0 ) {
                     continue;
                 }
-                if( probe.to.x >= Config.BOARD_SIZE ) {
+                if( probeTo_x >= Config.BOARD_SIZE ) {
                     break;
                 }
-                int piece = getPiece(probe.to);
-                if( piece == Config.EMPTY || (piece & Config.BLACK) != (probe.piece & Config.BLACK)) {
-                    if (validateKingMove(probe)) {
-                        if(validateOwnKingCheck(probe)) {
+                int piece = getPiece(probeTo_x, probeTo_y);
+                if( piece == Config.EMPTY || (piece & Config.BLACK) != (attackedPiece & Config.BLACK)) {
+                    probeMove.setTo(probeTo_x, probeTo_y);
+                    if (validateKingMove(probeMove)) {
+                        if(validateOwnKingCheck(probeMove)) {
                             this.invertFlags(Config.FLAGS_BLACK_MOVE);
                             return false;
                         }
@@ -1029,83 +1045,87 @@ public class Board {
 
         // 2. verify if it is a double-check, skip verified squares
         // my move
-        if(findAttack(move.to, move.from) != null) {
+        if(findAttack(move.getTo(), move.getFrom()) != null) {
             return true;
         }
 
         // 3. verify if the attacking piece can be blocked/captured
         // his move
         this.invertFlags(Config.FLAGS_BLACK_MOVE);
-        probe = move.clone();
-        probe.moveFlags ^= Config.FLAGS_BLACK_MOVE;
+        probeMove = move.clone();
+        probeMove.moveFlags ^= Config.FLAGS_BLACK_MOVE;
         int dx = 0, dy = 0, n = 1;
-        if((move.piece & ~Config.BLACK) == Config.KNIGHT) {
-            probe.to.x = probe.from.x;
-            probe.to.y = probe.from.y;
+        if((move.getPiece() & ~Config.BLACK) == Config.KNIGHT) {
+            probeMove.setToX(probeMove.getFromX());
+            probeMove.setToY(probeMove.getFromY());
         } else {
-            if (probe.to.x < probe.from.x) {
+            if (probeMove.getToX() < probeMove.getFromX()) {
                 dx = 1;
-                n = probe.from.x - probe.to.x;
-            } else if (probe.to.x > probe.from.x) {
+                n = probeMove.getFromX() - probeMove.getToX();
+            } else if (probeMove.getToX() > probeMove.getFromX()) {
                 dx = -1;
-                n = probe.to.x - probe.from.x;
+                n = probeMove.getToX() - probeMove.getFromX();
             }
-            if (probe.to.y < probe.from.y) {
+            if (probeMove.getToY() < probeMove.getFromY()) {
                 dy = 1;
-                n = probe.from.y - probe.to.y;
-            } else if (probe.to.y > probe.from.y) {
+                n = probeMove.getFromY() - probeMove.getToY();
+            } else if (probeMove.getToY() > probeMove.getFromY()) {
                 dy = -1;
-                n = probe.to.y - probe.from.y;
+                n = probeMove.getToY() - probeMove.getFromY();
             }
         }
 
+        int probeFrom_x, probeFrom_y;
         for(int i = 0; i < n; ++i) {
-            probe.to.x += dx;
-            probe.to.y += dy;
-            for (probe.from.y = 0; probe.from.y < Config.BOARD_SIZE; ++probe.from.y) {
-                for (probe.from.x = 0; probe.from.x < Config.BOARD_SIZE; ++probe.from.x) {
-                    probe.piece = getPiece(probe.from);
-                    if (probe.piece == Config.EMPTY || (this.getFlags() & Config.BLACK) != (probe.piece & Config.BLACK)) {
+            probeMove.setToX(probeMove.getToX() + dx);
+            probeMove.setToY(probeMove.getToY() + dy);
+            for (probeFrom_y = 0; probeFrom_y < Config.BOARD_SIZE; ++probeFrom_y) {
+                for (probeFrom_x = 0; probeFrom_x < Config.BOARD_SIZE; ++probeFrom_x) {
+                    int piece = getPiece(probeFrom_x, probeFrom_y);
+                    if (piece == Config.EMPTY || (this.getFlags() & Config.BLACK) != (piece & Config.BLACK)) {
                         continue;
                     }
-                    if (validatePgnMove(probe, Config.VALIDATE_USER_MOVE)) {
+                    probeMove.setFrom(probeFrom_x, probeFrom_y);
+                    probeMove.setPiece(piece);
+                    if (validatePgnMove(probeMove, Config.VALIDATE_USER_MOVE)) {
                         this.invertFlags(Config.FLAGS_BLACK_MOVE);
                         return false;
                     }
                 }
             }
         }
-        boolean res = true;
 
         // 4. special case: mating move by pawn that can be taken by en passant
         if((this.getFlags() & Config.FLAGS_ENPASSANT_OK) != 0) {
-            probe = this.newMove();
+            probeMove = this.newMove();
             if((this.getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
-                probe.from.y = 3;
-                probe.to.y = 2;
-                probe.piece = Config.BLACK_PAWN;
+                probeMove.setFromY(3);
+                probeMove.setToY(2);
+                probeMove.setPiece(Config.BLACK_PAWN);
             } else {
-                probe.from.y = 4;
-                probe.to.y = 5;
-                probe.piece = Config.WHITE_PAWN;
+                probeMove.setFromY(4);
+                probeMove.setToY(5);
+                probeMove.setPiece(Config.WHITE_PAWN);
             }
             int enpass = this.getEnpassantX();
-            probe.to.x = enpass;
-            if(getPiece(enpass - 1, probe.from.y) == probe.piece) {
-                probe.from.x = enpass - 1;
-                if (validatePgnMove(probe, Config.VALIDATE_USER_MOVE)) {
-                    res = false;
+            probeMove.setToX(enpass);
+            if(getPiece(enpass - 1, probeMove.getFromY()) == probeMove.getPiece()) {
+                probeMove.setFromX(enpass - 1);
+                if (validatePgnMove(probeMove, Config.VALIDATE_USER_MOVE)) {
+                    this.invertFlags(Config.FLAGS_BLACK_MOVE);
+                    return false;
                 }
             }
-            if( getPiece(enpass + 1, probe.from.y) == probe.piece) {
-                probe.from.x = enpass + 1;
-                if (validatePgnMove(probe, Config.VALIDATE_USER_MOVE)) {
-                    res = false;
+            if( getPiece(enpass + 1, probeMove.getFromY()) == probeMove.getPiece()) {
+                probeMove.setFromX(enpass + 1);
+                if (validatePgnMove(probeMove, Config.VALIDATE_USER_MOVE)) {
+                    this.invertFlags(Config.FLAGS_BLACK_MOVE);
+                    return false;
                 }
             }
         }
         this.invertFlags(Config.FLAGS_BLACK_MOVE);
-        return res;
+        return true;
     }
 
     // move pieces on board
@@ -1116,60 +1136,60 @@ public class Board {
             return;
         }
 
-        if(this.getPiece(move.to) != Config.EMPTY) { // can be empty: en passant
+        if(this.getPiece(move.getTo()) != Config.EMPTY) { // can be empty: en passant
             move.moveFlags |= Config.FLAGS_CAPTURE;
         }
 
-        setPiece(move.from, Config.EMPTY);
-        if ((move.piecePromoted == Config.EMPTY)) {
-            setPiece(move.to, move.piece);
+        setPiece(move.getFrom(), Config.EMPTY);
+        if ((move.getPiecePromoted() == Config.EMPTY)) {
+            setPiece(move.getTo(), move.getPiece());
         } else {
-            setPiece(move.to, move.piecePromoted);
+            setPiece(move.getTo(), move.getPiecePromoted());
         }
 
         if ((move.moveFlags & Config.FLAGS_ENPASSANT) != 0) {
-            if (move.to.y == 5) {
+            if (move.getToY() == 5) {
                 // white move
-                setPiece(move.to.x, 4, Config.EMPTY);
-            } else if (move.to.y == 2) {
+                setPiece(move.getToX(), 4, Config.EMPTY);
+            } else if (move.getToY() == 2) {
                 // black move
-                setPiece(move.to.x, 3, Config.EMPTY);
+                setPiece(move.getToX(), 3, Config.EMPTY);
             }
         }
         if ((move.moveFlags & Config.FLAGS_ENPASSANT_OK) != 0) {
-            this.setEnpassantX(move.to.x);
+            this.setEnpassantX(move.getToX());
         }
 
         if ((move.moveFlags & Config.FLAGS_CASTLE) != 0) {
             int x0, x1;
-            if (move.to.x == 2) {
+            if (move.getToX() == 2) {
                 x0 = 0;
                 x1 = 3;         // queen side
             } else {
                 x0 = 7;
                 x1 = 5;         // king side
             }
-            int rook = getPiece(x0, move.to.y);
-            setPiece(x0, move.to.y, Config.EMPTY);
-            setPiece(x1, move.to.y, rook);
+            int rook = getPiece(x0, move.getToY());
+            setPiece(x0, move.getToY(), Config.EMPTY);
+            setPiece(x1, move.getToY(), rook);
         }
 
-        if (move.piece == Config.WHITE_KING) {
-            this.setWKing(move.to);
+        if (move.getPiece() == Config.WHITE_KING) {
+            this.setWKing(move.getTo());
             this.clearFlags(Config.FLAGS_W_QUEEN_OK | Config.FLAGS_W_KING_OK);
-        } else if (move.piece == Config.BLACK_KING) {
-            this.setBKing(move.to);
+        } else if (move.getPiece() == Config.BLACK_KING) {
+            this.setBKing(move.getTo());
             this.clearFlags(Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK);
-        } else if (move.piece == Config.WHITE_ROOK) {
-            if (move.from.x == 0) {
+        } else if (move.getPiece() == Config.WHITE_ROOK) {
+            if (move.getFromX() == 0) {
                 this.clearFlags(Config.FLAGS_W_QUEEN_OK);
-            } else if (move.from.x == 7) {
+            } else if (move.getFromX() == 7) {
                 this.clearFlags(Config.FLAGS_W_KING_OK);
             }
-        } else if (move.piece == Config.BLACK_ROOK) {
-            if (move.from.x == 0) {
+        } else if (move.getPiece() == Config.BLACK_ROOK) {
+            if (move.getFromX() == 0) {
                 this.clearFlags(Config.FLAGS_B_QUEEN_OK);
-            } else if (move.from.x == 7) {
+            } else if (move.getFromX() == 7) {
                 this.clearFlags(Config.FLAGS_B_KING_OK);
             }
         }
@@ -1253,6 +1273,85 @@ public class Board {
 
             BitStream.Reader reader = new BitStream.Reader(bits);
             return unpack(reader);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+    public void pack(DataOutputStream os) throws Config.PGNException {
+        try {
+            byte[] b = new byte[Config.BOARD_SIZE];
+            int pieces = 0;
+            List<Integer> values = new LinkedList<>();
+            int val = 0;
+            int factor = 1;
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                int mask = 1;
+                int buf = 0;
+                for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                    int code = this.getPiece(i, j) - PACK_PIECE_ADJUSTMENT;
+                    if (code >= 0) {
+                        // ignoring kings
+                        ++pieces;
+                        buf |= mask;
+                        val += factor * code;
+                        factor *= 10;
+                        if (factor == 1000) {
+                            values.add(val);    // store 3-decimal-digits number
+                            factor = 1;
+                            val = 0;
+                        }
+                    }
+                    mask <<= 1;
+                }
+                b[j] = (byte)buf;
+            }
+            os.write(b);
+            if (factor != 1) {
+                values.add(val);
+            }
+            os.writeInt(this.boardCounts);
+            os.writeInt(this.boardData);
+            for (int v : values) {
+                os.writeInt(v);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public static Board unpack(DataInputStream is) throws Config.PGNException {
+        try {
+            Board board = new Board();
+            board.toEmpty();
+
+            byte[] pieceBits = new byte[Config.BOARD_SIZE];
+            is.read(pieceBits);
+            board.boardCounts = is.readInt();
+            board.boardData = is.readInt();
+
+            int val = 0;
+            int factor = 3;
+            for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                int mask = 1;
+                for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                    if ((pieceBits[j] & mask) != 0) {
+                        if (factor == 3) {
+                            // copy 3-decimal-digits number in 10-bit array
+                            val = is.readInt();
+                            factor = 0;
+                        }
+                        int code = val % 10;
+                        int piece = code + PACK_PIECE_ADJUSTMENT;
+                        board.setPiece(i, j, piece);
+                        val /= 10;
+                        ++factor;
+                    }
+                    mask <<= 1;
+                }
+            }
+            board.setPiece(board.getWKingX(), board.getWKingY(), Config.WHITE_KING);
+            board.setPiece(board.getBKingX(), board.getBKingY(), Config.BLACK_KING);
+            return board;
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }

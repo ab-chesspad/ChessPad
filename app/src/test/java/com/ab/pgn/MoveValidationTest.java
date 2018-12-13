@@ -14,23 +14,23 @@ public class MoveValidationTest extends BaseTest {
     public void testPawn_user() throws Config.PGNException {
         String fen = "r1bqkbnr/pPp4p/4pp2/3pP3/6p1/5P2/P1PP2PP/RNBQKBNR w KQkq d6 0 1";
         final Pair<String, Integer>[] moves = new Pair[] {
-                new Pair<>("e5xd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_ENPASSANT),
-                new Pair<>("e5xf6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE),
-                new Pair<>("h2h4", Config.INIT_POSITION_FLAGS | Config.FLAGS_ENPASSANT_OK),
-                new Pair<>("h2h3", Config.INIT_POSITION_FLAGS),
-                new Pair<>("b7b8=B", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION),
-                new Pair<>("b7xc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_PROMOTION),
-                new Pair<>("f3f4", Config.INIT_POSITION_FLAGS),
-                new Pair<>("b7xc8=P", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_PROMOTION), // promotion is not verified
-                new Pair<>("e5e4", ERR),
-                new Pair<>("f3xe3", ERR),
-                new Pair<>("f3f5", ERR),
-                new Pair<>("g2xf3", ERR),
-                new Pair<>("g2g4", ERR),
-                new Pair<>("g2xh3", ERR),
-                new Pair<>("b7b8", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION), // promotion is not verified
-                new Pair<>("b7xc8=K", ERR),
-                new Pair<>("b7b7", ERR),
+            new Pair<>("e5xd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_ENPASSANT),
+            new Pair<>("e5xf6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE),
+            new Pair<>("h2h4", Config.INIT_POSITION_FLAGS | Config.FLAGS_ENPASSANT_OK),
+            new Pair<>("h2h3", Config.INIT_POSITION_FLAGS),
+            new Pair<>("b7b8=B", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION),
+            new Pair<>("b7xc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_PROMOTION),
+            new Pair<>("f3f4", Config.INIT_POSITION_FLAGS),
+            new Pair<>("e5e4", ERR),
+            new Pair<>("f3xe3", ERR),
+            new Pair<>("f3f5", ERR),
+            new Pair<>("g2xf3", ERR),
+            new Pair<>("g2g4", ERR),
+            new Pair<>("g2xh3", ERR),
+            new Pair<>("b7b8", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION), // promotion is not verified
+            new Pair<>("b7xc8=P", ERR),
+            new Pair<>("b7xc8=K", ERR),
+            new Pair<>("b7b7", ERR),
         };
         testUserMoves(fen, moves);
     }
@@ -38,25 +38,27 @@ public class MoveValidationTest extends BaseTest {
     @Test
     @SuppressWarnings("unchecked")
     public void testPawn_pgn() throws Config.PGNException {
-        String fen = "r1bqkbnr/pPp4p/4pp2/3pP3/6p1/5P2/P1PP2PP/RNBQ1BNR w KQkq d6 0 1";
+        String fen = "r1bqkbnr/1Pp4p/4pp2/pP1pP3/6p1/5P2/P2P2PP/RNBQ1BNR w KQkq d6 0 1";
         final Pair<String, Integer>[] moves = new Pair[] {
-                new Pair<>("exd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_ENPASSANT),
-                new Pair<>("exf6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE),
-                new Pair<>("h4", Config.INIT_POSITION_FLAGS | Config.FLAGS_ENPASSANT_OK),
-                new Pair<>("h3", Config.INIT_POSITION_FLAGS),
-                new Pair<>("b8=B", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION),
-                new Pair<>("bxc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_PROMOTION),
-                new Pair<>("f4", Config.INIT_POSITION_FLAGS),
-                new Pair<>("e4", ERR),
-                new Pair<>("fxe3", ERR),
-                new Pair<>("f3f5", ERR),
-                new Pair<>("gxf3", ERR),
-                new Pair<>("g4", ERR),
-                new Pair<>("gxh3", ERR),
-                new Pair<>("b8", ERR),
-                new Pair<>("bxc8=K", ERR),
-                new Pair<>("b7b7", ERR),
-                new Pair<>("bxc8=P", ERR),
+            new Pair<>("exd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_ENPASSANT),
+            new Pair<>("exf6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE),
+            new Pair<>("h4", Config.INIT_POSITION_FLAGS | Config.FLAGS_ENPASSANT_OK),
+            new Pair<>("h3", Config.INIT_POSITION_FLAGS),
+            new Pair<>("b8=B", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION),
+            new Pair<>("bxc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_PROMOTION),
+            new Pair<>("f4", Config.INIT_POSITION_FLAGS),
+            new Pair<>("e4", ERR),
+            new Pair<>("fxe3", ERR),
+            new Pair<>("f3f5", ERR),
+            new Pair<>("gxf3", ERR),
+            new Pair<>("g4", ERR),
+            new Pair<>("gxh3", ERR),
+            new Pair<>("b8", ERR),
+            new Pair<>("bxc8=K", ERR),
+            new Pair<>("b7b7", ERR),
+            new Pair<>("bxc8=P", ERR),
+            new Pair<>("bxa6", ERR),
+            new Pair<>("bxc6", ERR),
         };
         testPgnMoves(fen, moves);
     }
@@ -67,14 +69,14 @@ public class MoveValidationTest extends BaseTest {
 //        String fen = "r3k2r/8/8/1b3b2/8/8/5n3/R3K2R w KQkq - 0 1";
         String fen = "r3k2r/8/8/1b3b2/8/6n1/8/R3K2R w KQkq - 0 1";
         final Pair<String, Integer>[] moves = new Pair[] {
-                new Pair<>("o-o-o", Config.FLAGS_CASTLE | Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
-                new Pair<>("0-0-0", Config.FLAGS_CASTLE | Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
-                new Pair<>("Ke1xf2", Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
-                new Pair<>("Ke1d2", Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
-                new Pair<>("Ke1e2", ERR),
-                new Pair<>("o-o", ERR),
-                new Pair<>("0-0", ERR),
-                new Pair<>("Ke1g3", ERR),
+            new Pair<>("o-o-o", Config.FLAGS_CASTLE | Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
+            new Pair<>("0-0-0", Config.FLAGS_CASTLE | Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
+            new Pair<>("Ke1xf2", Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
+            new Pair<>("Ke1d2", Config.FLAGS_B_QUEEN_OK | Config.FLAGS_B_KING_OK),
+            new Pair<>("Ke1e2", ERR),
+            new Pair<>("o-o", ERR),
+            new Pair<>("0-0", ERR),
+            new Pair<>("Ke1g3", ERR),
         };
         testUserMoves(fen, moves);
     }
@@ -84,11 +86,11 @@ public class MoveValidationTest extends BaseTest {
     public void testRook() throws Config.PGNException {
         String fen = "8/4r3/8/4Q3/8/8/2R1r1k1/1K6 b - - 0 1";
         final Pair<String, Integer>[] moves = new Pair[] {
-//                new Pair<>("Re7xe5", Config.FLAGS_CAPTURE | Config.FLAGS_BLACK_MOVE),
-//                new Pair<>("Re7b7+", Config.FLAGS_CHECK | Config.FLAGS_BLACK_MOVE),
-//                new Pair<>("Re2e1+", ERR),
-//                new Pair<>("Re7e7", ERR),
-                new Pair<>("Rc2xe2", ERR),
+            new Pair<>("Re7xe5", Config.FLAGS_CAPTURE | Config.FLAGS_BLACK_MOVE),
+            new Pair<>("Re7b7+", Config.FLAGS_CHECK | Config.FLAGS_BLACK_MOVE),
+            new Pair<>("Re2e1+", ERR),
+            new Pair<>("Re7e7", ERR),
+            new Pair<>("Rc2xe2", ERR),
         };
         testUserMoves(fen, moves);
     }
@@ -216,12 +218,12 @@ public class MoveValidationTest extends BaseTest {
     public void testQCastle() throws Config.PGNException {
         final String move = "o-o-o";    // o-o-o
         final Pair<String, Integer>[] fens = new Pair[]{
-                new Pair<>("r3k2r/8/8/5b2/8/8/8/R3K2R w KQkq - 0 1", Config.FLAGS_CASTLE | Config.FLAGS_B_KING_OK | Config.FLAGS_B_QUEEN_OK),
-                new Pair<>("r3k2r/8/8/8/6b1/8/8/R3K2R w KQkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/8/7b/8/8/R3K2R w KQkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/5b2/8/8/8/R3K2R w Kkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/5b2/8/8/8/N3K2R w KQkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/5b2/8/8/8/RN2K2R w KQkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/5b2/8/8/8/R3K2R w KQkq - 0 1", Config.FLAGS_CASTLE | Config.FLAGS_B_KING_OK | Config.FLAGS_B_QUEEN_OK),
+            new Pair<>("r3k2r/8/8/8/6b1/8/8/R3K2R w KQkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/8/7b/8/8/R3K2R w KQkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/5b2/8/8/8/R3K2R w Kkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/5b2/8/8/8/N3K2R w KQkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/5b2/8/8/8/RN2K2R w KQkq - 0 1", ERR),
         };
         testMove(move, fens);
     }
@@ -231,12 +233,12 @@ public class MoveValidationTest extends BaseTest {
     public void testKCastle() throws Config.PGNException {
         final String move = "o-o";    // o-o-o
         final Pair<String, Integer>[] fens = new Pair[]{
-                new Pair<>("r3k2r/8/8/4b3/8/8/8/R3K2R w KQkq - 0 1", Config.FLAGS_CASTLE | Config.FLAGS_B_KING_OK | Config.FLAGS_B_QUEEN_OK),
-                new Pair<>("r3k2r/8/8/8/3b4/8/8/R3K2R w KQkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/8/2b5/8/8/R3K2R w KQkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/1b6/8/8/8/R3K2R w Kkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/4b3/8/8/8/R3K2R w Qkq - 0 1", ERR),
-                new Pair<>("r3k2r/8/8/5b2/8/8/8/R3K1NR w KQkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/4b3/8/8/8/R3K2R w KQkq - 0 1", Config.FLAGS_CASTLE | Config.FLAGS_B_KING_OK | Config.FLAGS_B_QUEEN_OK),
+            new Pair<>("r3k2r/8/8/8/3b4/8/8/R3K2R w KQkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/8/2b5/8/8/R3K2R w KQkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/1b6/8/8/8/R3K2R w Kkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/4b3/8/8/8/R3K2R w Qkq - 0 1", ERR),
+            new Pair<>("r3k2r/8/8/5b2/8/8/8/R3K1NR w KQkq - 0 1", ERR),
         };
         testMove(move, fens);
     }
@@ -246,14 +248,14 @@ public class MoveValidationTest extends BaseTest {
     public void testKnight1() throws Config.PGNException {
         String fen = "7k/N7/8/4N3/8/8/8/1K6 w - - 0 1";
         final Pair<String, Integer>[] pgnMoves = new Pair[] {
-                new Pair<>("Nac6", Config.FLAGS_X_AMBIG),
-                new Pair<>("Nec6", Config.FLAGS_X_AMBIG),
+            new Pair<>("Nac6", Config.FLAGS_X_AMBIG),
+            new Pair<>("Nec6", Config.FLAGS_X_AMBIG),
         };
         testPgnMoves(fen, pgnMoves);
 
         final Pair<String, Integer>[] userMoves = new Pair[] {
-                new Pair<>("Na7c6", Config.FLAGS_X_AMBIG),
-                new Pair<>("Ne5c6", Config.FLAGS_X_AMBIG),
+            new Pair<>("Na7c6", Config.FLAGS_X_AMBIG),
+            new Pair<>("Ne5c6", Config.FLAGS_X_AMBIG),
         };
         testUserMoves(fen, userMoves);
     }
@@ -263,17 +265,17 @@ public class MoveValidationTest extends BaseTest {
     public void testKnight2() throws Config.PGNException {
         String fen = "7k/N3N3/8/4N3/8/8/8/1K6 w - - 0 1";
         final Pair<String, Integer>[] pgnMoves = new Pair[] {
-                new Pair<>("Nac6", Config.FLAGS_X_AMBIG),
-                new Pair<>("Ne5c6", Config.FLAGS_AMBIG),
-                new Pair<>("Ne7c6", Config.FLAGS_AMBIG),
+            new Pair<>("Nac6", Config.FLAGS_X_AMBIG),
+            new Pair<>("Ne5c6", Config.FLAGS_AMBIG),
+            new Pair<>("Ne7c6", Config.FLAGS_AMBIG),
         };
         testPgnMoves(fen, pgnMoves);
 
         final Pair<String, Integer>[] userMoves = new Pair[] {
-                new Pair<>("Na7c6", Config.FLAGS_X_AMBIG),
-                new Pair<>("Ne5c6", Config.FLAGS_AMBIG),
-                new Pair<>("Ne7c6", Config.FLAGS_AMBIG),
-                new Pair<>("Ne1c6", ERR),
+            new Pair<>("Na7c6", Config.FLAGS_X_AMBIG),
+            new Pair<>("Ne5c6", Config.FLAGS_AMBIG),
+            new Pair<>("Ne7c6", Config.FLAGS_AMBIG),
+            new Pair<>("Ne1c6", ERR),
         };
         testUserMoves(fen, userMoves);
     }

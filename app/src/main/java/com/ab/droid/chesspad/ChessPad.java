@@ -23,6 +23,9 @@ import com.ab.pgn.PgnGraph;
 import com.ab.pgn.PgnItem;
 import com.ab.pgn.Square;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -50,11 +53,12 @@ public class ChessPad extends AppCompatActivity {
         protected String CRASH_RESTORE = "cp-crash-2017-01-13_11-36-55";
     //*/
     static final String
-            STATUS_FILE_NAME = "ChessPad.state",
-            CURRENT_FILE_NAME = "ChessPad.pgngraph",
-            MOVELINE_FILE_NAME = "ChessPad.moveline",
-            DEFAULT_DIRECTORY = "ChessPad",
-            str_dummy = null;
+        STATUS_FILE_NAME = ".ChessPad.state",
+        CURRENT_FILE_NAME = ".ChessPad.pgngraph",
+        MOVELINE_FILE_NAME = ".ChessPad.moveline",
+        CURRENT_PGN_NAME = ".ChessPad.current.pgn",
+        DEFAULT_DIRECTORY = "ChessPad",
+        str_dummy = null;
 
     private static int i = -1;
 
@@ -151,6 +155,7 @@ public class ChessPad extends AppCompatActivity {
     transient public int timeoutDelta = animationTimeout / 4;
     transient private AnimationHandler animationHandler;
     transient boolean unserializing = false;
+    transient boolean merging = false;
     transient protected ChessPadView chessPadView;
     transient private String[] setupErrs;
     transient private boolean freshStart = true;
@@ -229,6 +234,9 @@ public class ChessPad extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         Log.d(DEBUG_TAG, "onStop()");
+        if(merging) {
+            return;     // skip serialization
+        }
         serializeUI();
         serializePgnGraph();
     }
@@ -318,6 +326,15 @@ public class ChessPad extends AppCompatActivity {
         FileOutputStream fos = null;
         File outDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
         if(pgngraphModified || pgnGraph.isModified()) {
+            DataOutputStream dos = null;
+            try {
+                dos = new DataOutputStream(new FileOutputStream(new File(outDir.getAbsolutePath(), CURRENT_PGN_NAME).getAbsolutePath()));
+                pgnGraph.getPgn().serialize(dos);
+                dos.close();
+            } catch (IOException|Config.PGNException e) {
+                Log.e(DEBUG_TAG, "serializePgnGraph", e);
+            }
+
             try {
                 fos = new FileOutputStream(new File(outDir.getAbsolutePath(), CURRENT_FILE_NAME));
             } catch (FileNotFoundException e) {
@@ -326,10 +343,18 @@ public class ChessPad extends AppCompatActivity {
             }
 
             if (fos != null) {
-                BitStream.Writer writer = new BitStream.Writer(fos);
+                final PgnItem.Pgn _pgn = new PgnItem.Pgn(new File(outDir.getAbsolutePath(), CURRENT_FILE_NAME).getAbsolutePath());
+                final PgnItem.Item _item = new PgnItem.Item(_pgn, "status");
+                _item.setMoveText(pgnGraph.toPgn());
                 try {
-                    pgnGraph.serializePgnGraph(writer, versionCode);
-                    writer.close();
+                    _item.save(null);
+                } catch (Config.PGNException e) {
+                    Log.e(DEBUG_TAG, "serializePgnGraph", e);
+                }
+                dos = new DataOutputStream(fos);
+                try {
+                    pgnGraph.serializeGraph(dos, versionCode);
+                    dos.close();
                     fos.close();
                 } catch (Config.PGNException | IOException e) {
                     Log.e(DEBUG_TAG, "serializePgnGraph", e);
@@ -363,68 +388,79 @@ public class ChessPad extends AppCompatActivity {
             pgnGraph = new PgnGraph(new Board());
             FileInputStream fis = null;
             final File inDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
+
             try {
-                fis = new FileInputStream(new File(inDir.getAbsolutePath(), CURRENT_FILE_NAME));
-            } catch (FileNotFoundException e) {
+                fis = new FileInputStream(new File(inDir.getAbsolutePath(), MOVELINE_FILE_NAME));
+                BitStream.Reader reader = new BitStream.Reader(fis);
+                pgnGraph.unserializeMoveLine(reader, versionCode);
+            } catch (FileNotFoundException|Config.PGNException e) {
                 Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
+                chessPadView.invalidate();
+                unserializing = false;
+                chessPadView.enableCommentEdit(true);
+                return;
             }
 
-            if (fis != null) {
-                final BitStream.Reader reader = new BitStream.Reader(fis);
-                final FileInputStream finalFis = fis;
-                new CPAsyncTask(chessPadView, new CPExecutor() {
+            final LinkedList<Move> moveLine = pgnGraph.moveLine;
+            PgnItem pgn = null;
+            // headers:
+            try {
+                DataInputStream dis = new DataInputStream(new FileInputStream(new File(inDir.getAbsolutePath(), CURRENT_PGN_NAME)));
+                pgn = PgnItem.unserialize(dis);
+                dis.close();
+            } catch (IOException|Config.PGNException e) {
+                Log.e(DEBUG_TAG, "serializePgnGraph", e);
+            }
+
+            // pgn text:
+            byte[] content = null;
+            try {
+                File f = new File(inDir.getAbsolutePath(), CURRENT_FILE_NAME);
+                int length = (int)f.length();
+                content = new byte[length];
+                BufferedInputStream buf = new BufferedInputStream(new FileInputStream(f));
+                int l = buf.read(content, 0, content.length);
+                buf.close();
+            } catch (IOException e) {
+                Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
+                content = null;
+            }
+            if (content == null) {
+                unserializing = false;
+            } else {
+                final PgnItem.Item finalPgn = (PgnItem.Item)pgn;
+                finalPgn.setMoveText(new String(content));
+                loadPgnGraph(finalPgn, new CPPostExecutor() {
                     @Override
                     public void onPostExecute() throws Config.PGNException {
                         Log.d(DEBUG_TAG, String.format("unserializePgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));
-
-                        FileInputStream fis = null;
-                        try {
-                            fis = new FileInputStream(new File(inDir.getAbsolutePath(), MOVELINE_FILE_NAME));
-                        } catch (FileNotFoundException e) {
-                            Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
-                        }
-                        BitStream.Reader reader = new BitStream.Reader(fis);
-                        pgnGraph.unserializeMoveLine(reader, versionCode);
+                        pgnGraph.setPgn(finalPgn);
+                        pgnGraph.moveLine = moveLine;
                         chessPadView.invalidate();
                         unserializing = false;
                         chessPadView.enableCommentEdit(true);
                     }
-
-                    @Override
-                    public void onExecuteException(Config.PGNException e) throws Config.PGNException {
-                        try {
-                            finalFis.close();
-                        } catch (IOException e2) {
-                            Log.w(DEBUG_TAG, "unserializePgnGraph()", e2);
-                        }
-                        Log.e(DEBUG_TAG, "unserializePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                        popups.crashAlert(R.string.crash_cannot_restore);
-                        unserializing = false;
-                        chessPadView.enableCommentEdit(true);
-                    }
-
-                    @Override
-                    public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
-                        Log.d(DEBUG_TAG, String.format("unserializePgnGraph start, thread %s", Thread.currentThread().getName()));
-                        pgnGraph = new PgnGraph(reader, versionCode, new PgnItem.ProgressObserver() {
-                            @Override
-                            public void setProgress(int progress) {
-                                progressPublisher.publishProgress(progress);
-                            }
-                        });
-                        try {
-                            finalFis.close();
-                        } catch (IOException e1) {
-                            Log.w(DEBUG_TAG, "unserializePgnGraph()", e1);
-                        }
-                    }
-                }).execute();
+                });
             }
         } catch (Config.PGNException e) {
             // should not happen
             Log.e(DEBUG_TAG, "unserializePgnGraph()", e);
         }
     }
+
+//    private void navigate(List<Move> moveLine) {
+//        for(Move move : moveLine) {
+//            Board board = pgnGraph.getBoard(move);
+//            Move m = board.getMove();
+//            while(m != null && !move.equals(m)) {
+//                m = m.getVariation();
+//            }
+//            if( m == null) {
+//                break;
+//            }
+//
+//        }
+//    }
 
     private void serializeUI() {
         Log.d(DEBUG_TAG, "serializeUI()");
@@ -563,7 +599,7 @@ public class ChessPad extends AppCompatActivity {
     }
 
     public boolean isUiFrozen() {
-        return unserializing || animationHandler != null;
+        return unserializing || merging || animationHandler != null;
     }
 
     @Override
@@ -582,8 +618,11 @@ public class ChessPad extends AppCompatActivity {
     }
 
     public void onButtonClick(Command command, Object param) {
+        Board board = pgnGraph.getBoard();
         if(DEBUG) {
-            Log.d(DEBUG_TAG, String.format("click %s\n%s", command.toString(), pgnGraph.getBoard().toString()));
+            if(board != null) {
+                Log.d(DEBUG_TAG, String.format("click %s\n%s", command.toString(), board.toString()));
+            }
         }
         try {
             switch (command) {
@@ -593,42 +632,41 @@ public class ChessPad extends AppCompatActivity {
                         pgnGraph.toInit();
                         chessPadView.invalidate();
                     } else {
+                        if(animationHandler != null) {
 //                    animationHandler.increaseTimeout();
-                        animationTimeout += timeoutDelta;
-                        animationHandler.setTimeout(animationTimeout);
+                            animationTimeout += timeoutDelta;
+                            animationHandler.setTimeout(animationTimeout);
+                        }
                     }
                     break;
 
                 case Prev:
-                    if (isUiFrozen()) {
-                        Log.e(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnGraph.getBoard().toString()));
+                    if (!isUiFrozen()) {
+                        selectedSquare = null;
+                        pgnGraph.toPrev();
+                        chessPadView.invalidate();
                     }
-                    selectedSquare = null;
-                    pgnGraph.toPrev();
-                    chessPadView.invalidate();
                     break;
 
                 case PrevVar:
-                    if (isUiFrozen()) {
-                        Log.e(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnGraph.getBoard().toString()));
+                    if (!isUiFrozen()) {
+                        selectedSquare = null;
+                        pgnGraph.toPrevVar();
+                        chessPadView.invalidate();
                     }
-                    selectedSquare = null;
-                    pgnGraph.toPrevVar();
-                    chessPadView.invalidate();
                     break;
 
                 case Next:
-                    if (isUiFrozen()) {
-                        Log.d(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnGraph.getBoard().toString()));
-                    }
-                    selectedSquare = null;
-                    List<Move> variations = pgnGraph.getVariations();
-                    if (variations == null) {
-                        pgnGraph.toNext();
-                        chessPadView.invalidate();
-                    } else {
-                        Log.d(DEBUG_TAG, "variation");
-                        popups.launchDialog(Popups.DialogType.Variations);
+                    if (!isUiFrozen()) {
+                        selectedSquare = null;
+                        List<Move> variations = pgnGraph.getVariations();
+                        if (variations == null) {
+                            pgnGraph.toNext();
+                            chessPadView.invalidate();
+                        } else {
+                            Log.d(DEBUG_TAG, "variation");
+                            popups.launchDialog(Popups.DialogType.Variations);
+                        }
                     }
                     break;
 
@@ -639,29 +677,28 @@ public class ChessPad extends AppCompatActivity {
                     break;
 
                 case NextVar:
-                    if (isUiFrozen()) {
-                        Log.d(DEBUG_TAG, String.format("with animation click %s\n%s", command.toString(), pgnGraph.getBoard().toString()));
-                    }
-                    selectedSquare = null;
-                    if (pgnGraph.getVariations() == null) {
-                        animationHandler = new AnimationHandler(animationTimeout, new TimeoutObserver() {
-                            @Override
-                            public boolean handle() {
-                                pgnGraph.toNext();
-                                chessPadView.invalidate();
-                                return !pgnGraph.isEnd() && pgnGraph.getVariations() == null;
-                            }
+                    if (!isUiFrozen()) {
+                        selectedSquare = null;
+                        if (pgnGraph.getVariations() == null) {
+                            animationHandler = new AnimationHandler(animationTimeout, new TimeoutObserver() {
+                                @Override
+                                public boolean handle() {
+                                    pgnGraph.toNext();
+                                    chessPadView.invalidate();
+                                    return !pgnGraph.isEnd() && pgnGraph.getVariations() == null;
+                                }
 
-                            @Override
-                            public void beforeAnimationStart() {
-                                ChessPad.this.beforeAnimationStart();
-                            }
+                                @Override
+                                public void beforeAnimationStart() {
+                                    ChessPad.this.beforeAnimationStart();
+                                }
 
-                            @Override
-                            public void afterAnimationEnd() {
-                                ChessPad.this.afterAnimationEnd();
-                            }
-                        });
+                                @Override
+                                public void afterAnimationEnd() {
+                                    ChessPad.this.afterAnimationEnd();
+                                }
+                            });
+                        }
                     }
                     break;
 
@@ -687,11 +724,13 @@ public class ChessPad extends AppCompatActivity {
                             }
                         });
                     } else {
-                        animationTimeout -= timeoutDelta;
-                        if (animationTimeout <= 0) {
-                            animationTimeout = 1;
+                        if(animationHandler != null) {
+                            animationTimeout -= timeoutDelta;
+                            if (animationTimeout <= 0) {
+                                animationTimeout = 1;
+                            }
+                            animationHandler.setTimeout(animationTimeout);
                         }
-                        animationHandler.setTimeout(animationTimeout);
                     }
                     break;
 
@@ -985,8 +1024,9 @@ public class ChessPad extends AppCompatActivity {
     }
 
     public void mergePgnGraph(final Popups.MergeData mergeData, final CPPostExecutor cpPostExecutor) throws Config.PGNException {
+        merging = true;
+        chessPadView.enableCommentEdit(false);
         final PgnItem.Pgn _pgn = new PgnItem.Pgn(mergeData.pgnPath);
-        final int[] merged = {0};
         new CPAsyncTask(chessPadView, new CPExecutor() {
             @Override
             public void onPostExecute() throws Config.PGNException {
@@ -994,12 +1034,17 @@ public class ChessPad extends AppCompatActivity {
                 if(cpPostExecutor != null) {
                     cpPostExecutor.onPostExecute();
                 }
-                String msg = String.format(getResources().getString(R.string.msg_merge_count), merged[0]);
+                merging = false;
+                chessPadView.enableCommentEdit(true);
+                pgngraphModified = true;
+                String msg = String.format(getResources().getString(R.string.msg_merge_count), mergeData.merged);
                 Toast.makeText(ChessPad.this, msg, Toast.LENGTH_LONG).show();
             }
 
             @Override
             public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                merging = false;
+                chessPadView.enableCommentEdit(true);
                 Log.e(DEBUG_TAG, "mergePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
                 popups.crashAlert(R.string.crash_cannot_save);
             }
@@ -1007,7 +1052,7 @@ public class ChessPad extends AppCompatActivity {
             @Override
             public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
                 Log.d(DEBUG_TAG, String.format("mergePgnGraph start, thread %s", Thread.currentThread().getName()));
-                merged[0] = pgnGraph.merge(_pgn, mergeData.start, mergeData.end, mergeData.includeHeaders,
+                pgnGraph.merge(mergeData,
                     new PgnItem.ProgressObserver() {
                         @Override
                         public void setProgress(int progress) {

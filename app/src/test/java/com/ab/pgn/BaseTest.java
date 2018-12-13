@@ -9,6 +9,7 @@ import org.junit.rules.ExpectedException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,15 +27,22 @@ import java.util.regex.Pattern;
  */
 public class BaseTest {
     public static boolean DEBUG = false;
-    private static String prefix = "";
+    protected static String prefix = "";
     static {
+        // in IntelliJ working dir is <project>, in AndroidStudio is is <project>/app
         File testFile = new File("xyz");
-        if(testFile.getAbsoluteFile().getParent().endsWith("ChessPad/app")) {
+        if(testFile.getAbsoluteFile().getParent().endsWith("/app")) {
             prefix = "../";
         }
     }
     public static final String TEST_ROOT = prefix + "etc/test/";
     public static final String TEST_TMP_ROOT = prefix + "etc/test_tmp/";
+
+    /*
+    public static String LOG_FILE_NAME = null;
+    /*/
+    public static String LOG_FILE_NAME = prefix + "log/cp.log";
+    //*/
 
     public static final String MY_HEADER = "Final";
     public static final int ERR = -1;
@@ -46,7 +54,7 @@ public class BaseTest {
     public ExpectedException expectedEx = ExpectedException.none();
 
     @BeforeClass
-    public static void init() {
+    public static void init() throws FileNotFoundException {
         PgnItem.setRoot(new File(TEST_ROOT));
         File tmpTest = new File(TEST_TMP_ROOT);
         deleteDirectory(tmpTest);
@@ -56,7 +64,7 @@ public class BaseTest {
     }
 
     @After
-    public void restore() {
+    public void restore() throws FileNotFoundException {
         PgnItem.setRoot(new File(TEST_ROOT));
     }
 
@@ -108,7 +116,7 @@ public class BaseTest {
             return false;
         }
 
-        if(m1.glyph != m2.glyph) {
+        if(m1.getGlyph() != m2.getGlyph()) {
             return false;
         }
         if(m1.comment == null || m2.comment == null) {
@@ -121,10 +129,10 @@ public class BaseTest {
         if((m1.moveFlags & Config.FLAGS_NULL_MOVE) != 0 || (m2.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             return (m1.moveFlags & Config.FLAGS_NULL_MOVE) == (m2.moveFlags & Config.FLAGS_NULL_MOVE);
         }
-        if(m1.moveFlags != m2.moveFlags) {
+        if((m1.moveFlags & Config.MOVE_FLAGS) != (m2.moveFlags & Config.MOVE_FLAGS)) {
             return false;
         }
-        if(m1.piece != m2.piece) {
+        if(m1.getPiece() != m2.getPiece()) {
             return false;
         }
         if(!areEqual(m1.variation, m2.variation)) {
@@ -161,9 +169,10 @@ public class BaseTest {
         return areEqual(g1, g1.rootMove, g2, g2.rootMove);
     }
 
-    public boolean areEqual(PgnGraph g1, Move m1, PgnGraph g2, Move m2) {
+    public boolean areEqual(PgnGraph g1, Move _m1, PgnGraph g2, Move _m2) {
+        Move m1 = _m1, m2 = _m2;
         while(m1 != null && m2 != null) {
-            if(!areEqual(m2, m1)) {
+            if(!areEqual(m1, m2)) {
                 return false;
             }
             Board b1 = g1.getBoard(m1);
@@ -220,13 +229,13 @@ public class BaseTest {
     public Move invert(Move src) {
         Move trg = src.clone();
         trg.moveFlags ^= Config.FLAGS_BLACK_MOVE;
-        trg.to.y = Config.BOARD_SIZE - 1 - trg.to.y;
-        if(trg.from.y != -1) {
-            trg.from.y = Config.BOARD_SIZE - 1 - trg.from.y;
+        trg.setToY(Config.BOARD_SIZE - 1 - trg.getToY());
+        if(trg.isFromSet()) {
+            trg.setFromY(Config.BOARD_SIZE - 1 - trg.getFromY());
         }
-        trg.piece ^= Config.PIECE_COLOR;
-        if(trg.piecePromoted != Config.EMPTY) {
-            trg.piecePromoted ^= Config.PIECE_COLOR;
+        trg.setPiece(trg.getPiece() ^ Config.PIECE_COLOR);
+        if(trg.getPiecePromoted() != Config.EMPTY) {
+            trg.setPiecePromoted(trg.getPiecePromoted() ^ Config.PIECE_COLOR);
         }
         return trg;
     }
@@ -390,7 +399,14 @@ public class BaseTest {
     private void testUserMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
         int expectedFlags = resultFlags;
         Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
-        Util.parseMove(move, moveText);
+        try {
+            Util.parseMove(move, moveText);
+        } catch (Config.PGNException e) {
+            if(expectedFlags == ERR) {
+                return;
+            }
+            Assert.assertTrue(String.format("%s must be ok, %s", moveText, e.getMessage()), false);
+        }
         PgnGraph pgnGraph = new PgnGraph(initBoard);
         boolean res = pgnGraph.validateUserMove(move);
         if(expectedFlags == ERR) {
@@ -450,8 +466,16 @@ public class BaseTest {
     private void testPgnMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
         int expectedFlags = resultFlags;
         Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
-        Util.parseMove(move, moveText);
         PgnGraph pgnGraph = new PgnGraph(initBoard);
+
+        try {
+            Util.parseMove(move, moveText);
+        } catch (Config.PGNException e) {
+            if(expectedFlags == ERR) {
+                return;
+            }
+            Assert.assertTrue(String.format("%s must be ok, %s", moveText, e.getMessage()), false);
+        }
 
         boolean res = pgnGraph.validatePgnMove(move);
         if(expectedFlags == ERR) {

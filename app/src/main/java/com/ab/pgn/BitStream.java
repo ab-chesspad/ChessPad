@@ -74,9 +74,14 @@ public abstract class BitStream {
                 return;
             }
             byte[] bytes = val.getBytes();
-            write(bytes.length, 16);
+            int length = bytes.length;
+            if(length > 0x0ffff) {
+                // throw exception?
+                length = 0x0ffff;
+            }
+            write(length, 16);
             flush();
-            os.write(bytes);
+            os.write(bytes, 0, length);
             bitCount = ((bitCount + 7) / 8 + bytes.length) * 8;
         }
 
@@ -174,5 +179,10 @@ public abstract class BitStream {
             bitIndex = 8;           // force read is
             return new String(bytes);
         }
+
+        public int available() throws IOException {
+            return is.available();
+        }
     }
+
 }

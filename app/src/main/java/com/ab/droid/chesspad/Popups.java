@@ -31,6 +31,7 @@ import com.ab.pgn.BitStream;
 import com.ab.pgn.Config;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
+import com.ab.pgn.PgnGraph;
 import com.ab.pgn.PgnItem;
 
 import java.io.File;
@@ -372,7 +373,7 @@ public class Popups {
 
             case Promotion:
                 dismissDlg();
-                promotionMove.piecePromoted = promotionList[2][selected] | (promotionMove.moveFlags & Config.BLACK);
+                promotionMove.setPiecePromoted(promotionList[2][selected] | (promotionMove.moveFlags & Config.BLACK));
                 chessPad.pgnGraph.validateUserMove(promotionMove);  // validate check
                 chessPad.pgnGraph.addUserMove(promotionMove);
                 break;
@@ -718,7 +719,7 @@ public class Popups {
         includeHeaders.setText(R.string.alert_annotate_label);
         ChessPadView.addTextView(rlPane, includeHeaders, x, y, w1, height);
         int res = 0;
-        if(mergeData.includeHeaders) {
+        if(mergeData.annotate) {
             res = R.drawable.check;
         }
         includeHeaders.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
@@ -726,9 +727,9 @@ public class Popups {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_UP) {
-                    mergeData.includeHeaders = !mergeData.includeHeaders;
+                    mergeData.annotate = !mergeData.annotate;
                     int res = 0;
-                    if(mergeData.includeHeaders) {
+                    if(mergeData.annotate) {
                         res = R.drawable.check;
                     }
                     includeHeaders.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
@@ -751,7 +752,7 @@ public class Popups {
         createMergeParamPane(rlHeaders);
 
         final Button btnOk = (Button)mDialog.findViewById(R.id.ok_button);
-        btnOk.setEnabled(false);
+        btnOk.setEnabled(mergeData.isMergeSetupOk());
         mergeData.setChangeObserver(new ChessPadView.ChangeObserver() {
             @Override
             public void onValueChanged(Object value) {
@@ -917,9 +918,9 @@ public class Popups {
                 if (value instanceof Move) {
                     Move move = (Move)value;
                     String text = move.toString().trim();
-                    if(move.glyph != 0) {
+                    if(move.getGlyph() != 0) {
                         String[] glyphs = getResources().getStringArray(R.array.glyphs);
-                        String glyph = glyphs[move.glyph].split("\\s+")[0];
+                        String glyph = glyphs[move.getGlyph()].split("\\s+")[0];
                         text += " " + glyph;
                     }
                     if(move.comment != null) {
@@ -1202,19 +1203,19 @@ public class Popups {
         }
     }
 
-    static class MergeData {
-        boolean includeHeaders;
+    static class MergeData extends PgnGraph.MergeData {
         ChessPadView.StringWrapper startStringWrapper;
         ChessPadView.StringWrapper endStringWrapper;
         ChessPadView.StringWrapper pgnPathWrapper;
-        int start, end;
-        String pgnPath;
         ChessPadView.ChangeObserver changeObserver;
 
         public MergeData(PgnItem.Item target) {
-            start = -1;
-            end = -1;
-            pgnPath = target.getParent().getAbsolutePath();
+            super(target);
+            init();
+        }
+
+        public MergeData(BitStream.Reader reader) throws Config.PGNException {
+            super(reader);
             init();
         }
 
@@ -1281,38 +1282,5 @@ public class Popups {
             this.changeObserver = changeObserver;
         }
 
-        public boolean isMergeSetupOk() {
-            if (!pgnPath.endsWith(PgnItem.EXT_PGN)) {
-                return false;
-            }
-            return end == -1 || start <= end;
-        }
-
-        private void serialize(BitStream.Writer writer) throws Config.PGNException {
-            try {
-                writer.write(start, 16);
-                writer.write(end, 16);
-                if(includeHeaders) {
-                    writer.write(1, 1);
-                } else {
-                    writer.write(0, 1);
-                }
-                writer.writeString(pgnPath);
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
-
-        private MergeData(BitStream.Reader reader) throws Config.PGNException {
-            try {
-                start = reader.read(16);
-                end = reader.read(16);
-                includeHeaders = reader.read(1) == 1;
-                pgnPath = reader.readString();
-                init();
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
     }
 }

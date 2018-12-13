@@ -18,7 +18,7 @@ import static org.mockito.Matchers.anyInt;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.*;
 
-/* commented for Studio 3
+//* comment for Studio 3
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
@@ -28,7 +28,7 @@ import org.powermock.modules.junit4.PowerMockRunner;
  * unit tests
  * Created by Alexander Bootman on 8/7/16.
  */
-/* commented for Studio 3
+//* comment for Studio 3
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Board.class, BitStream.Reader.class, ByteArrayInputStream.class})
 //*/
@@ -103,14 +103,14 @@ public class BoardTest extends BaseTest {
     }
 
     @Test
-    public void testFEN_ex() throws Config.PGNException{
+    public void testFEN_ex() throws Config.PGNException {
         String fen = "r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP";
         expectedEx.expect(Config.PGNException.class);
         expectedEx.expectMessage(String.format("invalid FEN %s", fen));
         Board board = new Board(fen);
     }
 
-    private List<Board> testFEN(Pair<String, Integer>[] fens, boolean updateResult) throws Config.PGNException{
+    private List<Board> testFEN(Pair<String, Integer>[] fens, boolean updateResult) throws Config.PGNException {
         List<Board> boards = new LinkedList<>();
         for(Pair<String, Integer> pair : fens) {
             String fen = pair.first;
@@ -208,7 +208,7 @@ public class BoardTest extends BaseTest {
         System.out.println("done");
     }
 
-/* commented for Studio 3
+//* comment for  for Studio 3
     @Test(expected = Config.PGNException.class)
     public void testBoardPackException() throws Exception {
         BitStream.Writer writer = mock(BitStream.Writer.class);
