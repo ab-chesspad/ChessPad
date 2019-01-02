@@ -30,10 +30,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -132,6 +128,7 @@ public class ChessPad extends AppCompatActivity {
         Save,
         Append,
         Setup,
+        AnyMove,
         CancelSetup,
         About,
     }
@@ -312,6 +309,7 @@ public class ChessPad extends AppCompatActivity {
         menuItems.add(new MenuItem(MenuCommand.Save, getResources().getString(R.string.menu_save), isSaveable()));
         menuItems.add(new MenuItem(MenuCommand.Append, getResources().getString(R.string.menu_append), mode == Mode.Game));
         if (mode == Mode.Game) {
+            menuItems.add(new MenuItem(MenuCommand.AnyMove, getResources().getString(R.string.menu_any_move), pgnGraph.isNullMoveValid()));
             menuItems.add(new MenuItem(MenuCommand.Setup, getResources().getString(R.string.menu_setup), true));
         } else {
             menuItems.add(new MenuItem(MenuCommand.CancelSetup, getResources().getString(R.string.menu_cancel_setup), true));
@@ -854,6 +852,12 @@ public class ChessPad extends AppCompatActivity {
 
             case Append:
                 popups.launchDialog(Popups.DialogType.Append);
+                break;
+
+            case AnyMove:
+                Move anyMove = pgnGraph.getBoard().newMove();
+                anyMove.moveFlags |= Config.FLAGS_NULL_MOVE;
+                pgnGraph.addMove(anyMove);
                 break;
 
             case Merge:

@@ -36,6 +36,7 @@
     <string name="menu_setup">Setup</string>
     <string name="menu_save">Save</string>
     <string name="menu_append">Append</string>
+    <string name="menu_any_move">Any move</string>
     <string name="menu_cancel_setup">Cancel Setup</string>
     <string name="menu_about">About</string>
 

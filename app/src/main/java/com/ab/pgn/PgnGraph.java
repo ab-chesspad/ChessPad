@@ -549,6 +549,26 @@ public class PgnGraph {
         }
     }
 
+    public boolean isNullMoveValid() {
+        if((getCurrentMove().moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
+            return false;   // two null moves are not allowed
+        }
+
+        Move nextMove = rootMove;
+        for(Move move : moveLine) {
+            Board board = getBoard(move);
+            Move m = board.getMove();
+            if(m == null) {
+                return false;   // last move, null move is not ok
+            }
+            if(!nextMove.isSameAs(move)) {
+                return true;    // we are within a variant, null move is ok
+            }
+            nextMove = m;
+        }
+        return true;    // not last move, null move is ok
+    }
+
     public void toEnd() {
         Board board = getBoard();
         if(board == null) {
