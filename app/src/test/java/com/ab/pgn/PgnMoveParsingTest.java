@@ -1,6 +1,7 @@
 package com.ab.pgn;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -14,6 +15,7 @@ import java.util.List;
  * parsing tests
  * Created by Alexander Bootman on 8/6/16.
  */
+//@Ignore
 public class PgnMoveParsingTest extends BaseTest {
     final static String version = Config.version;
 

@@ -1,7 +1,5 @@
 package com.ab.pgn;
 
-import android.annotation.SuppressLint;
-
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -29,7 +27,7 @@ public class PgnGraph {
 
     protected Move rootMove = new Move(Config.FLAGS_NULL_MOVE); // can hold initial comment
     protected PgnItem.Item pgn;                                 // headers and moveText
-    boolean modified;
+    private boolean modified;
     public LinkedList<Move> moveLine = new LinkedList<>();
     Map<Pack, Board> positions = new HashMap<>();
 
@@ -379,7 +377,7 @@ public class PgnGraph {
     public void serializeMoveLine(BitStream.Writer writer, int versionCode) throws Config.PGNException {
         try {
             writer.write(versionCode, 4);
-            writer.write(moveLine.size() - 1, 9);   // max 256 2-ply moves
+            writer.write(moveLine.size() - 1, 10);
             boolean skip = true;
             for(Move move : moveLine) {
                 if(skip) {
@@ -393,7 +391,6 @@ public class PgnGraph {
         }
     }
 
-    @SuppressLint("DefaultLocale")
     public void unserializeMoveLine(BitStream.Reader reader, int versionCode) throws Config.PGNException {
         try {
             int oldVersionCode;
@@ -401,7 +398,8 @@ public class PgnGraph {
                 throw new Config.PGNException(String.format("Old serialization %d ignored", oldVersionCode));
             }
             moveLine.clear();
-            int moveLineSize = reader.read(9);
+            moveLine.add(rootMove);
+            int moveLineSize = reader.read(10);
             Board board = getInitBoard();
             for( int i = 0; i < moveLineSize; ++i) {
                 Move move = new Move(reader, board);
@@ -490,7 +488,7 @@ public class PgnGraph {
         return pgn;
     }
 
-    // needed for 'unserialization'
+    // needed for 'unGlization'
     public void setPgn(PgnItem.Item pgn) {
         this.pgn = pgn;
     }
@@ -793,6 +791,9 @@ public class PgnGraph {
     }
 
     public String getNumberedMove() {
+        if(moveLine.size() <= 1) {
+            return "";
+        }
         return getNumberedMove(getCurrentMove());
     }
 
@@ -943,6 +944,7 @@ public class PgnGraph {
             pm.variation = m.variation;
         }
 
+        move2Del.setVariation(null);    // do not delete its variaipons
         delPositionsAfter(move2Del);
         modified = true;
     }
@@ -1237,8 +1239,11 @@ public class PgnGraph {
         move.comment = new String(comment);
     }
 
-    public boolean merge(final Move mergeMove, final PgnItem.Item item, final MergeData mergeData) throws Config.PGNException {
+    // merge by position, even if plyNum is different
+    private boolean merge(Move mergeMove, final PgnItem.Item item, final MergeData mergeData) throws Config.PGNException {
         final Pack mergePack = new Pack(mergeMove.packData);
+        Board mergeBoard = PgnGraph.this.positions.get(mergePack);
+        final int mergedPlyNum = mergeBoard.getPlyNum();
         final boolean[] merged = {false};
         try {
             final PgnGraph mergeCandidate = new PgnGraph();
@@ -1283,20 +1288,22 @@ public class PgnGraph {
                                 pgnGraph.getNumberedMove(currentMove), mergeState.toString(), variations.size()));
                     }
 
-
-                    Move prevMove = pgnGraph.moveLine.get(pgnGraph.moveLine.size() - 2);
-                    Pack pack = new Pack(prevMove.packData);
+                    Pack pack;
 
                     switch (mergeState) {
                         case Search:
-                            if (mergePack.equals(pack)) {
+                            pack = new Pack(currentMove.packData);
+                            if (mergePack.equalPosition(pack)) {
                                 mergeState = MergeState.Merge;
                                 if(DEBUG) {
                                     System.out.print(mergeState.toString());
                                 }
                                 addComment = true;
                                 merged[0] = true;
-                                // fall through!
+                                Board candidateBoard = pgnGraph.getBoard(currentMove);
+                                candidateBoard.setPlyNum(mergedPlyNum);     // equalize mergeBoard.plyNum and candidateBoard.plyNum
+                                currentMove.packData = candidateBoard.pack();
+                                pgnGraph.positions.put(new Pack(currentMove.packData), candidateBoard);   // store copy
                             } else {
                                 int numberOfPieces = new Pack(currentMove.packData).getNumberOfPieces();
                                 if (numberOfPieces < mergePack.getNumberOfPieces()) {
@@ -1307,10 +1314,12 @@ public class PgnGraph {
                                     skipVariantLevel = variations.size();
                                     return skipVariantLevel > 0;
                                 }
-                                break;
                             }
+                            break;
 
                         case Merge:
+                            Move prevMove = pgnGraph.moveLine.get(pgnGraph.moveLine.size() - 2);
+                            pack = new Pack(prevMove.packData);
                             Board prevBoard = PgnGraph.this.positions.get(pack);
                             if(prevBoard == null) {
                                 String msg = String.format("When merging cannot find position \n%s after %s for %s",

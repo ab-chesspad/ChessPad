@@ -265,7 +265,9 @@ public class GameView {
     public void invalidate() {
         title.setText(chessPad.pgnGraph.getTitle());
         if(chessPad.selectedSquare == null) {
-            boardView.setSelected(chessPad.pgnGraph.getCurrentMove().getTo());
+            if(chessPad.pgnGraph.moveLine.size() > 1) {
+                boardView.setSelected(chessPad.pgnGraph.getCurrentMove().getTo());
+            }
         } else {
             boardView.setSelected(chessPad.selectedSquare);
         }

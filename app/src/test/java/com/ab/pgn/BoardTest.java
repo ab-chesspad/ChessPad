@@ -138,15 +138,15 @@ public class BoardTest extends BaseTest {
     @SuppressWarnings("unchecked")
     public void testFEN_inv() throws Config.PGNException{
         final Pair<String, Integer>[] fens = new Pair[] {
-                // error always for White!
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w - - 0 1", 0),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRN2 w - - 0 1", 7),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PP1/P1BQRNK1 w - - 0 1", 9),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB1BPPP/R1BQRNK1 w - - 0 1", 15),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R2QRNKK w - - 0 1", 17),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/8/8/BBBBBBBB/RBBQRNKB w - - 0 1", 17),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/8/4P3/BBBBBBBB/RBBQRNK1 w - - 0 1", 17),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/8/8/BBBBBBBB/RBBQRNKR w - - 0 1", 17),
+            // error always for White!
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w - - 0 1", 0),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRN2 w - - 0 1", 7),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PP1/P1BQRNK1 w - - 0 1", 9),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB1BPPP/R1BQRNK1 w - - 0 1", 15),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R2QRNKK w - - 0 1", 17),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/8/8/BBBBBBBB/RBBQRNKB w - - 0 1", 17),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/8/4P3/BBBBBBBB/RBBQRNK1 w - - 0 1", 17),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/8/8/BBBBBBBB/RBBQRNKR w - - 0 1", 17),
         };
         testFEN(fens, true);
     }
@@ -155,9 +155,9 @@ public class BoardTest extends BaseTest {
     @SuppressWarnings("unchecked")
     public void testFEN() throws Config.PGNException {
         final Pair<String, Integer>[] fens = new Pair[]{
-                new Pair<>("r1bqkbnr/pPp4p/4pp2/3pP3/6p1/5P2/P1PP2PP/RNBQKBNR w KQkq d6 2 1", 11),
-                new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w KQkq - 0 1", 13),
-                new Pair<>("r1bqkbnr/pPp4p/4pp2/3pP3/6p1/5P2/P1PP2PP/RNBQKBNR w KQkq d6 0 1", 0),
+            new Pair<>("r1bqkbnr/pPp4p/4pp2/3pP3/6p1/5P2/P1PP2PP/RNBQKBNR w KQkq d6 2 1", 11),
+            new Pair<>("r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w KQkq - 0 1", 13),
+            new Pair<>("r1bqkbnr/pPp4p/4pp2/3pP3/6p1/5P2/P1PP2PP/RNBQKBNR w KQkq d6 0 1", 0),
         };
         List<Board> boards = testFEN(fens, false);
         Board board = boards.get(0);

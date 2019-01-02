@@ -432,6 +432,13 @@ public class ChessPadView extends View implements ProgressBarHolder{
             return value;
         }
 
+        public String getNumericValue() {
+            if(value == null || value.isEmpty()) {
+                return "0";
+            }
+            return getValue();
+        }
+
         public void setValue(String value) {
             if( this.value == null || !this.value.equals(value)) {
                 this.value = value;

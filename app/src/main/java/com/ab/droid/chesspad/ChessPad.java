@@ -23,13 +23,12 @@ import com.ab.pgn.PgnGraph;
 import com.ab.pgn.PgnItem;
 import com.ab.pgn.Square;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -54,7 +53,6 @@ public class ChessPad extends AppCompatActivity {
     //*/
     static final String
         STATUS_FILE_NAME = ".ChessPad.state",
-        CURRENT_FILE_NAME = ".ChessPad.pgngraph",
         MOVELINE_FILE_NAME = ".ChessPad.moveline",
         CURRENT_PGN_NAME = ".ChessPad.current.pgn",
         DEFAULT_DIRECTORY = "ChessPad",
@@ -159,7 +157,10 @@ public class ChessPad extends AppCompatActivity {
     transient protected ChessPadView chessPadView;
     transient private String[] setupErrs;
     transient private boolean freshStart = true;
-    transient private boolean pgngraphModified = false;
+    transient private boolean pgngraphModified = false;     // compared to status
+    private String currentItemPath = null;  // for unserialization only
+    private int currentItemIndex;           // for unserialization only
+    private boolean currentItemModified;    // for unserialization only
 
     // Always followed by onStart()
     @Override
@@ -204,9 +205,12 @@ public class ChessPad extends AppCompatActivity {
         if(freshStart) {
             mode = Mode.Game;
             unserializing = true;
-            unserializeUI();
-            chessPadView.enableCommentEdit(false);
-            unserializePgnGraph();
+            if(unserializeUI()) {
+                chessPadView.enableCommentEdit(false);
+                unserializePgnGraph();
+            } else {
+                unserializing = false;
+            }
         }
     }
 
@@ -326,39 +330,28 @@ public class ChessPad extends AppCompatActivity {
         FileOutputStream fos = null;
         File outDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
         if(pgngraphModified || pgnGraph.isModified()) {
-            DataOutputStream dos = null;
             try {
-                dos = new DataOutputStream(new FileOutputStream(new File(outDir.getAbsolutePath(), CURRENT_PGN_NAME).getAbsolutePath()));
-                pgnGraph.getPgn().serialize(dos);
-                dos.close();
-            } catch (IOException|Config.PGNException e) {
-                Log.e(DEBUG_TAG, "serializePgnGraph", e);
-            }
-
-            try {
-                fos = new FileOutputStream(new File(outDir.getAbsolutePath(), CURRENT_FILE_NAME));
+                fos = new FileOutputStream(new File(outDir.getAbsolutePath(), CURRENT_PGN_NAME));
             } catch (FileNotFoundException e) {
                 // should never happen
                 Log.e(DEBUG_TAG, "serializePgnGraph()", e);
             }
 
             if (fos != null) {
-                final PgnItem.Pgn _pgn = new PgnItem.Pgn(new File(outDir.getAbsolutePath(), CURRENT_FILE_NAME).getAbsolutePath());
+                final PgnItem.Pgn _pgn = new PgnItem.Pgn(new File(outDir.getAbsolutePath(), CURRENT_PGN_NAME).getAbsolutePath());
                 final PgnItem.Item _item = new PgnItem.Item(_pgn, "status");
-                _item.setMoveText(pgnGraph.toPgn());
+                _item.setIndex(0);
+                PgnItem.Item original = pgnGraph.getPgn();
+                _item.setHeaders(original.getHeaders());
+                pgnGraph.setPgn(_item);
+                boolean modified = pgnGraph.isModified();
                 try {
-                    _item.save(null);
+                    pgnGraph.save(true, null);
                 } catch (Config.PGNException e) {
                     Log.e(DEBUG_TAG, "serializePgnGraph", e);
                 }
-                dos = new DataOutputStream(fos);
-                try {
-                    pgnGraph.serializeGraph(dos, versionCode);
-                    dos.close();
-                    fos.close();
-                } catch (Config.PGNException | IOException e) {
-                    Log.e(DEBUG_TAG, "serializePgnGraph", e);
-                }
+                pgnGraph.setPgn(original);
+                pgnGraph.setModified(modified);
             }
             pgngraphModified = false;
         }
@@ -384,154 +377,72 @@ public class ChessPad extends AppCompatActivity {
 
     // unserialize graph and moveline
     private void unserializePgnGraph() {
+        FileInputStream fis = null;
+        final File inDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
+
         try {
-            pgnGraph = new PgnGraph(new Board());
-            FileInputStream fis = null;
-            final File inDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
+            BufferedReader br = new BufferedReader(new FileReader(new File(inDir.getAbsolutePath(), CURRENT_PGN_NAME)));
+            final List<PgnItem> items = new LinkedList<>();
+            PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
+                @Override
+                public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
+                    items.add(entry);
+                    return true;
+                }
 
-            try {
-                fis = new FileInputStream(new File(inDir.getAbsolutePath(), MOVELINE_FILE_NAME));
-                BitStream.Reader reader = new BitStream.Reader(fis);
-                pgnGraph.unserializeMoveLine(reader, versionCode);
-            } catch (FileNotFoundException|Config.PGNException e) {
-                Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
-                chessPadView.invalidate();
-                unserializing = false;
-                chessPadView.enableCommentEdit(true);
-                return;
-            }
+                @Override
+                public boolean getMoveText(PgnItem entry) {
+                    return true;
+                }
 
-            final LinkedList<Move> moveLine = pgnGraph.moveLine;
-            PgnItem pgn = null;
-            // headers:
-            try {
-                DataInputStream dis = new DataInputStream(new FileInputStream(new File(inDir.getAbsolutePath(), CURRENT_PGN_NAME)));
-                pgn = PgnItem.unserialize(dis);
-                dis.close();
-            } catch (IOException|Config.PGNException e) {
-                Log.e(DEBUG_TAG, "serializePgnGraph", e);
-            }
+                @Override
+                public void addOffset(int length, int totalLength) {
 
-            // pgn text:
-            byte[] content = null;
+                }
+            });
+            pgnGraph = new PgnGraph((PgnItem.Item)items.get(0), null);
+            pgnGraph.getPgn().setParent(PgnItem.fromFile(new File(currentItemPath)));
+            pgnGraph.getPgn().setIndex(currentItemIndex);
+            pgnGraph.setModified(currentItemModified);
+        } catch (IOException | Config.PGNException e) {
+            Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
             try {
-                File f = new File(inDir.getAbsolutePath(), CURRENT_FILE_NAME);
-                int length = (int)f.length();
-                content = new byte[length];
-                BufferedInputStream buf = new BufferedInputStream(new FileInputStream(f));
-                int l = buf.read(content, 0, content.length);
-                buf.close();
-            } catch (IOException e) {
-                Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
-                content = null;
+                pgnGraph = new PgnGraph(new Board());
+            } catch (Config.PGNException e1) {
+                Log.e(DEBUG_TAG, "unserializePgnGraph()", e1);
             }
-            if (content == null) {
-                unserializing = false;
-            } else {
-                final PgnItem.Item finalPgn = (PgnItem.Item)pgn;
-                finalPgn.setMoveText(new String(content));
-                loadPgnGraph(finalPgn, new CPPostExecutor() {
-                    @Override
-                    public void onPostExecute() throws Config.PGNException {
-                        Log.d(DEBUG_TAG, String.format("unserializePgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));
-                        pgnGraph.setPgn(finalPgn);
-                        pgnGraph.moveLine = moveLine;
-                        chessPadView.invalidate();
-                        unserializing = false;
-                        chessPadView.enableCommentEdit(true);
-                    }
-                });
-            }
-        } catch (Config.PGNException e) {
-            // should not happen
-            Log.e(DEBUG_TAG, "unserializePgnGraph()", e);
+            chessPadView.invalidate();
+            unserializing = false;
+            chessPadView.enableCommentEdit(true);
+            return;
         }
-    }
 
-//    private void navigate(List<Move> moveLine) {
-//        for(Move move : moveLine) {
-//            Board board = pgnGraph.getBoard(move);
-//            Move m = board.getMove();
-//            while(m != null && !move.equals(m)) {
-//                m = m.getVariation();
-//            }
-//            if( m == null) {
-//                break;
-//            }
-//
-//        }
-//    }
+        try {
+            fis = new FileInputStream(new File(inDir.getAbsolutePath(), MOVELINE_FILE_NAME));
+            BitStream.Reader reader = new BitStream.Reader(fis);
+            pgnGraph.unserializeMoveLine(reader, versionCode);
+        } catch (FileNotFoundException|Config.PGNException e) {
+            Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
+        }
+        chessPadView.invalidate();
+        unserializing = false;
+        chessPadView.enableCommentEdit(true);
+    }
 
     private void serializeUI() {
         Log.d(DEBUG_TAG, "serializeUI()");
         try {
             BitStream.Writer writer = new BitStream.Writer(openFileOutput(STATUS_FILE_NAME, Context.MODE_PRIVATE));
-            this.serializeUI(writer, versionCode);
-        } catch (Config.PGNException | IOException e) {
-            Log.d(DEBUG_TAG, "serializeUI", e);
-        }
-    }
-
-    private void unserializeUI() {
-        Log.d(DEBUG_TAG, "unserializeUI()");
-        FileInputStream fis = null;
-
-        try {
-            try {
-                if(CRASH_RESTORE != null) {
-                    File inDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
-                    fis = new FileInputStream(new File(inDir.getAbsolutePath(), CRASH_RESTORE));
-                } else {
-                    fis = openFileInput(STATUS_FILE_NAME);
-                    if(DEBUG) {
-                        File f = new File(new File(PgnItem.getRoot(), ChessPad.DEFAULT_DIRECTORY), STATUS_FILE_NAME);
-                        FileOutputStream fos = new FileOutputStream(f);
-                        byte[] buf = new byte[8192];
-                        int len;
-                        while( (len = fis.read(buf)) > 0) {
-                            fos.write(buf, 0, len);
-                        }
-                        fos.close();
-                        fis = openFileInput(STATUS_FILE_NAME);
-                    }
-                }
-            } catch (FileNotFoundException e) {
-                Log.w(DEBUG_TAG, "unserializeUI() 1", e);
-            }
-
-            if (fis != null) {
-                BitStream.Reader reader = new BitStream.Reader(fis);
-                unserializeUI(reader, versionCode);
-                fis.close();
-            }
-        } catch (Throwable t) {
-            Log.e(DEBUG_TAG, "unserializeUI()", t);
-            StringWriter sw = new StringWriter();
-            t.printStackTrace(new PrintWriter(sw));
-            popups.crashAlert(sw.toString());
-            if (fis != null) {
-                try {
-                    File outDir = new File(PgnItem.getRoot(), DEFAULT_DIRECTORY);
-                    String ts = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date());
-                    FileOutputStream fos = new FileOutputStream(new File(outDir.getAbsolutePath(), "cp-crash-" + ts));
-                    PgnItem.copy(fis, fos);
-                } catch (IOException e) {
-                    Log.e(DEBUG_TAG, e.getMessage(), e);
-                }
-            }
-        }
-
-        chessPadView.redraw();
-        if(mode == Mode.Setup) {
-            setup.setChessPadView(chessPadView);
-            setup.onValueChanged(null);
-        }
-    }
-
-    private void serializeUI(BitStream.Writer writer, int versionCode) throws Config.PGNException {
-        try {
             writer.write(versionCode, 4);
             currentPath.serialize(writer);
+            writer.writeString(pgnGraph.getPgn().getParent().getAbsolutePath());
+            writer.write(pgnGraph.getPgn().getIndex(), 16);
+            if(pgnGraph.isModified()) {
+                writer.write(1, 1);
+            } else {
+                writer.write(0, 1);
+            }
+
             if (mode == Mode.Game) {
                 writer.write(0, 1);
             } else {
@@ -557,38 +468,56 @@ public class ChessPad extends AppCompatActivity {
             }
             popups.serialize(writer);
             writer.close();
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
+        } catch (Config.PGNException | IOException e) {
+            Log.d(DEBUG_TAG, "serializeUI", e);
         }
     }
 
-    private boolean unserializeUI(BitStream.Reader reader, int versionCode) throws Config.PGNException {
+    private boolean unserializeUI() {
+        boolean res = false;
         try {
-            int oldVersionCode;
-            if (versionCode != (oldVersionCode = reader.read(4))) {
+            BitStream.Reader reader = new BitStream.Reader(openFileInput(STATUS_FILE_NAME));
+            int oldVersionCode = reader.read(4);
+            if (versionCode != oldVersionCode) {
                 Log.w(DEBUG_TAG, String.format("Old serialization %d ignored", oldVersionCode));
-                return false;
-            }
-            currentPath = PgnItem.unserialize(reader);
-            if (reader.read(1) == 1) {
-                mode = Mode.Setup;
-                setup = new Setup(reader);
             } else {
-                mode = Mode.Game;
+                currentPath = PgnItem.unserialize(reader);
+                currentItemPath = reader.readString();
+                currentItemIndex = reader.read(16);
+                if(currentItemIndex == 0x0ffff) {
+                    currentItemIndex= -1;
+                }
+                if (reader.read(1) == 1) {
+                    currentItemModified = true;
+                } else {
+                    currentItemModified = false;
+                }
+                if (reader.read(1) == 1) {
+                    mode = Mode.Setup;
+                    setup = new Setup(reader);
+                } else {
+                    mode = Mode.Game;
+                }
+                if (reader.read(1) == 1) {
+                    nextPgnItem = (PgnItem.Item) PgnItem.unserialize(reader);
+                }
+                reversed = reader.read(1) == 1;
+                if (reader.read(1) == 1) {
+                    selectedSquare = new Square(reader);
+                    selectedPiece = pgnGraph.getBoard().getPiece(selectedSquare);
+                }
+                popups.unserialize(reader);
+                res = true;
             }
-            if (reader.read(1) == 1) {
-                nextPgnItem = (PgnItem.Item) PgnItem.unserialize(reader);
-            }
-            reversed = reader.read(1) == 1;
-            if (reader.read(1) == 1) {
-                selectedSquare = new Square(reader);
-                selectedPiece = pgnGraph.getBoard().getPiece(selectedSquare);
-            }
-            popups.unserialize(reader);
-            return true;
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
+        } catch(Throwable t){
+            Log.e(DEBUG_TAG, t.getMessage(), t);
         }
+        chessPadView.redraw();
+        if(mode == Mode.Setup) {
+            setup.setChessPadView(chessPadView);
+            setup.onValueChanged(null);
+        }
+        return res;
     }
     public void setReversed(boolean reversed) {
         this.reversed = reversed;

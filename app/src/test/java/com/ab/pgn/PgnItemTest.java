@@ -23,6 +23,7 @@ import java.util.List;
  * test pgn operations
  * Created by Alexander Bootman on 7/30/16.
  */
+//@Ignore
 public class PgnItemTest extends BaseTest {
 
     @Test
@@ -350,7 +351,7 @@ public class PgnItemTest extends BaseTest {
     }
 
     @Test
-    @Ignore("Just prints results")
+//    @Ignore("Just prints results")
     public void testSort() {
         List<PgnItem> list = new ArrayList<>(Arrays.asList(
             new PgnItem.Pgn("1.pgn"),

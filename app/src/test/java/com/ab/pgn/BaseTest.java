@@ -147,7 +147,7 @@ public class BaseTest {
 
     public boolean areEqual(PgnGraph g1, PgnGraph g2) {
         // ignore headers
-        if(g2.modified != g1.modified) {
+        if(g2.isModified() != g1.isModified()) {
             return false;
         }
         if(g2.positions.size() != g1.positions.size()) {

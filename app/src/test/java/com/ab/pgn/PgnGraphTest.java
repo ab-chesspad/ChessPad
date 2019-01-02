@@ -24,6 +24,7 @@ import java.util.List;
  *
  * Created by Alexander Bootman on 10/29/17.
  */
+//@Ignore
 public class PgnGraphTest extends BaseTest {
     public static boolean USE_BIT_STREAMS = false;
     public static String LOG_FILE_WRITER_NAME = prefix + "log/graph-w.log";
@@ -360,7 +361,6 @@ public class PgnGraphTest extends BaseTest {
         List<PgnGraph> graphs = _parse(pgn);
         Assert.assertTrue(graphs.size() == 1);
         PgnGraph graph = graphs.get(0);
-        graph.toPrev();
         Move m = graph.getCurrentMove();
         Board b = graph.getBoard();
 
@@ -475,6 +475,49 @@ public class PgnGraphTest extends BaseTest {
     }
 
     @Test
+//    @Ignore("lond test")
+    public void testMerge_SicilianGranPrix() throws Config.PGNException, IOException {
+        String pgnFile = "SicilianGrandPrix.pgn";
+        String[] moveLines = {
+            "e4 c5 Nc3 Nc6 f4",
+            "Nc3 Nf6 Nb1 Ng8 Nc3 c5 f4 Nc6 e4",
+        };
+        PgnGraph[] mergedGraphs = new PgnGraph[moveLines.length];
+
+        for(int i = 0; i < moveLines.length; ++i) {
+            String moveLine = moveLines[i];
+            List<PgnGraph> graphs = _parse(moveLine);
+            Assert.assertTrue(graphs.size() == 1);
+            PgnGraph graph = graphs.get(0);
+
+            PgnItem.Pgn pgnItem = new PgnItem.Pgn(pgnFile);
+            PgnGraph.MergeData md = new PgnGraph.MergeData(pgnItem);
+            md.end = md.start = -1;
+            md.annotate = true;
+            graph.merge(md, null);
+            // remove all moves preceding merge:
+            Pack pack = null;
+            for(Move m : graph.moveLine) {
+                if(pack == null) {
+                    pack = new Pack(m.packData);  // init board
+                    continue;
+                }
+                Board b = graph.positions.remove(pack);
+                String x = b.toString();
+                logger.debug(x);
+                pack = new Pack(m.packData);  // init board
+            }
+            graph.rootMove.packData = graph.moveLine.getLast().packData;
+//            String s = graph.toPgn();
+//            Assert.assertEquals(0, graph.getNumberOfMissingVertices());
+            mergedGraphs[i] = graph;
+        }
+        for(int i = 1; i < mergedGraphs.length; ++i) {
+            Assert.assertTrue(areEqual(mergedGraphs[0], mergedGraphs[i]));
+        }
+    }
+
+    @Test
     public void testMerge_MaxLangeAttack() throws Config.PGNException, FileNotFoundException {
         String pgn =
             "[White \"Max Lange\"]\n" +
@@ -515,7 +558,7 @@ public class PgnGraphTest extends BaseTest {
 //    @Ignore("lond test")
     public void testMerge_MaxLangeAttackMain() throws Config.PGNException {
         Board.DEBUG = false;
-        PgnGraph.DEBUG = true;
+        PgnGraph.DEBUG = DEBUG;
         String targetPgn =
             "[White \"Max Lange Attack\"]\n" +
             "[Black \"Main\"]\n" +
@@ -545,6 +588,7 @@ public class PgnGraphTest extends BaseTest {
 
 
     @Test
+    @Ignore("unused functionality")
     public void testSerializeGraph_0() throws Config.PGNException, IOException {
         String pgn =
             "[White \"merge\"]\n" +
@@ -558,7 +602,7 @@ public class PgnGraphTest extends BaseTest {
         for (PgnGraph graph : graphs) {
             logger.debug(graph.toPgn());
             PgnGraph unserialized;
-            PgnGraph.DEBUG = true;
+            PgnGraph.DEBUG = DEBUG;
             if(USE_BIT_STREAMS) {
                 BitStream.Writer writer = new BitStream.Writer();
                 graph.serializeGraph(writer, TEST_SERIALIZATION_VERSION);
@@ -583,7 +627,7 @@ public class PgnGraphTest extends BaseTest {
     }
 
     @Test
-//    @Ignore("lond test")
+    @Ignore("unused functionality")
     public void testSerializeGraph_1() throws Config.PGNException, IOException {
         PgnItem.setRoot(new File(TEST_ROOT));
         String[] fNames = {

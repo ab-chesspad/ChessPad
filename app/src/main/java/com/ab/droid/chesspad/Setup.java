@@ -190,7 +190,7 @@ public class Setup implements ChessPadView.ChangeObserver {
     public void onAnyValueChanged() {
         int errNum = 0;
         if(chessPadView != null) {
-            int hmClock = Integer.valueOf(this.hmClock.getValue());
+            int hmClock = Integer.valueOf(this.hmClock.getNumericValue());
             board.setReversiblePlyNum(hmClock);
 //            int moveNum = Integer.valueOf(this.moveNum.getValue());
 //            board.setPlyNum(hmClock);

@@ -1,8 +1,5 @@
 package com.ab.pgn;
 
-//import android.support.annotation.NonNull;
-//import android.support.annotation.StringDef;
-
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
@@ -715,8 +712,8 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         @Override
         public void serialize(BitStream.Writer writer) throws Config.PGNException {
-                serializeBase(writer);
-                serialize(writer, this.headers);
+            serializeBase(writer);
+            serialize(writer, this.headers);
 /*  11/18/2018 verify!!
             try {
                 writer.writeString(this.moveText);
@@ -858,7 +855,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         @Override
         public int parentIndex(PgnItem parent) throws Config.PGNException {
-            Pgn thisParent = (Pgn) this.getParent();
+            PgnItem thisParent = this.getParent();
             if(thisParent == null ||
                     !thisParent.getAbsolutePath().startsWith(parent.getAbsolutePath())) {
                 return -1;
