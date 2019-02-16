@@ -19,21 +19,12 @@ import com.ab.pgn.Square;
 import java.util.List;
 import java.util.Locale;
 
-//import android.hardware.usb.UsbDevice;
-
 /**
  *
  * Created by Alexander Bootman on 11/27/16.
  */
 
-public class GameView {
-    protected final String DEBUG_TAG = this.getClass().getName();
-
-    private final ChessPad chessPad;
-    private final RelativeLayout relativeLayoutMain;
-
-    private TextView title;
-    private BoardView boardView;
+public class GameView extends ChessPadView.CpView {
 
     private TextView glyph, move;
     private ChessPadView.CpEditText comment;
@@ -42,34 +33,15 @@ public class GameView {
 
     private ChessPadView.CpImageButton[] imageButtons = new ChessPadView.CpImageButton[ChessPad.Command.total()];
 
-    public GameView(ChessPad chessPad, RelativeLayout relativeLayoutMain) {
-        this.chessPad = chessPad;
-        this.relativeLayoutMain = relativeLayoutMain;
-
+    public GameView(ChessPad chessPad) {
+        super(chessPad);
     }
 
-//    private void testUsb() {
-//        HashMap<String, UsbDevice> deviceList = DgtSetup.discover(chessPad);
-//        if(deviceList == null) {
-//            comment.setText("UsbDevice list is null");
-//            return;
-//        }
-//
-//        String msg = "Usb list:\n";
-//
-//        Iterator<UsbDevice> deviceIterator = deviceList.values().iterator();
-//        while(deviceIterator.hasNext()){
-//            UsbDevice device = deviceIterator.next();
-//            msg += device.getDeviceName() + "\n";
-//        }
-//        comment.setText(msg);
-//
-//    }
-
+    @Override
     public void draw() {
         int x, y, dx, dy;
 
-        title = ChessPadView.drawTitleBar(chessPad, relativeLayoutMain, new TitleHolder() {
+        title = ChessPadView.drawTitleBar(chessPad, new TitleHolder() {
             @Override
             public String getTitleText() {
                 return chessPad.getTitleText();
@@ -203,14 +175,10 @@ public class GameView {
         comment.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
             }
-
             @Override
             public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
-
             }
-
             @Override
             public void afterTextChanged(Editable editable) {
                 // fix it: called on every character, I only need the final value
@@ -258,10 +226,9 @@ public class GameView {
             Metrics.cpScreenHeight = y + h;
         }
         setButtonEnabled(ChessPad.Command.Stop.getValue(), false);
-
-//        testUsb();
     }
 
+    @Override
     public void invalidate() {
         title.setText(chessPad.pgnGraph.getTitle());
         if(chessPad.selectedSquare == null) {

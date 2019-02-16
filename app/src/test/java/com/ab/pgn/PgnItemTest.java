@@ -276,7 +276,7 @@ public class PgnItemTest extends BaseTest {
                 }
             }
         }
-        logger.debug("done");
+        logger.debug("finish");
     }
 
     @Test
@@ -291,7 +291,7 @@ public class PgnItemTest extends BaseTest {
             "6. Rc1 O-O";
         String noComments = s.replaceAll("(?s)\\{.*?\\}", "");
         Assert.assertTrue(noComments.indexOf("{") < 0);
-        logger.debug("done");
+        logger.debug("finish");
     }
 
     @Test
@@ -325,7 +325,7 @@ public class PgnItemTest extends BaseTest {
             "14. Bh6#) 14. Bxg8) 12. Rxe8+ Rxe8 13. Rxe8+ Nxe8 14. Bc2 $18 1-0\n";
         String noCr = s.replaceAll("(?s)\\s+", " ");
         Assert.assertTrue(noCr.indexOf("\n") < 0);
-        logger.debug("done");
+        logger.debug("finish");
     }
 
     @Test
@@ -337,7 +337,7 @@ public class PgnItemTest extends BaseTest {
         String s3 = s.replaceAll("(^|[^\\\\])\\\\(\"|\\\\)", "$1$2");
 
         logger.debug(String.format("regex: %s, %s", s, s3));
-        logger.debug("done");
+        logger.debug("finish");
     }
 
     @Test
@@ -346,7 +346,7 @@ public class PgnItemTest extends BaseTest {
         String s3 = s.replaceAll("(\\\\|\\\")", "\\\\$1");
 
         logger.debug(String.format("regex: %s, %s", s, s3));
-        logger.debug("done");
+        logger.debug("finish");
 
     }
 
@@ -384,7 +384,7 @@ public class PgnItemTest extends BaseTest {
         for(PgnItem item : list) {
             System.out.println(String.format("%s, %s", item.getClass().toString(), item.getName()));
         }
-        logger.debug("done");
+        logger.debug("finish");
     }
 
     @Test

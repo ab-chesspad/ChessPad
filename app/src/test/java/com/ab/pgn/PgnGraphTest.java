@@ -1,5 +1,7 @@
 package com.ab.pgn;
 
+import com.ab.pgn.dgtboard.DgtBoardPad;
+
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -19,6 +21,7 @@ import java.io.PrintStream;
 import java.io.StringReader;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 
 /**
  *
@@ -85,6 +88,10 @@ public class PgnGraphTest extends BaseTest {
             Assert.assertEquals(1, resPgnGraphs.size());
             PgnGraph resPgnGraph = resPgnGraphs.get(0);
             Assert.assertTrue(String.format("diff:\n%s\n%s", resPgn, resPgnGraph.toPgn()), areEqual(pgnGraph, resPgnGraph));
+        }
+
+        for(PgnGraph pgnGraph: pgnGraphs) {
+            testFindMove(pgnGraph);
         }
         return pgnGraphs;
     }
@@ -161,12 +168,34 @@ public class PgnGraphTest extends BaseTest {
         testParsing(pgn);
     }
 
+    private void testFindMove(PgnGraph pgnGraph) {
+        ListIterator<Move> li = pgnGraph.moveLine.listIterator(pgnGraph.moveLine.size());
+        Board nextBoard = null;
+        Move nextMove = null;
+        while(li.hasPrevious()) {
+            Move move = li.previous();
+            Board board = pgnGraph.getBoard();
+            System.out.println(String.format("%s\n%s", move, board));
+            if(nextBoard != null) {
+                Move _move = board.findMove(nextBoard);
+                Assert.assertTrue(nextMove.isSameAs(_move));
+            }
+            nextMove = move;
+            nextBoard = board;
+            if(move != pgnGraph.rootMove) {
+                li.remove();
+            }
+        }
+    }
+
+/*
     @Test
     public void testParsingInit() throws Config.PGNException {
         PgnGraph pgnGraph = new PgnGraph();
         Board board = pgnGraph.getBoard();
 
     }
+*/
 
     @Test
     public void testParsingVariants() throws Config.PGNException {
@@ -190,11 +219,15 @@ public class PgnGraphTest extends BaseTest {
         Assert.assertTrue(graphs.size() == 3);
         Assert.assertTrue(areEqual(graphs.get(2), graphs.get(1)));
 
-        PgnGraph graph = graphs.get(0);
-        String s = graph.toPgn();
+        PgnGraph pgnGraph = graphs.get(0);
+        String s = pgnGraph.toPgn();
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
         Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1}"));
         System.out.println(s);
+        List<String> movesText = pgnGraph.getMovesText();
+        for(String part : movesText) {
+            System.out.println(part);
+        }
     }
 
     @Test

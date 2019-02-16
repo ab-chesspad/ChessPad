@@ -433,7 +433,11 @@ public abstract class PgnItem implements Comparable<PgnItem> {
                         if (i > 0) {
                             String hName = unescapeTag(line.substring(0, i).trim());
                             String hValue = unescapeTag(line.substring(i + nameValueSep.length()).trim());
-                            item.headers.add(new Pair<>(hName, hValue));
+                            if(hName.equals(Config.HEADER_FEN)) {
+                                item.setFen(hValue);
+                            } else {
+                                item.headers.add(new Pair<>(hName, hValue));
+                            }
                         }
                     } else {
                         sb.append(line).append("\n");
@@ -517,6 +521,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
                 }
                 item.headers = ((Item)entry).headers;
                 item.moveText = ((Item)entry).moveText;
+                item.fen = ((Item)entry).fen;
                 return false;
             }
 
@@ -693,6 +698,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
     public static class Item extends PgnItem {
         protected List<Pair<String, String>> headers = new LinkedList<>();
+        private String fen;
         private Map<String, String> headerMap;
         private String moveText = "";
 
@@ -714,6 +720,11 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         public void serialize(BitStream.Writer writer) throws Config.PGNException {
             serializeBase(writer);
             serialize(writer, this.headers);
+            try {
+                writer.writeString(this.fen);
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
+            }
 /*  11/18/2018 verify!!
             try {
                 writer.writeString(this.moveText);
@@ -736,6 +747,11 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         private Item(BitStream.Reader reader) throws Config.PGNException {
             super(reader);
                 this.headers = unserializeHeaders(reader);
+            try {
+                this.fen = reader.readString();
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
+            }
 /*  11/18/2018 verify!!
             try {
                 this.moveText = reader.readString();
@@ -743,6 +759,14 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 throw new Config.PGNException(e);
             }
 //*/
+        }
+
+        public String getFen() {
+            return fen;
+        }
+
+        public void setFen(String fen) {
+            this.fen = fen;
         }
 
         public String getMoveText() {
@@ -779,6 +803,9 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 }
                 sb.append(sep).append("[").append(hName).append(" \"").append(hValue).append("\"]");
                 sep = "\n";
+            }
+            if(this.fen != null) {
+                sb.append(sep).append("[").append(Config.HEADER_FEN).append(" \"").append(this.fen).append("\"]");
             }
             return sb;
         }
@@ -837,8 +864,8 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             return headers;
         }
 
-        public void setHeaders(List<Pair<String, String>> headers, String... skip) {
-            this.headers = cloneHeaders(headers, skip);
+        public void setHeaders(List<Pair<String, String>> headers) {
+            this.headers = cloneHeaders(headers);
             headerMap = null;
         }
 
@@ -849,8 +876,8 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             }
         }
 
-        public List<Pair<String, String>> cloneHeaders(String... skip) {
-            return cloneHeaders(this.headers, skip);
+        public List<Pair<String, String>> cloneHeaders() {
+            return cloneHeaders(this.headers);
         }
 
         @Override

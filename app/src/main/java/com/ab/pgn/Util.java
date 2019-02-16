@@ -113,7 +113,7 @@ public class Util {
                 ch = moveText.charAt(i);
                 if (Character.isDigit(ch)) {
                     newMove.setFromY(Square.fromY(ch));
-                    if (newMove.getPiece() != Config.PAWN) {
+                    if (newMove.getColorlessPiece() != Config.PAWN) {
                         newMove.moveFlags |= Config.FLAGS_Y_AMBIG;
                     }
                     --i;

@@ -5,7 +5,9 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Point;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
@@ -18,7 +20,8 @@ import com.ab.pgn.Square;
  * Created by Alexander Bootman on 8/20/16.
  */
 public class BoardView extends View {
-    private final String DEBUG_TAG = this.getClass().getName();
+    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
+    public static boolean DEBUG = false;    // todo: config
 
     private static Bitmap[] pieces;
     private int squareSize, margin = 0;
@@ -30,6 +33,7 @@ public class BoardView extends View {
         super(context);
         this.boardHolder = boardHolder;
         this.squareSize = squareSize;
+        this.setBackgroundColor(Color.BLACK);
         initBitmaps();
         initBitmaps(boardHolder.getBGResources());
         this.setOnTouchListener(new BoardOnTouchListener());
@@ -39,7 +43,7 @@ public class BoardView extends View {
         Resources r = getContext().getResources();
 
         bgBitmaps = new Bitmap[bgResources.length];
-        for(int i = 0; i < bgResources.length; ++i) {
+        for (int i = 0; i < bgResources.length; ++i) {
             bgBitmaps[i] = BitmapFactory.decodeResource(r, bgResources[i]);
         }
         recalcBitmapSizes(bgBitmaps);
@@ -86,7 +90,7 @@ public class BoardView extends View {
     protected Point board2screen(int x, int y) {
         Point res = new Point();
         Board board = boardHolder.getBoard();
-        if(board == null) {
+        if (board == null) {
             return res;
         }
         if (boardHolder.isReversed()) {
@@ -105,7 +109,7 @@ public class BoardView extends View {
     protected Square screen2board(int x, int y) {
         Square res = new Square();
         Board board = boardHolder.getBoard();
-        if(board == null) {
+        if (board == null) {
             return res;
         }
         if (boardHolder.isReversed()) {
@@ -119,13 +123,24 @@ public class BoardView extends View {
     }
 
     @Override
+    public void invalidate() {
+        if (DEBUG) {
+            Log.d(DEBUG_TAG, String.format("BoardView.invalidate(%s)", this.getClass().getName()));
+        }
+        super.invalidate();
+    }
+
+    @Override
     protected void onDraw(Canvas canvas) {
         drawBoard(canvas);
     }
 
     private void drawBoard(Canvas canvas) {
+        if (DEBUG) {
+            Log.d(DEBUG_TAG, "BoardView.drawBoard()");
+        }
         Board board = boardHolder.getBoard();
-        if(board == null) {
+        if (board == null) {
             return;
         }
         for (int x = 0; x < board.getXSize(); ++x) {
@@ -155,9 +170,11 @@ public class BoardView extends View {
         @Override
         public boolean onTouch(View v, MotionEvent event) {
             Square clicked = screen2board((int) event.getX(), (int) event.getY());
-//            Log.d(DEBUG_TAG, String.format("BoardView (%s) %s", clicked.toString(), event.toString()));
+            if (DEBUG) {
+                Log.d(DEBUG_TAG, String.format("BoardView (%s) %s", clicked.toString(), event.toString()));
+            }
             Board board = boardHolder.getBoard();
-            if(board == null) {
+            if (board == null) {
                 return true;
             }
 

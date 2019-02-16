@@ -233,7 +233,7 @@ public class BaseTest {
         if(trg.isFromSet()) {
             trg.setFromY(Config.BOARD_SIZE - 1 - trg.getFromY());
         }
-        trg.setPiece(trg.getPiece() ^ Config.PIECE_COLOR);
+        trg.setPiece(trg.getPiece());
         if(trg.getPiecePromoted() != Config.EMPTY) {
             trg.setPiecePromoted(trg.getPiecePromoted() ^ Config.PIECE_COLOR);
         }
@@ -431,6 +431,8 @@ public class BaseTest {
             int expectedPositionFlags = (expectedFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
             Assert.assertEquals(String.format("%s\n%s\nposition flags 0x%04x != 0x%04x", moveText, board.toString(), positionFlags, expectedPositionFlags),
                     positionFlags, expectedPositionFlags);
+            Move _move = initBoard.findMove(board);
+            Assert.assertTrue(String.format("expected %s, got %s", move, _move), move.isSameAs(_move));
             pgnGraph.delCurrentMove();
         }
     }

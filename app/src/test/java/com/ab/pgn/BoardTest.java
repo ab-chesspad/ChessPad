@@ -172,7 +172,7 @@ public class BoardTest extends BaseTest {
         doThrow(IOException.class).when(writer).write(anyInt(), anyInt());
         Board board = new Board();
         board.pack(writer);
-        System.out.println("done");
+        System.out.println("finish");
     }
 
     @Test(expected = Config.PGNException.class)
@@ -181,7 +181,7 @@ public class BoardTest extends BaseTest {
         doThrow(IOException.class).when(writer).write(anyInt(), eq(Board.BOARD_COUNTS_PACK_LENGTH));
         Board board = new Board();
         board.serialize(writer);
-        System.out.println("done");
+        System.out.println("finish");
     }
 
     @Test(expected = Config.PGNException.class)
@@ -193,7 +193,7 @@ public class BoardTest extends BaseTest {
         BitStream.Reader reader = spy(new BitStream.Reader(buf));
         doThrow(IOException.class).when(reader).read(eq(Board.BOARD_COUNTS_PACK_LENGTH));
         board = new Board(reader);
-        System.out.println("done");
+        System.out.println("finish");
     }
 
     @Test(expected = Config.PGNException.class)
@@ -205,7 +205,7 @@ public class BoardTest extends BaseTest {
         BitStream.Reader reader = spy(new BitStream.Reader(buf));
         doThrow(IOException.class).when(reader).read(eq(Board.BOARD_DATA_PACK_LENGTH));
         board = Board.unpack(reader);
-        System.out.println("done");
+        System.out.println("finish");
     }
 
 //* comment for  for Studio 3
@@ -217,7 +217,7 @@ public class BoardTest extends BaseTest {
                 .withAnyArguments().thenReturn(writer);
         Board board = new Board();
         int[] p = board.pack();
-        System.out.println("done");
+        System.out.println("finish");
     }
 
     @Test(expected = Config.PGNException.class)
@@ -230,7 +230,7 @@ public class BoardTest extends BaseTest {
         PowerMockito.whenNew(ByteArrayInputStream.class)
                 .withAnyArguments().thenThrow(new IOException(){});
         board = Board.unpack(p);
-        System.out.println("done");
+        System.out.println("finish");
     }
 //*/
 }

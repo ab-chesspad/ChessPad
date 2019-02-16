@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     package="com.ab.droid.chesspad"
-    android:versionCode="3"
-    android:versionName="0.3"
+    android:versionCode="4"
+    android:versionName="0.4"
     >
 
     <application
@@ -19,27 +19,23 @@
             android:descendantFocusability="beforeDescendants"
             android:windowSoftInputMode="adjustPan"
             android:configChanges="keyboardHidden|orientation|screenSize"
+            android:hardwareAccelerated="false"
             >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
-                <category android:name="android.intent.category.MONKEY" />
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"/>
             </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
-            </intent-filter>
-
-<!--
-            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
-                android:resource="@xml/device_filter" />
--->
+            <meta-data
+            	android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+            	android:resource="@xml/accessory_filter">
+            </meta-data>
 
         </activity>
     </application>
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
-    <uses-feature android:name="android.hardware.usb.host" />
+    <uses-feature android:name="android.hardware.usb.accessory"/>
 
 </manifest>

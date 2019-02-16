@@ -41,7 +41,6 @@ public class Cli {
     }
 
     public static void main(String[] args) throws Config.PGNException, FileNotFoundException {
-//        System.out.println(String.format("command %s", command.merge.toString()));
         System.out.println("parameters:");
         for (String a : args) {
             System.out.println(a);
@@ -76,11 +75,18 @@ public class Cli {
 
     private static void mainHelp() {
         System.out.println("usage:");
-        System.out.println("java -jar target/pgn-1.0-SNAPSHOT-jar-with-dependencies.jar <command> <parameters>");
+        String path = new java.io.File(Cli.class.getProtectionDomain()
+                .getCodeSource()
+                .getLocation()
+                .getPath()).getPath();
+        String wdir = System.getProperty("user.dir");
+        String jarPath = path.substring(wdir.length() + 1);
+
+        System.out.println(String.format("java -jar %s <command> <parameters>", jarPath));
         System.out.println("\ncommands:");
 
-        System.out.println(String.format("\t%s  - print this text", command.help.toString()));
-        System.out.println(String.format("\t%s  <directory/zip/pgn_file> - print contents", command.list.toString()));
+        System.out.println(String.format("\t%s - print this text", command.help.toString()));
+        System.out.println(String.format("\t%s <directory/zip/pgn_file> - print contents", command.list.toString()));
         System.out.println(String.format("\t%s <moves> <pgn_file> [result] - merge pgn file", command.merge.toString()));
     }
 

@@ -38,7 +38,7 @@ public class BitStreamTest {
             int mask = (1 << item.y) - 1;
             Assert.assertEquals(item.x & mask, v);
         }
-        System.out.println("done");
+        System.out.println("finish");
     }
 
     @Test

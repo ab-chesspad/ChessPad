@@ -10,7 +10,7 @@ import com.ab.pgn.Config;
  */
 
 public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> implements ProgressPublisher {
-    protected final String DEBUG_TAG = this.getClass().getName();
+    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private CPExecutor cpExecutor;
     private ProgressBarHolder progressBarHolder;

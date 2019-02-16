@@ -43,6 +43,7 @@ public class PgnGraph {
     }
 
     private void init(Board initBoard, PgnItem.Item pgn) throws Config.PGNException {
+        initBoard.setMove(null);
         if(pgn == null) {
             pgn = new PgnItem.Item("dummy");
         } else if(pgn.headers == null ) {
@@ -69,7 +70,7 @@ public class PgnGraph {
     public PgnGraph(PgnItem.Item item, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         Board initBoard;
         Date start = new Date();
-        String fen = item.getHeader(Config.HEADER_FEN);
+        String fen = item.getFen();
         if (fen == null) {
             initBoard = new Board();
         } else {
@@ -107,6 +108,7 @@ public class PgnGraph {
         return parsingErrorNum;
     }
 
+    // not used
     public void serializeGraph(DataOutputStream os, int versionCode) throws Config.PGNException {
         for(Map.Entry<Pack, Board> entry : positions.entrySet()) {
             entry.getValue().setVisited(false);
@@ -168,11 +170,12 @@ public class PgnGraph {
         }
     }
 
+    // not used
     public PgnGraph(DataInputStream is, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         unserializeGraph(is, versionCode, progressObserver);
     }
 
-    public void unserializeGraph(DataInputStream is, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
+    private void unserializeGraph(DataInputStream is, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         try {
             int totalLen = is.available();
             int oldVersionCode;
@@ -305,7 +308,7 @@ public class PgnGraph {
         unserializeGraph(reader, versionCode, progressObserver);
     }
 
-    public void unserializeGraph(final BitStream.Reader reader, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
+    private void unserializeGraph(final BitStream.Reader reader, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
         try {
             int oldVersionCode;
             if (versionCode != (oldVersionCode = reader.read(4))) {
@@ -419,11 +422,7 @@ public class PgnGraph {
     }
 
     public void setHeaders(List<Pair<String, String>> headers) {
-        String fen = pgn.getHeader(Config.HEADER_FEN);
         pgn.setHeaders(headers);
-        if(fen != null) {
-            pgn.addHeader(new Pair<>(Config.HEADER_FEN, fen));
-        }
         modified = true;
     }
 
@@ -488,7 +487,7 @@ public class PgnGraph {
         return pgn;
     }
 
-    // needed for 'unGlization'
+    // needed for serialization
     public void setPgn(PgnItem.Item pgn) {
         this.pgn = pgn;
     }
@@ -497,9 +496,9 @@ public class PgnGraph {
         if (pgn != null) {
             Date start = new Date();
             if (updateMoves) {
-                if (!this.getInitBoard().equals(new Board()) && pgn.getHeader(Config.HEADER_FEN) == null) {
+                if (!this.getInitBoard().equals(new Board())) {
                     String fen = getInitBoard().toFEN();
-                    pgn.headers.add(new Pair<>(Config.HEADER_FEN, fen));
+                    pgn.setFen(fen);
                 }
                 pgn.setMoveText(this.toPgn());
             }
@@ -821,6 +820,34 @@ public class PgnGraph {
         return getMoveNum(getBoard(move.packData));
     }
 
+    public List<String> getMovesText() {
+        List<String> res = new LinkedList<>();
+        List<Move> moves = this.moveLine;
+        StringBuilder sb = new StringBuilder();
+        Board board = this.getInitBoard();
+        boolean showMoveNum = true;
+        for( Move move : moves.subList(1, moves.size())) {
+            if(!showMoveNum) {
+                showMoveNum = (board.getFlags() & Config.FLAGS_BLACK_MOVE) == 0;
+            }
+            if (showMoveNum) {
+                sb.append(this.getMoveNum(move));
+            }
+            sb.append(move.toString());
+            if((board.getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
+                res.add(new String(sb).trim());
+                sb.delete(0, sb.length());
+            }
+            showMoveNum = false;
+            board = this.getBoard(move.packData);
+        }
+        if(sb.length() > 0) {
+            res.add(new String(sb));
+        }
+        return res;
+    }
+
+
     public void addMove(Move newMove) throws Config.PGNException {
         addMove(newMove, null);
     }
@@ -922,7 +949,7 @@ public class PgnGraph {
         return true;
     }
 
-    public void addUserMove(Move move)  throws Config.PGNException {
+    public void addUserMove(Move move) throws Config.PGNException {
         addMove(move);
         Board board = getBoard().clone();
         board.invertFlags(Config.FLAGS_BLACK_MOVE);
@@ -1064,6 +1091,10 @@ public class PgnGraph {
             }
             prevBoard = board;
             board = this.getBoard(move.packData);
+            if(board == null) {
+                logger.error(String.format("%s\n%s -> null board", prevBoard.toString(), move.toString()));
+                break;
+            }
             if(board.wasVisited()) {
                 break;
             }

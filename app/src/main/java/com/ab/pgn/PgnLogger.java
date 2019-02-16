@@ -13,7 +13,7 @@ import java.io.StringWriter;
 
 public class PgnLogger {
     private static PrintStream ps = System.out;
-    private String name;
+    private final String name;
     private boolean separateTagFromMsg = false;
 
     public static void setPrintStream(PrintStream ps) {
@@ -37,16 +37,16 @@ public class PgnLogger {
     }
 
     public PgnLogger(String name) {
-        this.name = name;
+        this.name = Config.DEBUG_TAG + name;
     }
 
     public PgnLogger(String name, boolean separateTagFromMsg) {
-        this.name = name;
+        this.name = Config.DEBUG_TAG + name;
         this.separateTagFromMsg = separateTagFromMsg;
     }
 
     public static PgnLogger getLogger(Class claz) {
-        return new PgnLogger(claz.getName());
+        return new PgnLogger(claz.getSimpleName());
     }
 
     public static PgnLogger getLogger(Class claz, boolean separateTagFromMsg) {

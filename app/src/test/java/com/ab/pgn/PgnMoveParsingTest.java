@@ -202,7 +202,7 @@ public class PgnMoveParsingTest extends BaseTest {
             "}\n" +
             "22. f5 $1\n" +
             "{\n" +
-            "Can't be done, but Tal gives it up for a high price - scrambled pawns.\n" +
+            "Can't be finish, but Tal gives it up for a high price - scrambled pawns.\n" +
             "}\n" +
             "22... gxf5 23. Rfe1 Rfe8 24.Rxe7 Rxe7 25. Kd2\n" +
             "{\n" +

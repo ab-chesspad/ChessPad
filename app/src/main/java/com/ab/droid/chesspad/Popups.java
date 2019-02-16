@@ -44,8 +44,8 @@ import java.util.List;
  * Created by Alexander Bootman on 10/30/16.
  */
 public class Popups {
-    protected final String DEBUG_TAG = this.getClass().getName();
-    public boolean DEBUG = true;
+    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
+    public boolean DEBUG = false;
 
     private static int j = -1;
 
@@ -180,11 +180,7 @@ public class Popups {
             @Override
             protected void onPostExecute(Void param) {
                 super.onPostExecute(param);
-                try {
-                    launchDialog(Popups.this.dialogType);
-                } catch (Config.PGNException e) {
-                    Log.e(DEBUG_TAG, "onResume() 4", e);
-                }
+                launchDialog(Popups.this.dialogType);
             }
         }.execute((Void)null);
     }
@@ -206,7 +202,7 @@ public class Popups {
         dlgMessage(Popups.DialogType.ShowMessage, msg, R.drawable.exclamation, Popups.DialogButton.Ok);
     }
 
-    public void launchDialog(DialogType dialogType) throws Config.PGNException {
+    public void launchDialog(DialogType dialogType) {
         PgnItem pgnItem;
         switch (dialogType) {
             case Glyphs:
@@ -232,7 +228,11 @@ public class Popups {
                 int selectedPgnItem = -1;
                 pgnItem = chessPad.pgnGraph.getPgn();
                 if (pgnItem != null) {
-                    selectedPgnItem = pgnItem.parentIndex(chessPad.currentPath);
+                    try {
+                        selectedPgnItem = pgnItem.parentIndex(chessPad.currentPath);
+                    } catch (Config.PGNException e) {
+                        Log.e(DEBUG_TAG, e.getMessage(), e);
+                    }
                 }
                 launchDialog(dialogType, getPgnItemListAdapter(chessPad.currentPath, selectedPgnItem));
                 break;
@@ -254,18 +254,9 @@ public class Popups {
                 break;
 
             case Headers:
-                if(chessPad.mode == ChessPad.Mode.Game) {
-                    pgnItem = chessPad.pgnGraph.getPgn();
-                    if (pgnItem != null) {
-                        if (editHeaders == null) {
-                            editHeaders = ((PgnItem.Item) pgnItem).cloneHeaders(Config.HEADER_FEN);     // skip FEN
-                            editHeaders.add(new Pair<>(ADD_HEADER_LABEL, ""));
-                        }
-                    }
-                } else {
-                    if (editHeaders == null) {
-                        editHeaders = PgnItem.cloneHeaders(chessPad.setup.getHeaders());
-                    }
+                if (editHeaders == null) {
+                    editHeaders = PgnItem.cloneHeaders(chessPad.getHeaders());
+                    editHeaders.add(new Pair<>(ADD_HEADER_LABEL, ""));
                 }
                 CPHeaderListAdapter adapter = new CPHeaderListAdapter(editHeaders);
                 launchDialog(dialogType, null, 0, adapter, DialogButton.OkCancel);
@@ -447,12 +438,8 @@ public class Popups {
 
             case Headers:
                 if (selected == DialogInterface.BUTTON_POSITIVE) {
-                    if(chessPad.getMode() == ChessPad.Mode.Game) {
-                        editHeaders.remove(editHeaders.size() - 1);     // remove 'add new' row
-                        chessPad.pgnGraph.setHeaders(editHeaders);
-                    } else {
-                        chessPad.setup.setHeaders(editHeaders);
-                    }
+                    editHeaders.remove(editHeaders.size() - 1);     // remove 'add new' row
+                    chessPad.setHeaders(editHeaders);
                     dismissDlg();
                     editHeaders = null;
                 } else {
@@ -770,7 +757,7 @@ public class Popups {
 
             @Override
             public void afterTextChanged(Editable s) {
-                mergeData.pgnPathWrapper.setValue(s.toString());
+                mergeData.pgnPathWrapper.setValue(textView, s.toString());
             }
         });
         PgnItem path = chessPad.currentPath;
@@ -856,7 +843,7 @@ public class Popups {
         mDialog.show();
     }
 
-    private CPPgnItemListAdapter getPgnItemListAdapter(PgnItem parentItem, int initSelection) throws Config.PGNException {
+    private CPPgnItemListAdapter getPgnItemListAdapter(PgnItem parentItem, int initSelection) {
         if(cpPgnItemListAdapter == null || cpPgnItemListAdapter.isChanged(parentItem)
                    || cpPgnItemListAdapter.getCount() == 0) {  // kludgy way to fix storage permission change problem
             cpPgnItemListAdapter = new CPPgnItemListAdapter(parentItem, initSelection);
@@ -983,11 +970,11 @@ public class Popups {
         private PgnItem parentItem;
         protected List<PgnItem> pgnItemList;
 
-        public CPPgnItemListAdapter(PgnItem parentItem, int initSelection) throws Config.PGNException {
+        public CPPgnItemListAdapter(PgnItem parentItem, int initSelection) {
             refresh(parentItem, initSelection);
         }
 
-        public void refresh(final PgnItem parentItem, int initSelection) throws Config.PGNException {
+        public void refresh(final PgnItem parentItem, int initSelection) {
 //            Log.d(DEBUG_TAG, "CPPgnItemListAdapter.refresh, thread " + Thread.currentThread().getName());
             this.parentItem = parentItem;
             if (parentItem != null && !parentItem.getAbsolutePath().equals(PgnItem.getRoot().getAbsolutePath())) {
@@ -1109,20 +1096,21 @@ public class Popups {
 
         @Override
         public View getView(final int position, View convertView, ViewGroup parent) {
-            RowViewHolder rowViewHolder;
+            RowViewHolder _rowViewHolder;
             if (convertView == null) {
                 convertView = layoutInflater.inflate(R.layout.list_view, null);
-                rowViewHolder = new RowViewHolder();
-                convertView.setTag(rowViewHolder);
+                _rowViewHolder = new RowViewHolder();
+                convertView.setTag(_rowViewHolder);
                 LinearLayout layout = (LinearLayout)convertView.findViewById(R.id.headerRowLayout);
                 layout.setVisibility(View.VISIBLE);
-                rowViewHolder.labelView = (TextView)convertView.findViewById(R.id.headerLabel);
-                rowViewHolder.valueView = (TextView)convertView.findViewById(R.id.headerValue);
-                rowViewHolder.actionButton = (ImageButton)convertView.findViewById(R.id.headerActionButton);
+                _rowViewHolder.labelView = (EditText)convertView.findViewById(R.id.headerLabel);
+                _rowViewHolder.valueView = (EditText)convertView.findViewById(R.id.headerValue);
+                _rowViewHolder.actionButton = (ImageButton)convertView.findViewById(R.id.headerActionButton);
             } else {
-                rowViewHolder = (RowViewHolder)convertView.getTag();
+                _rowViewHolder = (RowViewHolder)convertView.getTag();
             }
 
+            final RowViewHolder rowViewHolder = _rowViewHolder;
             rowViewHolder.labelView.setTag(position);
             rowViewHolder.valueView.setTag(position);
             rowViewHolder.actionButton.setTag(position);
@@ -1153,47 +1141,20 @@ public class Popups {
 
             if (position == headerList.size() - 1) {
                 rowViewHolder.labelView.setEnabled(true);
+                rowViewHolder.labelView.addTextChangedListener(new RowTextWatcher(rowViewHolder.labelView, 1));
                 rowViewHolder.actionButton.setImageResource(android.R.drawable.ic_input_add);
             } else {
                 rowViewHolder.labelView.setEnabled(false);
             }
 
-            rowViewHolder.labelView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    Log.d(DEBUG_TAG, String.format("header label %d, focus %b", position, hasFocus));
-                    if (!hasFocus) {
-                        int position = Integer.valueOf(v.getTag().toString());
-                        String text = ((TextView) v).getText().toString();
-                        Pair<String, String> header = headerList.get(position);
-                        String value = header.second;
-                        Log.d(DEBUG_TAG, String.format("%s, label %s -> %s>", position, header.first, text));
-                        Pair<String, String> newHeader = new Pair<>(text, value);
-                        headerList.set(position, newHeader);
-                    }
-                }
-            });
-            rowViewHolder.valueView.setOnFocusChangeListener(new View.OnFocusChangeListener() {
-                @Override
-                public void onFocusChange(View v, boolean hasFocus) {
-                    Log.d(DEBUG_TAG, String.format("header value %d, focus %b", position, hasFocus));
-                    if (!hasFocus) {
-                        int position = Integer.valueOf(v.getTag().toString());
-                        Pair<String, String> header = headerList.get(position);
-                        String label = header.first;
-                        String text = ((TextView) v).getText().toString();
-                        Log.d(DEBUG_TAG, String.format("%s, %s: %s -> %s>", position, label, header.second, text));
-                        Pair<String, String> newHeader = new Pair<>(label, text);
-                        headerList.set(position, newHeader);
-                    }
-                }
-            });
+            rowViewHolder.valueView.addTextChangedListener(new RowTextWatcher(rowViewHolder.valueView, 2));
             return convertView;
         }
 
         private class RowViewHolder {
-            TextView labelView;
-            TextView valueView;
+            int index;
+            EditText labelView;
+            EditText valueView;
             ImageButton actionButton;
 
             @Override
@@ -1201,12 +1162,45 @@ public class Popups {
                 return String.format("tag %s=%s, %b)", labelView.getText().toString(), valueView.getText().toString(), actionButton.isEnabled());
             }
         }
+
+        private class RowTextWatcher implements TextWatcher {
+            private View view;
+            private int pairIndex;
+
+            public RowTextWatcher(View view, int pairIndex) {
+                this.view = view;
+                this.pairIndex = pairIndex;
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                int index = Integer.valueOf(view.getTag().toString());
+                Pair<String, String> header = headerList.get(index);
+                String label = header.first;
+                String text = header.second;
+                if(pairIndex == 1) {
+                    label = s.toString();
+                } else {
+                    text = s.toString();
+                }
+                if (DEBUG) {
+                    Log.d(DEBUG_TAG, String.format("header %s, %s: %s -> %s>", index, label, header.second, text));
+                }
+                Pair<String, String> newHeader = new Pair<>(label, text);
+                headerList.set(index, newHeader);
+            }
+        };
+
     }
 
     static class MergeData extends PgnGraph.MergeData {
-        ChessPadView.StringWrapper startStringWrapper;
-        ChessPadView.StringWrapper endStringWrapper;
-        ChessPadView.StringWrapper pgnPathWrapper;
+        ChessPadView.StringKeeper startStringWrapper;
+        ChessPadView.StringKeeper endStringWrapper;
+        ChessPadView.StringKeeper pgnPathWrapper;
         ChessPadView.ChangeObserver changeObserver;
 
         public MergeData(PgnItem.Item target) {
@@ -1220,62 +1214,55 @@ public class Popups {
         }
 
         private void init() {
-            pgnPathWrapper = new ChessPadView.StringWrapper(pgnPath, new ChessPadView.ChangeObserver() {
+            pgnPathWrapper = new ChessPadView.StringKeeper() {
                 @Override
-                public void onValueChanged(Object value) {
-                    pgnPath = (String)value;
-                    if(MergeData.this.changeObserver != null) {
-                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
-                    }
+                public void setValue(TextView v, String str) {
+                    pgnPath = str;
                 }
-            });
 
-            String s = "";
-            if(start > 0) {
-                s += start;
-            }
-            startStringWrapper = new ChessPadView.StringWrapper(s, new ChessPadView.ChangeObserver() {
                 @Override
-                public void onValueChanged(Object value) {
-                    String s = (String)value;
-                    if( s.isEmpty()) {
-                        MergeData.this.start = -1;
+                public String getValue(TextView v) {
+                    return pgnPath;
+                }
+            };
+
+            startStringWrapper = new ChessPadView.StringKeeper() {
+                @Override
+                public void setValue(TextView v, String value) {
+                    if( value.isEmpty()) {
+                        start = -1;
                     } else {
-                        try {
-                            MergeData.this.start = Integer.valueOf(s);
-                        } catch (Exception e) {
-                            // ignore
-                            return;
-                        }
-                    }
-                    if(MergeData.this.changeObserver != null) {
-                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                        start = getNumericValue(value);
                     }
                 }
-            });
-            s = "";
-            if(end > 0) {
-                s += end;
-            }
-            endStringWrapper = new ChessPadView.StringWrapper(s, new ChessPadView.ChangeObserver() {
+
                 @Override
-                public void onValueChanged(Object value) {
-                    String s = (String)value;
-                    if( s.isEmpty()) {
-                        MergeData.this.end = -1;
-                    } else {
-                        try {
-                            MergeData.this.end = Integer.valueOf(s);
-                        } catch (Exception e) {
-                            // ignore
-                            return;
-                        }
+                public String getValue(TextView v) {
+                    if(start == -1) {
+                        return "";
                     }
-                    if(MergeData.this.changeObserver != null) {
-                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    return "" + start;
+                }
+            };
+
+            endStringWrapper = new ChessPadView.StringKeeper() {
+                @Override
+                public void setValue(TextView v, String value) {
+                    if( value.isEmpty()) {
+                        end = -1;
+                    } else {
+                        end = getNumericValue(value);
                     }
                 }
-            });
+
+                @Override
+                public String getValue(TextView v) {
+                    if(end == -1) {
+                        return "";
+                    }
+                    return "" + end;
+                }
+            };
         }
 
         public void setChangeObserver(ChessPadView.ChangeObserver changeObserver) {

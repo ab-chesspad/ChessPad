@@ -4,14 +4,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-//import de.mindpipe.android.logging.log4j.LogConfigurator;
-
 /**
  *
  * Created by Alexander Bootman on 7/30/16.
  */
 public class Config {
     public static final String version = "1.0";
+    public static final String DEBUG_TAG = "chesspad-debug.";
 
     public static final int
         MY_BUF_SIZE = 0x2000,

@@ -5,7 +5,7 @@
 
     <artifactId>pgn</artifactId>
     <groupId>com.ab.pgn</groupId>
-    <version>chesspad-cli-0.3</version>
+    <version>chesspad-cli</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
