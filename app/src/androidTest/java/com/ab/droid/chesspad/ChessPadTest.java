@@ -18,6 +18,8 @@ import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
 import android.content.SharedPreferences;
 
+import com.ab.pgn.Config;
+
 /**
  * unit tests
  * Created by Alexander Bootman on 8/31/16.
@@ -26,7 +28,7 @@ import android.content.SharedPreferences;
 //@RunWith(AndroidJUnit4.class)
 @RunWith(MockitoJUnitRunner.class)
 public class ChessPadTest {
-    private final String DEBUG_TAG = this.getClass().getName();
+    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     @Before
     public void setUp() throws Exception {
