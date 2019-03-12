@@ -19,7 +19,14 @@ public class Setup {
     public Setup(PgnGraph pgnGraph) {
         this.board = pgnGraph.getBoard().clone();
         this.board.setMove(null);
-        this.headers = pgnGraph.getPgn().cloneHeaders();
+        int round = 1;
+        try {
+            round = Integer.valueOf(pgnGraph.getPgn().getHeader(Config.HEADER_Round));
+        } catch (Exception e) {
+            // ignore
+        }
+        this.headers = pgnGraph.getPgn().cloneHeaders(pgnGraph.getPgn().getHeaders(), Config.HEADER_Round);
+        this.headers.add(new Pair<>(Config.HEADER_Round, "" + round));
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
@@ -109,6 +116,10 @@ public class Setup {
         }
         PgnGraph pgnGraph = new PgnGraph(board);
         pgnGraph.getPgn().setHeaders(headers);
+        Board initBoard = pgnGraph.getInitBoard();
+        if(!initBoard.equals(new Board())) {
+            pgnGraph.getPgn().setFen(initBoard.toFEN());
+        }
         return pgnGraph;
     }
 

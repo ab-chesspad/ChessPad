@@ -4,6 +4,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
+import android.annotation.TargetApi;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,6 +18,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.ab.pgn.Config;
+import com.ab.pgn.dgtboard.DgtBoardIO;
 import com.ab.pgn.dgtboard.DgtBoardProtocol;
 
 /**
@@ -25,7 +27,8 @@ import com.ab.pgn.dgtboard.DgtBoardProtocol;
  * become unusable, e.g. java.io.IOException: write failed: ENODEV (No such device)
  */
 
-public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
+public class DgtBoardInterface extends DgtBoardIO {
+    public static boolean DEBUG = false;
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     public Object syncObject = new Object();
@@ -42,6 +45,9 @@ public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
     private static final String ModelString1 = "mModel=FTDIUARTDemo";
     private static final String ModelString2 = "mModel=Android Accessory FT312D";
     private static final String VersionString = "mVersion=1.0";
+
+    private FileInputStream inputStream;
+    private FileOutputStream outputStream;
 
     private final String ACTION_USB_PERMISSION = this.getClass().getPackage().getName() + "USB_PERMISSION";
     private UsbManager usbManager;
@@ -84,6 +90,7 @@ public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
         ChessPad.getContext().registerReceiver(usbReceiver, filter);
 	}
 
+    @TargetApi(12)
     private UsbAccessory getAccessory() throws IOException {
         UsbAccessory[] accessories = usbManager.getAccessoryList();
         if (accessories == null) {
@@ -128,22 +135,21 @@ public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
             }
             write(DgtBoardProtocol.DGT_SEND_RESET);
         }
-        write(DgtBoardProtocol.DGT_SEND_TRADEMARK);
-        write(DgtBoardProtocol.DGT_SEND_UPDATE_BRD);
-        write(DgtBoardProtocol.DGT_SEND_BRD);
         Log.d(DEBUG_TAG, "config finish");
 	}
 
 	@Override
     public void write(byte command) throws IOException {
-        super.write(command);
+        byte[] data = new byte[1];
+        data[0] = command;
+        write(data);
         if(REPEAT_COMMAND_AFTER_MSEC > 0) {
             try {
                 Thread.sleep(REPEAT_COMMAND_AFTER_MSEC);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            super.write(command);
+            write(data);
         }
     }
 
@@ -162,7 +168,9 @@ public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
         if(inputStream == null) {
-            Log.d(DEBUG_TAG, "inputStream == null, return 0 bytes");
+            if(DEBUG) {
+                Log.d(DEBUG_TAG, "inputStream == null, return 0 bytes");
+            }
             return 0;   // reading before opening DgtBoardInterface
         }
         if(buffer.length < 3) {
@@ -179,15 +187,20 @@ public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
                 // ignore
             }
             if(inputStream == null) {
-                Log.d(DEBUG_TAG, "inputStream == null, return 0 bytes 1");
+                if(DEBUG) {
+                    Log.d(DEBUG_TAG, "inputStream == null, return 0 bytes 1");
+                }
                 return 0;   // closed when adapter detached
             }
             readCount = inputStream.read(buffer, offset, length);
-            Log.d(DEBUG_TAG, String.format("chesspad/DgtBoardInterface read %s bytes", readCount));
+            if(DEBUG) {
+                Log.d(DEBUG_TAG, String.format("read %s bytes", readCount));
+            }
         }
         return readCount;
     }
 
+    @TargetApi(12)
 	public void checkPermissionAndOpen() throws IOException {
         Log.d(DEBUG_TAG, String.format("checkPermissionAndOpen() API %s", Build.VERSION.SDK_INT));
 	    synchronized (syncObject) {
@@ -230,6 +243,7 @@ public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
         }
     }
 
+    @TargetApi(12)
     public void open() throws IOException {
         UsbAccessory accessory = getAccessory();
         Log.d(DEBUG_TAG, String.format("open %s", accessory));
@@ -247,12 +261,12 @@ public class DgtBoardInterface extends com.ab.pgn.dgtboard.DgtBoardInterface {
             e.printStackTrace();
         }
         config();
+        init();
         if(statusObserver != null) {
             statusObserver.isOpen(true);
         }
     }
 
-    @Override
 	public void close() {
         Log.d(DEBUG_TAG, "close accessory");
         try {

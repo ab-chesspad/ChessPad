@@ -25,31 +25,20 @@ import java.util.ListIterator;
  */
 
 public class DgtBoardPad {
-    public static boolean DEBUG = true;    // todo: config
+    public static boolean DEBUG = false;
+    public static final int BOARD_UPDATE_TIMEOUT_MSEC = 1000;
+
     public static final int LOCAL_VERSION_CODE = 0;
     public enum BoardStatus {
+        None,
         SetupMess,
         Game,
     };
 
-/*
-    public static final int[][] revertedInit = {
-        {Config.BLACK_ROOK, Config.BLACK_KNIGHT, Config.BLACK_BISHOP, Config.BLACK_KING, Config.BLACK_QUEEN, Config.BLACK_BISHOP, Config.BLACK_KNIGHT, Config.BLACK_ROOK},
-        {Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN},
-        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-        {Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN},
-        {Config.WHITE_ROOK, Config.WHITE_KNIGHT, Config.WHITE_BISHOP, Config.WHITE_KING, Config.WHITE_QUEEN, Config.WHITE_BISHOP, Config.WHITE_KNIGHT, Config.WHITE_ROOK},
-    };
-*/
-
     private final PgnLogger logger = PgnLogger.getLogger(this.getClass());
     private final Board initBoard = new Board();
-//    private final Board invertedInitBoard = new Board(revertedInit);
 
-    private BoardStatus boardStatus;
+    private BoardStatus boardStatus = BoardStatus.None;
     private String outputDir;
     private final DgtBoardWatcher dgtBoardWatcher;
     private final DgtBoardObserver dgtBoardObserver;
@@ -65,10 +54,10 @@ public class DgtBoardPad {
     private Move incompleteMove = null;
     private String errorMsg;
 
-    public DgtBoardPad(DgtBoardInterface dgtBoardInterface, String outputDir, DgtBoardObserver dgtBoardObserver) throws Config.PGNException {
+    public DgtBoardPad(DgtBoardIO dgtBoardIO, String outputDir, DgtBoardObserver dgtBoardObserver) throws Config.PGNException {
         this.outputDir = outputDir;
         this.dgtBoardObserver = dgtBoardObserver;
-        dgtBoardWatcher = new DgtBoardWatcher(dgtBoardInterface, new DgtBoardWatcher.BoardMessageConsumer() {
+        dgtBoardWatcher = new DgtBoardWatcher(dgtBoardIO, new DgtBoardWatcher.BoardMessageConsumer() {
             @Override
             public void consume(DgtBoardWatcher.BoardMessage boardMessage) {
                 updatePad(boardMessage);
@@ -100,7 +89,6 @@ public class DgtBoardPad {
     public void stop() {
         dgtBoardWatcher.stop();
         appendGame();
-        logger.debug(String.format("recordedGames:\n%s", recordedGames));
         if(!recordedGames.isEmpty()) {
             String fname = String.format("rec-%s.pgn", new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date()));
             File f = new File(new File(outputDir), fname);
@@ -117,6 +105,11 @@ public class DgtBoardPad {
         recordedGames = "";
     }
 
+    public void finish() {
+        stop();
+        dgtBoardWatcher.finish();
+    }
+
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
             writer.writeString(recordedGames);  // assuming it is < 64K long!
@@ -128,13 +121,6 @@ public class DgtBoardPad {
             } else {
                 writer.write(0, 1);
             }
-
-//            writer.writeString(pgnGraph.toPgn());
-//            if(boardStatus == BoardStatus.SetupMess) {
-//                writer.write(0, 1);
-//            } else {
-//                writer.write(1, 1);
-//            }
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -161,23 +147,32 @@ public class DgtBoardPad {
         setup.setBoard(invertedBoard);
     }
 
+/*
     private void requestBoardDump() {
         try {
             dgtBoardWatcher.requestBoardDump();
         } catch (IOException e) {
             errorMsg = e.getMessage();
             logger.error(errorMsg, e);
-            boardStatus = BoardStatus.SetupMess;
+            setBoardStatus(BoardStatus.SetupMess, false);
         }
     }
+*/
 
-    public void setBoardStatus(BoardStatus boardStatus) {
+    public void setBoardStatus(BoardStatus boardStatus, boolean preserveGame) {
+        logger.debug(String.format("updateBoard: status:%s", boardStatus.toString()));
         this.boardStatus = boardStatus;
         if(boardStatus == BoardStatus.SetupMess) {
             newSetup(false);
-            requestBoardDump();
+            dgtBoardWatcher.dumpBoardLoopStart(BOARD_UPDATE_TIMEOUT_MSEC);
+//            dgtBoardWatcher.requestBoardDump();
         } else {
-            newGame();
+            dgtBoardWatcher.dumpBoardLoopStop();
+            if(preserveGame) {
+                resetChunks();
+            } else {
+                newGame();
+            }
         }
         if(dgtBoardObserver != null) {
             dgtBoardObserver.update((byte) 0x00);
@@ -232,7 +227,7 @@ public class DgtBoardPad {
     private synchronized void updatePad(DgtBoardWatcher.BoardMessage boardMessage) {
         errorMsg = null;
         if(boardMessage.equals(oldBoardMessage)) {
-            // DGT board occasionally ignores commands (or caches the results?) so we send each command twice.
+            // DGT board occasionally ignores commands (or caches the results?) so we may want to send each command twice.
             // To fix the case when the board returns both messages, we ignore the second one if it is identical.
             return;
         }
@@ -250,6 +245,9 @@ public class DgtBoardPad {
     }
 
     private void updateBoard(Board board) {
+        if(boardStatus == BoardStatus.Game) {
+            return;     // ignore
+        }
         Board invertedBoard = board.invert();
         if(this.invertedBoard) {
             setup.setBoardPosition(invertedBoard);
@@ -261,14 +259,11 @@ public class DgtBoardPad {
 
         if(board.samePosition(initBoard)) {
             toInit();
-            logger.debug(String.format("updateBoard: status:%s", boardStatus.toString()));
             return;
         }
         if(invertedBoard.samePosition(initBoard)) {
-            setup.setBoardPosition(invertedBoard);
             turnBoard();
             toInit();
-            logger.debug(String.format("updateBoard: status:%s", boardStatus.toString()));
             return;
         }
 
@@ -276,13 +271,16 @@ public class DgtBoardPad {
             return;
         }
 
-        boardStatus = searchPgnGraph(board);
+        // search for previous occurrences:
+        BoardStatus boardStatus = searchPgnGraph(board);
         if(boardStatus == BoardStatus.SetupMess) {
             boardStatus = searchPgnGraph(invertedBoard);
             if(boardStatus == BoardStatus.Game) {
-                setup.setBoardPosition(invertedBoard);
                 turnBoard();
             }
+        }
+        if(boardStatus != this.boardStatus) {
+            setBoardStatus(boardStatus, true);
         }
     }
 
@@ -291,29 +289,32 @@ public class DgtBoardPad {
     then for a move that can create setup position from an existing position
      */
     private BoardStatus searchPgnGraph(Board searchBoard) {
-        BoardStatus boardStatus = this.boardStatus;
+        BoardStatus boardStatus = BoardStatus.SetupMess;
         int index = pgnGraph.moveLine.size();
         if(index <= 1) {
             return boardStatus;
         }
+        Move move = null;
         ListIterator<Move> li = pgnGraph.moveLine.subList(1, index).listIterator(index - 1);
         while(li.hasPrevious()) {
-            Move move = li.previous();
+            move = li.previous();
             Board board = pgnGraph.getBoard(move);
             if(board.samePosition(pgnGraph.getInitBoard())) {
                 // sanity check, should not be here
                 logger.error(String.format("%s\n%s", move, board));
                 break;
             }
-            logger.debug(String.format("%s\n%s", move, board));
+            if(DEBUG) {
+                logger.debug(String.format("checking %s\n%s", move, board));
+            }
             if(searchBoard.samePosition(board)) {
                 boardStatus = BoardStatus.Game;
+                move = null;
                 break;
             }
 
             move = board.findMove(searchBoard);
             if(move != null) {
-                addMove(move);
                 boardStatus = BoardStatus.Game;
                 break;
             }
@@ -323,6 +324,10 @@ public class DgtBoardPad {
         if(boardStatus == BoardStatus.Game) {
             pgnGraph.moveLine.subList(index, pgnGraph.moveLine.size()).clear();
         }
+        if(move != null) {
+            addMove(move);
+        }
+
         return boardStatus;
     }
 
@@ -330,7 +335,7 @@ public class DgtBoardPad {
         setup.getBoard().setFlags(Config.INIT_POSITION_FLAGS);
         setup.getBoard().setReversiblePlyNum(0);
         setup.getBoard().setPlyNum(0);
-        newGame();
+        setBoardStatus(BoardStatus.Game, false);
     }
 
     private synchronized void newSetup(boolean increment) {
@@ -388,7 +393,6 @@ public class DgtBoardPad {
             setup.setHeaders(headers);
         }
         resetChunks();
-        boardStatus = BoardStatus.SetupMess;
     }
 
     private void resetChunks() {
@@ -408,16 +412,14 @@ public class DgtBoardPad {
 
     private void newGame() {
         appendGame();
-        chunks.clear();
         resetChunks();
 
         try {
             pgnGraph = setup.toPgnGraph();
-            boardStatus = BoardStatus.Game;
         } catch (Config.PGNException e) {
             errorMsg = e.getMessage();
             logger.error(errorMsg, e);
-            boardStatus = BoardStatus.SetupMess;
+            setBoardStatus(BoardStatus.SetupMess, true);
         }
     }
 
@@ -484,7 +486,7 @@ public class DgtBoardPad {
             6.1.3. rook off
             6.1.4. rook on
 
-            It seems that all other options are not legal, do not waste my time on them.
+            It seems that all other options are not legal, will not waste my time on them.
 
             Still:
             6.2.1. rook off - castling started with Rook, FIDE illegal, USCF Rule 10I2
@@ -493,15 +495,17 @@ public class DgtBoardPad {
             6.2.4. king on
 
         */
-        logger.debug(moveChunk.square.toString() + " " + piece2String(moveChunk.piece));
         if(boardStatus == BoardStatus.SetupMess) {
-            requestBoardDump();
-            return;
+//            requestBoardDump();
+            return;     // ignore
         }
 
         if(invertedBoard) {
             moveChunk.square.setX(7 - moveChunk.square.getX());
             moveChunk.square.setY(7 - moveChunk.square.getY());
+        }
+        if(DEBUG) {
+            logger.debug(moveChunk.square.toString() + " " + piece2String(moveChunk.piece));
         }
         // boardStatus == BoardStatus.Gage, recording:
         if(expectedPromotion != null) {
@@ -535,14 +539,14 @@ public class DgtBoardPad {
             } catch (Config.PGNException e) {
                 errorMsg = e.getMessage();
                 logger.error(errorMsg, e);
-                setBoardStatus(BoardStatus.SetupMess);
+                setBoardStatus(BoardStatus.SetupMess, true);
             }
         }
     }
 
     private void createMove() throws Config.PGNException {
-        String msg = null;
-        String sep = null;
+        String msg = "";
+        String sep = "";
         if(DEBUG) {
             msg = "createMove() ";
             sep = "";
@@ -582,7 +586,7 @@ public class DgtBoardPad {
             }
             return;
         } else if(piecesOn > 1) {
-            setBoardStatus(BoardStatus.SetupMess);
+            setBoardStatus(BoardStatus.SetupMess, true);
             if (DEBUG) {
                 logger.debug(msg);
             }
@@ -598,7 +602,7 @@ public class DgtBoardPad {
         }
 
         if(piecesOff >= 3) {
-            setBoardStatus(BoardStatus.SetupMess);
+            setBoardStatus(BoardStatus.SetupMess, true);
             msg += " -> err";
             logger.debug(msg);
             return;
@@ -629,7 +633,7 @@ public class DgtBoardPad {
                     return;
                 }
             }
-            setBoardStatus(BoardStatus.SetupMess);
+            setBoardStatus(BoardStatus.SetupMess, true);
             msg += " -> err";
             logger.debug(msg);
             return;
@@ -649,7 +653,7 @@ public class DgtBoardPad {
         } else {
             msg += " -> ??";
             logger.debug(msg);
-            setBoardStatus(BoardStatus.SetupMess);
+            setBoardStatus(BoardStatus.SetupMess, true);
             return;
         }
         move.setPiece(oldPiece);
@@ -683,12 +687,14 @@ public class DgtBoardPad {
                     addMove(move);
                     incompleteMove = null;
                 }
-                msg += " -> " + move.toString(true);
-                if(incompleteMove != null) {
-                    msg += " incompl";
+                if(DEBUG) {
+                    msg += " -> " + move.toString(true);
+                    if (incompleteMove != null) {
+                        msg += " incompl";
+                    }
+                    msg += " : " + pgnGraph.toPgn();
+                    logger.debug(msg);
                 }
-                msg += " : " + pgnGraph.toPgn();
-                logger.debug(msg);
                 return;
             }
         }
@@ -708,6 +714,7 @@ public class DgtBoardPad {
             x = 3;  // 0-0-0
         }
         expectedChunk = new DgtBoardWatcher.BoardMessageMoveChunk(x, move.getFrom().y, piece);
+        chunks.clear();
     }
 
     private boolean setChunksForEnpassant(Move move) {
@@ -718,22 +725,24 @@ public class DgtBoardPad {
             }
         }
         this.expectedChunk = expectedChunk;
+        chunks.clear();
         return true;
     }
 
     private void setChunksForPromotion(Move move) {
         expectedPromotion = move.getTo();
+        chunks.clear();
     }
 
     private void addMove(Move move) {
         try {
             pgnGraph.addUserMove(move);
             resetChunks();
-            logger.debug(String.format("createMove() added %s, %s", move.toString(), pgnGraph.toPgn()));
+            logger.debug(String.format("%s\n%s", move.toString(), pgnGraph.getBoard().toString()));
         } catch (Config.PGNException e) {
             e.printStackTrace();
             errorMsg = e.getMessage();
-            boardStatus = BoardStatus.SetupMess;
+            setBoardStatus(BoardStatus.SetupMess, true);
         }
         chunks.clear();
     }

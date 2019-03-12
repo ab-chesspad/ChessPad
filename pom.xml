@@ -3,9 +3,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>pgn</artifactId>
+    <artifactId>chesspad</artifactId>
     <groupId>com.ab.pgn</groupId>
-    <version>chesspad-cli</version>
+    <version>cli</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,7 +16,7 @@
     </properties>
 
     <build>
-        <sourceDirectory>app/src/main/java</sourceDirectory>
+        <sourceDirectory>.</sourceDirectory>
         <testSourceDirectory>app/src/test/java</testSourceDirectory>
         <plugins>
             <plugin>
@@ -24,14 +24,18 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.version}</version>
                 <configuration>
+	            <includes>
+        	    	<include>cli/**/*.java</include>
+	            	<include>**/main/java/**/*.java</include>
+        	    </includes>
                     <excludes>
-                        <exclude>com/ab/droid/chesspad/*.java</exclude>
+                        <exclude>etc</exclude>
+                        <exclude>**/main/java/com/ab/droid/chesspad/*.java</exclude>
                     </excludes>
                     <source>${sourceJavaVersion}</source>
                     <target>${targetJavaVersion}</target>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>

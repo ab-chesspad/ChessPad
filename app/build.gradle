@@ -1,13 +1,18 @@
 apply plugin: 'com.android.application'
 
+apply plugin: 'idea'
+idea.module {
+    excludeDirs += file('cli/')
+}
+
 android {
     compileSdkVersion 25
-    buildToolsVersion '25.0.0'
-//    buildToolsVersion '28.0.3'
+//    buildToolsVersion '25.0.0'
+    buildToolsVersion '28.0.3'
     defaultConfig {
         applicationId "com.ab.droid.chesspad"
-        minSdkVersion 21
-        targetSdkVersion 26
+        minSdkVersion 10
+        targetSdkVersion 25
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
@@ -18,6 +23,20 @@ android {
     }
     productFlavors {
     }
+
+////    sourceSets.main.res.filter.exclude '**/dgtboard/DgtBoardInterface.java'
+//    sourceSets {
+//        main {
+////            java.exclude('**/dgtboard/DgtBoardInterface.java')
+//            java.exclude('cli/**')
+////           java.exclude('**/dgtboard/DgtBoardInterface.java', '**/Cli.java')
+////            java {
+////                exclude '**/dgtboard/DgtBoardInterface.java'
+////                exclude '**/Cli.java'
+////            }
+//        }
+//    }
+
 //    compileOptions {
 //        sourceCompatibility JavaVersion.VERSION_1_8
 //        targetCompatibility JavaVersion.VERSION_1_8

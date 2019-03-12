@@ -80,9 +80,11 @@ public abstract class BitStream {
                 length = 0x0ffff;
             }
             write(length, 16);
-            flush();
-            os.write(bytes, 0, length);
-            bitCount = ((bitCount + 7) / 8 + bytes.length) * 8;
+            if(length > 0) {
+                flush();
+                os.write(bytes, 0, length);
+                bitCount = ((bitCount + 7) / 8 + bytes.length) * 8;
+            }
         }
 
         public byte[] getBits() throws IOException {

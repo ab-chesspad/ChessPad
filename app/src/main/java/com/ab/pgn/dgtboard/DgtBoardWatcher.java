@@ -5,13 +5,12 @@ import java.util.Arrays;
 
 import com.ab.pgn.*;
 
-
 /**
  *
  * Created by Alexander Bootman on 3/18/18.
  */
 public class DgtBoardWatcher {
-    public static boolean DEBUG = true;
+    public static boolean DEBUG = false;
     public static final byte BOARD_MESSAGE_ERROR = 0x0;
     public static final byte GENERATED_CHUNK = 0x0;
     private static final byte[] WITH_LENGTH = {
@@ -33,16 +32,17 @@ public class DgtBoardWatcher {
     }
 
     private final PgnLogger logger = PgnLogger.getLogger(this.getClass());
-    private DgtBoardInterface dgtBoardInterface;
+    private DgtBoardIO dgtBoardIO;
     private BoardMessageConsumer boardMessageConsumer;
     private ReadThread readThread;
     private WriteThread writeThread;
     private boolean passMessages;
 
-    public DgtBoardWatcher(DgtBoardInterface dgtBoardInterface, BoardMessageConsumer boardMessageConsumer) {
-        this.dgtBoardInterface = dgtBoardInterface;
+    public DgtBoardWatcher(DgtBoardIO dgtBoardIO, BoardMessageConsumer boardMessageConsumer) {
+        logger.setIncludeTimeStamp(true);
+        this.dgtBoardIO = dgtBoardIO;
         this.boardMessageConsumer = boardMessageConsumer;
-        logger.debug(String.format("DgtBoardWatcher: dgtBoardInterface %s", dgtBoardInterface));
+        logger.debug(String.format("DgtBoardWatcher: dgtBoardIO %s", dgtBoardIO));
     }
 
     public void start() throws IOException {
@@ -56,6 +56,14 @@ public class DgtBoardWatcher {
     public void stop() {
         logger.debug("stop");
         passMessages = false;
+    }
+
+    public void finish() {
+        stop();
+        if(readThread != null) {
+            readThread.finish();
+        }
+        readThread = null;
     }
 
     public void dumpBoardLoopStart(int timeout) {
@@ -72,7 +80,7 @@ public class DgtBoardWatcher {
     }
 
     public void requestBoardDump() throws IOException {
-        dgtBoardInterface.write(DgtBoardProtocol.DGT_SEND_BRD);
+        dgtBoardIO.write(DgtBoardProtocol.DGT_SEND_BRD);
     }
 
     private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
@@ -117,17 +125,17 @@ public class DgtBoardWatcher {
     private static Square dgt2Square(byte dgtByte) {
         int x = dgtByte % 8;
         int y = 7 - dgtByte / 8;
-//        if(boardIsInverted) {
-//            x = 7 - x;
-//            y = 7 - y;
-//        }
         return new Square(x, y);
     }
 
     // Dgt board protocol:
-    private static int dgt2Piece(byte dgtByte) {
+    private static int dgt2Piece(byte _dgtByte) {
         final int[] map = {Config.EMPTY, Config.WHITE_PAWN, Config.WHITE_ROOK, Config.WHITE_KNIGHT, Config.WHITE_BISHOP, Config.WHITE_KING, Config.WHITE_QUEEN,
                 Config.BLACK_PAWN, Config.BLACK_ROOK, Config.BLACK_KNIGHT, Config.BLACK_BISHOP, Config.BLACK_KING, Config.BLACK_QUEEN };
+        int dgtByte = _dgtByte & 0x0ff;
+        if(dgtByte >= map.length) {
+            return Config.EMPTY;        // strange DGT eBoard bug
+        }
         return map[dgtByte];
     }
 
@@ -141,6 +149,7 @@ public class DgtBoardWatcher {
         ReadThread(BoardMessageConsumer boardMessageConsumer) {
             this.boardMessageConsumer = boardMessageConsumer;
             this.start();
+            this.setPriority(Thread.MAX_PRIORITY);
         }
 
         @Override
@@ -160,15 +169,20 @@ public class DgtBoardWatcher {
                 int readCount = 0;
                 try {
                     String tName = Thread.currentThread().getName();
-                    logger.debug(String.format("%s: hanging on read", tName));
-                    readCount = dgtBoardInterface.read(readBuffer, offset, readBuffer.length - offset);
-                    logger.debug(String.format("%s: read %d bytes %s", tName, readCount, bytesToHex(readBuffer, 0, offset + readCount)));
+                    if(DEBUG) {
+                        logger.debug(String.format("%s: hanging on read", tName));
+                    }
+                    readCount = dgtBoardIO.read(readBuffer, offset, readBuffer.length - offset);
                     if(readCount == -1) {
                         throw new IOException("Read length=-1");
                     }
+                    if(DEBUG) {
+                        logger.debug(String.format("%s: read %d bytes %s", tName, readCount, bytesToHex(readBuffer, 0, offset + readCount)));
+                    }
                 } catch (IOException e) {
                     e.printStackTrace();
-                    break;
+                    continue;
+//                    break;
                 }
                 if (readCount == 0) {
                     continue;
@@ -224,7 +238,7 @@ public class DgtBoardWatcher {
             keepRunning = false;
             try {
                 // trigger read finish
-                dgtBoardInterface.write(DgtBoardProtocol.DGT_MSG_SERIALNR);
+                dgtBoardIO.write(DgtBoardProtocol.DGT_MSG_SERIALNR);
                 logger.debug("sent DgtBoardProtocol.DGT_MSG_SERIALNR");
             } catch (IOException e) {
                 e.printStackTrace();
@@ -267,7 +281,9 @@ public class DgtBoardWatcher {
         private BoardMessage(byte[] buffer, int length) {
             this.buffer = new byte[length];
             System.arraycopy(buffer, 0, this.buffer, 0, length);
-            logger.debug(String.format("BoardMessage 0x%s", Integer.toHexString(this.buffer[0] & 0x0ff)));
+            if(DEBUG) {
+                logger.debug(String.format("BoardMessage 0x%s", Integer.toHexString(this.buffer[0] & 0x0ff)));
+            }
         }
 
         public byte getMsgId() {
@@ -275,9 +291,10 @@ public class DgtBoardWatcher {
         }
 
         public boolean equals(BoardMessage that) {
-            if(that == null) {
+            if (this == that)
+                return true;
+            if (that == null)
                 return false;
-            }
             return Arrays.equals(this.buffer, that.buffer);
         }
     }
@@ -328,15 +345,22 @@ public class DgtBoardWatcher {
             return ((piece * 8) + square.getY() * 8) + square.getX();
         }
 
+        // probably not needed because BoardMessageMoveChunk is not used in HashMap
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
-                return true;
             if (obj == null)
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            return this.hashCode() == ((BoardMessageMoveChunk)obj).hashCode();
+            return equals((BoardMessageMoveChunk)obj);
+        }
+
+        public boolean equals(BoardMessageMoveChunk that) {
+            if (this == that)
+                return true;
+            if (that == null)
+                return false;
+            return this.hashCode() == that.hashCode();
         }
     }
 
@@ -373,12 +397,14 @@ public class DgtBoardWatcher {
                 } catch (InterruptedException e) {
                 }
                 try {
-                    logger.debug(String.format("write 0x%s", Integer.toHexString(command & 0xFF)));
-                    if(dgtBoardInterface == null) {
+                    if(DEBUG) {
+                        logger.debug(String.format("write 0x%s", Integer.toHexString(command & 0xFF)));
+                    }
+                    if(dgtBoardIO == null) {
                         DgtBoardWatcher.this.dumpBoardLoopStop();
                         break;
                     }
-                    dgtBoardInterface.write(command);
+                    dgtBoardIO.write(command);
                 } catch (IOException e) {
                     e.printStackTrace();
                     break;  // ?

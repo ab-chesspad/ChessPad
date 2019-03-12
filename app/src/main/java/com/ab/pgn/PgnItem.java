@@ -846,14 +846,18 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             grandParent.saveGrandChild(this, new ProgressNotifier(progressObserver));
         }
 
-        public String getHeader(String label) {
+        private Map<String, String> getHeaderMap() {
             if(headerMap == null) {
                 headerMap = new HashMap<>();
                 for(Pair<String, String> h : headers) {
                     headerMap.put(h.first, h.second);
                 }
             }
-            return headerMap.get(label);
+            return headerMap;
+        }
+
+        public String getHeader(String label) {
+            return getHeaderMap().get(label);
         }
 
         public Pair<String, String> getHeader(int index) {
@@ -872,7 +876,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         public void addHeader(Pair<String, String> h) {
             if(getHeader(h.first) == null) {
                 headers.add(h);
-                headerMap.put(h.first, h.second);
+                getHeaderMap().put(h.first, h.second);
             }
         }
 

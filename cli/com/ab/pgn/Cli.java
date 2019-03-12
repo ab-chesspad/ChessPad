@@ -1,9 +1,14 @@
 package com.ab.pgn;
 
+import com.ab.pgn.dgtboard.DgtBoardInterface;
+import com.ab.pgn.dgtboard.DgtBoardPad;
+import com.ab.pgn.dgtboard.DgtBoardWatcher;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.util.LinkedList;
@@ -15,12 +20,14 @@ import java.util.List;
  */
 
 public class Cli {
+    public static boolean DEBUG = false;
     private static int i = -1;
     enum command {
         none,
         help,
         list,
         merge,
+        dgtboard,
         total;
     };
 
@@ -29,7 +36,10 @@ public class Cli {
         "help",
         "list",
         "merge",
+        "dgtboard",
     };
+
+    static DgtBoardPad dgtBoardPad;
 
     private static int getCommand(String name) {
         for(int i = 0; i < command_names.length; ++i) {
@@ -40,7 +50,7 @@ public class Cli {
         return -1;
     }
 
-    public static void main(String[] args) throws Config.PGNException, FileNotFoundException {
+    public static void main(String[] args) throws Config.PGNException, IOException {
         System.out.println("parameters:");
         for (String a : args) {
             System.out.println(a);
@@ -66,6 +76,10 @@ public class Cli {
                 doMerge(args);
                 break;
 
+            case dgtboard :
+                doDgtBoard(args);
+                break;
+
             case none:
             case help:
                 mainHelp();
@@ -88,6 +102,7 @@ public class Cli {
         System.out.println(String.format("\t%s - print this text", command.help.toString()));
         System.out.println(String.format("\t%s <directory/zip/pgn_file> - print contents", command.list.toString()));
         System.out.println(String.format("\t%s <moves> <pgn_file> [result] - merge pgn file", command.merge.toString()));
+        System.out.println(String.format("\t%s <port, e.g. /dev/ttyUSB0> - record DGT board moves", command.dgtboard.toString()));
     }
 
     // <directory/zip/pgn_file> print contents
@@ -106,7 +121,7 @@ public class Cli {
     }
 
     // java -jar target/pgn-1.0-SNAPSHOT-jar-with-dependencies.jar merge "1.e4 c5 2. Nc3 Nc6 3.f4" etc/SicilianGrandPrix.zip/SicilianGrandPrix.pgn
-    static void doMerge(String[] args) throws Config.PGNException, FileNotFoundException {
+    private static void doMerge(String[] args) throws Config.PGNException, FileNotFoundException {
         if(args.length < 3) {
             System.out.println("invalid/missing parameters");
             mainHelp();
@@ -142,7 +157,7 @@ public class Cli {
         }
     }
 
-    static List<PgnGraph> _parse(String pgn) throws Config.PGNException {
+    private static List<PgnGraph> _parse(String pgn) throws Config.PGNException {
         List<PgnGraph> res = new LinkedList<>();
         BufferedReader br = new BufferedReader(new StringReader(pgn));
         final List<PgnItem> items = new LinkedList<>();
@@ -167,5 +182,75 @@ public class Cli {
             res.add(new PgnGraph((PgnItem.Item) item, null));
         }
         return res;
+    }
+
+    private static void doDgtBoard(String[] args) throws Config.PGNException, IOException {
+        if (args.length < 2) {
+            System.out.println("invalid/missing parameters");
+            mainHelp();
+            return;
+        }
+
+        String libPath = null;
+        if (args.length >= 3) {
+            libPath = args[2];
+        }
+
+        System.out.println(String.format("Running dgtboard with DEBUG=%b", DEBUG));
+//        DgtBoardWatcher.DEBUG = DEBUG;
+        DgtBoardPad.DEBUG = DEBUG;
+
+        System.out.println("Please wait while connection is being set up.");
+        DgtBoardInterface dgtBoardInterface = new DgtBoardInterface(libPath, args[1]);
+        dgtBoardInterface.open();
+
+        dgtBoardPad = new DgtBoardPad(dgtBoardInterface, System.getProperty("user.dir"), new DgtBoardPad.DgtBoardObserver() {
+            @Override
+            public void update(byte msgId) {
+                statusChanged();
+            }
+        });
+        dgtBoardPad.resume();
+        final boolean[] done = {false};
+        while (!done[0]) {
+            if (System.in.available() > 0) {
+                break;
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+        dgtBoardPad.finish();
+        dgtBoardInterface.close();
+
+/*
+        if (!done[0]) {
+            System.out.println(dgtBoardWatcher.getPgnGraph().getInitBoard().toString());
+            System.out.println(dgtBoardWatcher.getPgnGraph().toPgn());
+        }
+*/
+
+
+    }
+
+    private static DgtBoardPad.BoardStatus boardStatus = DgtBoardPad.BoardStatus.None;
+
+    private static void statusChanged() {
+        DgtBoardPad.BoardStatus boardStatus = dgtBoardPad.getBoardStatus();
+        if(Cli.boardStatus == boardStatus) {
+            return;
+        }
+        switch(boardStatus) {
+            case Game:
+                System.out.println("\nMove pieces or click Enter to finish:");
+                Cli.boardStatus = boardStatus;
+                break;
+            case SetupMess:
+                System.out.println("\nRestore position on the board or start a new game.");
+                Cli.boardStatus = boardStatus;
+                break;
+        }
     }
 }

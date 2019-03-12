@@ -1,6 +1,8 @@
 package com.ab.droid.chesspad;
 
 import android.graphics.Color;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.text.InputType;
 import android.text.Layout;
 import android.text.TextUtils;
@@ -82,6 +84,7 @@ public class DgtBoardView extends SetupView {
         };
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void draw() {
         moveText = new TextView(chessPad);
@@ -113,9 +116,9 @@ public class DgtBoardView extends SetupView {
             public boolean onTouch(View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
                     if(getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
-                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.SetupMess);
+                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.SetupMess, false);
                     } else {
-                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game);
+                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game, true);
                     }
 
                 }
@@ -133,12 +136,12 @@ public class DgtBoardView extends SetupView {
         int height = moveText.getHeight();
         Layout layout = moveText.getLayout();
         int totalLines = moveText.getLineCount();
-        if(height >= layout.getLineBottom(totalLines - 1)) {
+        if(height > layout.getLineBottom(totalLines - 1)) {
             return;     // whole text is visible, no truncation
         }
         int rows = 0;
         for(int i = 0; i < totalLines; ++i) {
-            if(height < layout.getLineBottom(i)) {
+            if(height <= layout.getLineBottom(i)) {
                 rows = i;
                 break;
             }
@@ -314,6 +317,7 @@ public class DgtBoardView extends SetupView {
         } else {
             moveText.setText("");
         }
+        moveText.setText(TextUtils.join("\n", getDgtBoardPad().getMovesText()));
     }
 
 }

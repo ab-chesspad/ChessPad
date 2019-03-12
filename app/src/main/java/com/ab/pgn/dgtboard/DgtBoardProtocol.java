@@ -6,7 +6,7 @@ package com.ab.pgn.dgtboard;
  *
  * Created by Alexander Bootman on 3/18/18.
  */
-public class DgtBoardProtocol {
+public interface DgtBoardProtocol {
 /*
 Protocol description for DGT chess board.
 Copyright 1998 DGT Projects B.V

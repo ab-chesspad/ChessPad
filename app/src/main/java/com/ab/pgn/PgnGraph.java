@@ -1040,8 +1040,10 @@ public class PgnGraph {
             index = e;
         }
         String resStr = new String(res);
-        Date end = new Date();
-        printDuration("toPgn", start, end);
+        if(DEBUG) {
+            Date end = new Date();
+            printDuration("toPgn", start, end);
+        }
         return resStr;
     }
 

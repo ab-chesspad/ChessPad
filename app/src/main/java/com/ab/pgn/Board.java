@@ -701,8 +701,10 @@ public class Board {
         }
 
         int flags = this.getFlags() & Config.INIT_POSITION_FLAGS & ~getPositionFlags();
-        logger.debug(String.format("validateSetup board flags=0x%s, positionFlags=0x%s, res=0x%s", Integer.toHexString(getFlags()),
-                Integer.toHexString(getPositionFlags()), flags));
+        if(DEBUG) {
+            logger.debug(String.format("validateSetup board flags=0x%s, positionFlags=0x%s, res=0x%s", Integer.toHexString(getFlags()),
+                    Integer.toHexString(getPositionFlags()), flags));
+        }
         if (flags != 0) {
             if (correct) {
                 this.clearFlags(flags);
@@ -1538,7 +1540,9 @@ public class Board {
         for (int y = 0; y < getYSize(); ++y) {
             int diff = board[y] ^ nextBoard.board[y];
             if (diff != 0) {
-                logger.debug(String.format("y=%s: 0x%s", y, Integer.toHexString(diff)));
+                if(DEBUG) {
+                    logger.debug(String.format("y=%s: 0x%s", y, Integer.toHexString(diff)));
+                }
                 for (int i = 0; i < 4; ++i) {
                     if ((diff & 0x0f) != 0) {
                         int x = 2 * i;
@@ -1562,8 +1566,10 @@ public class Board {
                 }
             }
         }
-        logger.debug(fromSquares);
-        logger.debug(toSquares);
+        if(DEBUG) {
+            logger.debug(fromSquares);
+            logger.debug(toSquares);
+        }
         Move move;
         if(toSquares.size() == 1 && fromSquares.size() == 1) {
             move = newMove();
