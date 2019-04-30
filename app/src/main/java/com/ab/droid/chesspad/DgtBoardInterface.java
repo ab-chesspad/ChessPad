@@ -31,7 +31,7 @@ public class DgtBoardInterface extends DgtBoardIO {
     public static boolean DEBUG = false;
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
-    public Object syncObject = new Object();
+    public final Object syncObject = new Object();
     public static int REPEAT_COMMAND_AFTER_MSEC = 500;   // somehow commands are being missed
 //    public static int REPEAT_COMMAND_AFTER_MSEC = 0;
 
@@ -59,11 +59,12 @@ public class DgtBoardInterface extends DgtBoardIO {
 
     private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
         @Override
+        @TargetApi(12)
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (ACTION_USB_PERMISSION.equals(action)) {
                 synchronized (this) {
-                    UsbAccessory accessory = (UsbAccessory) intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
+                    UsbAccessory accessory = intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                         Toast.makeText(ChessPad.getContext(), "USB permission obtained", Toast.LENGTH_LONG).show();
                         setAccessory(accessory);
@@ -80,6 +81,7 @@ public class DgtBoardInterface extends DgtBoardIO {
         }
     };
 
+    @TargetApi(12)
 	public DgtBoardInterface(StatusObserver statusObserver){
         this.statusObserver = statusObserver;
 		usbManager = (UsbManager) ChessPad.getContext().getSystemService(Context.USB_SERVICE);

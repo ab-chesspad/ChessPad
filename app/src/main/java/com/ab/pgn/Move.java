@@ -165,7 +165,7 @@ public class Move {
     }
 
     public int getPiecePromoted() {
-        if((moveFlags & Config.FLAGS_PROMOTION) == 0) {
+        if(!isPromotion()) {
             return Config.EMPTY;
         }
         int bits = Util.getValue(moveData, PIECE_PROMOTED_MASK, PIECE_PROMOTED_OFFSET);
@@ -176,7 +176,6 @@ public class Move {
     public void setPiecePromoted(int piecePromoted) {
         int bits = (piecePromoted - Config.QUEEN) >> 1;
         moveData = Util.setValue(moveData, bits, PIECE_PROMOTED_MASK, PIECE_PROMOTED_OFFSET);
-        moveFlags |= Config.FLAGS_PROMOTION;
     }
 
     public int getGlyph() {
@@ -230,6 +229,11 @@ public class Move {
         this.moveData &= ~(HAS_VARIATION | HAS_NEXT_MOVE | HAS_COMMENT);
     }
 
+    public boolean isPromotion() {
+        return getPiece() == Config.WHITE_PAWN && getTo().getY() == Config.BOARD_SIZE - 1 ||
+                getPiece() == Config.BLACK_PAWN && getTo().getY() == 0;
+    }
+
     public Move(DataInputStream is, Board previousBoard) throws Config.PGNException {
         try {
             this.moveData = is.readInt();
@@ -239,13 +243,9 @@ public class Move {
             if(previousBoard != null) {
                 moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
                 setPiece(previousBoard.getPiece(getFrom()));
-                if((moveFlags & Config.FLAGS_ENPASSANT) != 0 || previousBoard.getPiece(getTo()) != Config.EMPTY) {
+                if(previousBoard.getPiece(getTo()) != Config.EMPTY || previousBoard.isEnPassant(this)) {
                     moveFlags |= Config.FLAGS_CAPTURE;
                 }
-            }
-            if(getPiece() == Config.WHITE_PAWN && getTo().getY() == Config.BOARD_SIZE - 1 ||
-                    getPiece() == Config.BLACK_PAWN && getTo().getY() == 0) {
-                moveFlags |= Config.FLAGS_PROMOTION;
             }
             if((moveData & HAS_COMMENT) != 0) {
                 this.comment = Util.readString(is);
@@ -273,9 +273,9 @@ public class Move {
         try {
             getFrom().serialize(writer);
             getTo().serialize(writer);
-            // serialize flags from FLAGS_ENPASSANT_OK to FLAGS_ENPASSANT
+            // serialize flags from FLAGS_ENPASSANT_OK to FLAGS_STALEMATE
             writer.write(moveFlags >> 6, 8);
-            if( (moveFlags & Config.FLAGS_PROMOTION) != 0) {
+            if(isPromotion()) {
                 writer.write(promotedToSerialized(getPiecePromoted()), 2);
             }
             if (getGlyph() == 0) {
@@ -306,19 +306,16 @@ public class Move {
         try {
             setFrom(new Square(reader));
             setTo(new Square(reader));
-            // unserialize flags from FLAGS_ENPASSANT_OK to FLAGS_ENPASSANT
             moveFlags = reader.read(8) << 6;
             if(previousBoard != null) {
                 moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
                 setPiece(previousBoard.getPiece(getFrom()));
-                if((moveFlags & Config.FLAGS_ENPASSANT) != 0 || previousBoard.getPiece(getTo()) != Config.EMPTY) {
+                if(previousBoard.getPiece(getTo()) != Config.EMPTY || previousBoard.isEnPassant(this)) {
                     moveFlags |= Config.FLAGS_CAPTURE;
                 }
             }
-            if(getPiece() == Config.WHITE_PAWN && getTo().getY() == Config.BOARD_SIZE - 1 ||
-                    getPiece() == Config.BLACK_PAWN && getTo().getY() == 0) {
+            if(isPromotion()) {
                 setPiecePromoted(serializedToPromoted(reader.read(2), moveFlags));
-                moveFlags |= Config.FLAGS_PROMOTION;
             }
             if (reader.read(1) == 1) {
                 setGlyph(reader.read(8));

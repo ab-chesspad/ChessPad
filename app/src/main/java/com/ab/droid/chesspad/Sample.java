@@ -86,58 +86,11 @@ public class Sample {
                 "14. Bh6#) 14. Bxg8) 12. Rxe8+ Rxe8 13. Rxe8+ Nxe8 14. Bc2 $18 1-0\n"+
                 "\n" +
 
-                "[Event \"Lloyds Bank op\"]\n" +
-                "[Site \"London\"]\n" +
-                "[Date \"1984.??.??\"]\n" +
-                "[Round \"1\"]\n" +
-                "[White \"Adams, Michael\"]\n" +
-                "[Black \"Sedgwick, David\"]\n" +
-                "[Result \"1-0\"]\n" +
-                "[WhiteElo \"\"]\n" +
-                "[BlackElo \"\"]\n" +
-                "[ECO \"C05\"]\n" +
+                "[White \"stalemate\"]\n" +
+                "[Black \"after Rh3\"]\n" +
+                "[FEN \"5bnr/4p1pq/4Qpkr/7p/7P/4P3/PPPP1PP1/RNB1KBNR w - - 0 1\"]\n" +
                 "\n" +
-                "1.e4 e6 2.d4 d5 3.Nd2 Nf6 4.e5 Nfd7 5.f4 c5 6.c3 Nc6 7.Ndf3 cxd4 8.cxd4 f6\n" +
-                "9.Bd3 Bb4+ 10.Bd2 Qb6 11.Ne2 fxe5 12.fxe5 O-O 13.a3 Be7 14.Qc2 Rxf3 15.gxf3 Nxd4\n" +
-                "16.Nxd4 Qxd4 17.O-O-O Nxe5 18.Bxh7+ Kh8 19.Kb1 Qh4 20.Bc3 Bf6 21.f4 Nc4 22.Bxf6 Qxf6\n" +
-                "23.Bd3 b5 24.Qe2 Bd7 25.Rhg1 Be8 26.Rde1 Bf7 27.Rg3 Rc8 28.Reg1 Nd6 29.Rxg7 Nf5\n" +
-                "30.R7g5 Rc7 31.Bxf5 exf5 32.Rh5+  1-0\n" +
-
-                "[Event \"Lloyds Bank op\"]\n" +
-                "[Site \"London\"]\n" +
-                "[Date \"1984.??.??\"]\n" +
-                "[Round \"3\"]\n" +
-                "[White \"Adams, Michael\"]\n" +
-                "[Black \"Dickenson, Neil F\"]\n" +
-                "[Result \"1-0\"]\n" +
-                "[WhiteElo \"\"]\n" +
-                "[BlackElo \"2230\"]\n" +
-                "[ECO \"C07\"]\n" +
-                "\n" +
-                "1.e4 e6 2.d4 d5 3.Nd2 c5 4.exd5 Qxd5 5.Ngf3 cxd4 6.Bc4 Qd6 7.O-O Nf6 8.Nb3 Nc6\n" +
-                "9.Nbxd4 Nxd4 10.Nxd4 a6 11.Nf3 b5 12.Bd3 Bb7 13.a4 Ng4 14.Re1 Qb6 15.Qe2 Bc5\n" +
-                "16.Rf1 b4 17.h3 Nf6 18.Bg5 Nh5 19.Be3 Bxe3 20.Qxe3 Qxe3 21.fxe3 Ng3 22.Rfe1 Ne4\n" +
-                "23.Ne5 Nc5 24.Bc4 Ke7 25.a5 Rhd8 26.Red1 Rac8 27.b3 Rc7 28.Rxd8 Kxd8 29.Nd3 Nxd3\n" +
-                "30.Bxd3 Rc5 31.Ra4 Kc7 32.Kf2 g6 33.g4 Bc6 34.Rxb4 Rxa5 35.Rf4 f5 36.g5 Rd5\n" +
-                "37.Rh4 Rd7 38.Bxa6 Rd2+ 39.Ke1 Rxc2 40.Rxh7+ Kd6 41.Bc4 Bd5 42.Rg7 Rh2 43.Rxg6 Rxh3\n" +
-                "44.Kd2 Rg3 45.Rg8 Bxc4 46.bxc4 Kc5 47.g6 Kd6 48.c5+ Kc7 49.g7 Kb7 50.c6+  1-0\n" +
-
-                "[Event \"Lloyds Bank op\"]\n" +
-                "[Site \"London\"]\n" +
-                "[Date \"1984.??.??\"]\n" +
-                "[Round \"4\"]\n" +
-                "[White \"Hebden, Mark\"]\n" +
-                "[Black \"Adams, Michael\"]\n" +
-                "[Result \"1-0\"]\n" +
-                "[WhiteElo \"2480\"]\n" +
-                "[BlackElo \"\"]\n" +
-                "[ECO \"B10\"]\n" +
-                "\n" +
-                "1.e4 c6 2.c4 d5 3.exd5 cxd5 4.cxd5 Nf6 5.Nc3 g6 6.Bc4 Bg7 7.Nf3 O-O 8.O-O Nbd7\n" +
-                "9.d3 Nb6 10.Qb3 Bf5 11.Re1 h6 12.a4 Nfd7 13.Be3 a5 14.Nd4 Nxc4 15.dxc4 Nc5\n" +
-                "16.Qa3 Nd3 17.Nxf5 gxf5 18.Red1 Ne5 19.b3 Ng4 20.Qc1 f4 21.Bd4 Bxd4 22.Rxd4 e5\n" +
-                "23.Rd2 Qh4 24.h3 Nf6 25.Qe1 Qg5 26.Ne4 Nxe4 27.Qxe4 f5 28.Qxe5 Rae8 29.h4 Qxh4\n" +
-                "30.Qc3 Re4 31.d6 Qg5 32.f3 Re3 33.Qxa5 Rfe8 34.Rf2 Qf6 35.Rd1 R3e5 36.d7  1-0\n" +
+                "Rh3" +
                 "\n" +
 
                 "[White \"Same position\"]\n" +

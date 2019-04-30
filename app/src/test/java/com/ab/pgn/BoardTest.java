@@ -1,37 +1,32 @@
 package com.ab.pgn;
 
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Matchers.anyInt;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.*;
-
-//* comment for Studio 3
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-//*/
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 /**
  * unit tests
  * Created by Alexander Bootman on 8/7/16.
  */
-//* comment for Studio 3
+
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Board.class, BitStream.Reader.class, ByteArrayInputStream.class})
-//*/
 public class BoardTest extends BaseTest {
     @Rule
     public ExpectedException expectedEx = ExpectedException.none();

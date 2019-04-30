@@ -14,12 +14,12 @@ public class MoveValidationTest extends BaseTest {
     public void testPawn_user() throws Config.PGNException {
         String fen = "r1bqkbnr/pPp4p/4pp2/3pP3/6p1/5P2/P1PP2PP/RNBQKBNR w KQkq d6 0 1";
         final Pair<String, Integer>[] moves = new Pair[] {
-            new Pair<>("e5xd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_ENPASSANT),
+            new Pair<>("e5xd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | FLAGS_ENPASSANT),
             new Pair<>("e5xf6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE),
             new Pair<>("h2h4", Config.INIT_POSITION_FLAGS | Config.FLAGS_ENPASSANT_OK),
             new Pair<>("h2h3", Config.INIT_POSITION_FLAGS),
-            new Pair<>("b7b8=B", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION),
-            new Pair<>("b7xc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_PROMOTION),
+            new Pair<>("b7b8=B", Config.INIT_POSITION_FLAGS | FLAGS_PROMOTION),
+            new Pair<>("b7xc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | FLAGS_PROMOTION),
             new Pair<>("f3f4", Config.INIT_POSITION_FLAGS),
             new Pair<>("e5e4", ERR),
             new Pair<>("f3xe3", ERR),
@@ -27,7 +27,7 @@ public class MoveValidationTest extends BaseTest {
             new Pair<>("g2xf3", ERR),
             new Pair<>("g2g4", ERR),
             new Pair<>("g2xh3", ERR),
-            new Pair<>("b7b8", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION), // promotion is not verified
+            new Pair<>("b7b8", Config.INIT_POSITION_FLAGS | FLAGS_PROMOTION), // promotion is not verified
             new Pair<>("b7xc8=P", ERR),
             new Pair<>("b7xc8=K", ERR),
             new Pair<>("b7b7", ERR),
@@ -40,12 +40,12 @@ public class MoveValidationTest extends BaseTest {
     public void testPawn_pgn() throws Config.PGNException {
         String fen = "r1bqkbnr/1Pp4p/4pp2/pP1pP3/6p1/5P2/P2P2PP/RNBQ1BNR w KQkq d6 0 1";
         final Pair<String, Integer>[] moves = new Pair[] {
-            new Pair<>("exd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_ENPASSANT),
+            new Pair<>("exd6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | FLAGS_ENPASSANT),
             new Pair<>("exf6", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE),
             new Pair<>("h4", Config.INIT_POSITION_FLAGS | Config.FLAGS_ENPASSANT_OK),
             new Pair<>("h3", Config.INIT_POSITION_FLAGS),
-            new Pair<>("b8=B", Config.INIT_POSITION_FLAGS | Config.FLAGS_PROMOTION),
-            new Pair<>("bxc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | Config.FLAGS_PROMOTION),
+            new Pair<>("b8=B", Config.INIT_POSITION_FLAGS | FLAGS_PROMOTION),
+            new Pair<>("bxc8=R", Config.INIT_POSITION_FLAGS | Config.FLAGS_CAPTURE | FLAGS_PROMOTION),
             new Pair<>("f4", Config.INIT_POSITION_FLAGS),
             new Pair<>("e4", ERR),
             new Pair<>("fxe3", ERR),
@@ -53,7 +53,7 @@ public class MoveValidationTest extends BaseTest {
             new Pair<>("gxf3", ERR),
             new Pair<>("g4", ERR),
             new Pair<>("gxh3", ERR),
-            new Pair<>("b8", ERR),
+//            new Pair<>("b8", ERR),        // parses into b8=Q, no error
             new Pair<>("bxc8=K", ERR),
             new Pair<>("b7b7", ERR),
             new Pair<>("bxc8=P", ERR),
@@ -281,4 +281,22 @@ public class MoveValidationTest extends BaseTest {
     }
 
     // todo: bishop, queen
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testStalemate() throws Config.PGNException {
+        final Pair<String, String>[] fenAndMoves = new Pair[]{
+            new Pair<>("k7/8/8/8/8/8/8/1Q2K3 w - - 0 1", "Qb1b6"),
+            new Pair<>("5bnr/4p1pq/4Qpkr/7p/7P/4P3/PPPP1PP1/RNB1KBNR w - - 0 1", "Rh1h3"),
+            new Pair<>("8/8/8/8/3b4/1kNP4/p1P5/K1N3r b - - 0 1", "Kb3a3"),
+
+        };
+        for (Pair<String, String> entry : fenAndMoves) {
+            Board initBoard = new Board(entry.first);
+            testUserMove(initBoard, entry.second, Config.FLAGS_STALEMATE | (initBoard.getFlags() & Config.BLACK));
+            Board invertedInitBoard = invert(initBoard);
+            String invertedMove = invert(entry.second);
+            testUserMove(invertedInitBoard, invertedMove, Config.FLAGS_STALEMATE | (invertedInitBoard.getFlags() & Config.BLACK));
+        }
+    }
 }

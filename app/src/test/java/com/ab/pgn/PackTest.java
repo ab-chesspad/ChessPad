@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.mockito.Matchers.startsWith;
+import static org.mockito.ArgumentMatchers.startsWith;
 
 /**
  * unit tests
@@ -118,9 +118,7 @@ public class PackTest extends BaseTest {
         String fen = "rnbqkbnr/pppppppp/8/q/8/8/PPPPPPPP/RNBQKBNR w - - 0 1";
         Board invalid = new Board(fen);
         expectedEx.expect(Config.PGNException.class);
-/* Commented for Studio 3
         expectedEx.expectMessage(startsWith("Invalid position to pack:"));
-//*/
         expectedEx.expectMessage("Invalid position to pack:");
         int[] pack = invalid.pack();
     }

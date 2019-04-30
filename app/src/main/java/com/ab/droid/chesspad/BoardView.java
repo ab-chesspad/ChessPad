@@ -1,5 +1,6 @@
 package com.ab.droid.chesspad;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -29,6 +30,7 @@ public class BoardView extends View {
     private BoardHolder boardHolder;
     private Bitmap[] bgBitmaps;
 
+    @SuppressLint("ClickableViewAccessibility")
     public BoardView(Context context, int squareSize, BoardHolder boardHolder) {
         super(context);
         this.boardHolder = boardHolder;
@@ -161,7 +163,7 @@ public class BoardView extends View {
         }
     }
 
-    // todo: verify!
+    @SuppressLint("ClickableViewAccessibility")
     class BoardOnTouchListener implements OnTouchListener {
         Square selected = null;
         float startX, startY;

@@ -66,12 +66,11 @@ public class Config {
         FLAGS_AMBIG		    = (FLAGS_X_AMBIG | FLAGS_Y_AMBIG),
         FLAGS_CHECK			= 0x0800,
         FLAGS_NULL_MOVE		= 0x1000,	        // any move
-        FLAGS_ENPASSANT		= 0x2000,
-        FLAGS_PROMOTION		= 0x4000,           // exclude from Move  serialization
+        FLAGS_STALEMATE		= 0x2000,
         FLAGS_CAPTURE		= 0x8000,           // exclude from Move serialization
 
         MOVE_FLAGS          = (FLAGS_BLACK_MOVE | FLAGS_CAPTURE | FLAGS_AMBIG |FLAGS_CHECK |
-                FLAGS_CHECKMATE | FLAGS_PROMOTION | FLAGS_CASTLE | FLAGS_ENPASSANT | FLAGS_NULL_MOVE),
+                FLAGS_CHECKMATE | FLAGS_STALEMATE | FLAGS_CASTLE | FLAGS_NULL_MOVE),
 
         // validate move options:
         VALIDATE_PGN_MOVE			= 0x0001,

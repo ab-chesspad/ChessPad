@@ -16,6 +16,10 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     private ProgressBarHolder progressBarHolder;
     private int oldProgress;
 
+    public CPAsyncTask(CPExecutor cpExecutor) {
+        this(null, cpExecutor);
+    }
+
     public CPAsyncTask(ProgressBarHolder progressBarHolder, CPExecutor cpExecutor) {
         this.progressBarHolder = progressBarHolder;
         this.cpExecutor = cpExecutor;

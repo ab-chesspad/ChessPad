@@ -27,6 +27,9 @@ import java.util.regex.Pattern;
  */
 public class BaseTest {
     public static boolean DEBUG = false;
+    public static int FLAGS_PROMOTION = 0x010000;
+    public static int FLAGS_ENPASSANT = 0x020000;
+
     protected static String prefix = "";
     static {
         // in IntelliJ working dir is <project>, in AndroidStudio is is <project>/app
@@ -369,11 +372,11 @@ public class BaseTest {
     }
 
     /**
-     * For the supplied position validate each move as receied via UI and as read from pgn file
+     * For the supplied position validate each move as received via UI and as read from pgn file
      * revert position and check the same move made by opponent
      * @param fen position
      * @param moves array of moves with expected result
-     * @throws IOException
+     * @throws Config.PGNException
      */
     public void testUserMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
         Board initBoard = new Board(fen);
@@ -396,7 +399,7 @@ public class BaseTest {
         }
     }
 
-    private void testUserMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
+    void testUserMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
         int expectedFlags = resultFlags;
         Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
         try {
@@ -431,6 +434,13 @@ public class BaseTest {
             int expectedPositionFlags = (expectedFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
             Assert.assertEquals(String.format("%s\n%s\nposition flags 0x%04x != 0x%04x", moveText, board.toString(), positionFlags, expectedPositionFlags),
                     positionFlags, expectedPositionFlags);
+            if((expectedFlags & FLAGS_PROMOTION) != 0) {
+                Assert.assertTrue(String.format("%s must be promotion", moveText), move.isPromotion());
+            }
+            if((expectedFlags & FLAGS_ENPASSANT) != 0) {
+                Assert.assertTrue(String.format("%s must be en passant", moveText), initBoard.isEnPassant(move));
+            }
+
             Move _move = initBoard.findMove(board);
             Assert.assertTrue(String.format("expected %s, got %s", move, _move), move.isSameAs(_move));
             pgnGraph.delCurrentMove();
@@ -465,7 +475,7 @@ public class BaseTest {
         }
     }
 
-    private void testPgnMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
+    void testPgnMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
         int expectedFlags = resultFlags;
         Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
         PgnGraph pgnGraph = new PgnGraph(initBoard);
@@ -496,6 +506,12 @@ public class BaseTest {
             int expectedPositionFlags = (expectedFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
             Assert.assertEquals(String.format("%s\n%s\nposition flags 0x%04x != 0x%04x", moveText, initBoard.toString(), positionFlags, expectedPositionFlags),
                     positionFlags, expectedPositionFlags);
+            if((expectedFlags & FLAGS_PROMOTION) != 0) {
+                Assert.assertTrue(String.format("%s must be promotion", moveText), move.isPromotion());
+            }
+            if((expectedFlags & FLAGS_ENPASSANT) != 0) {
+                Assert.assertTrue(String.format("%s must be en passant", moveText), initBoard.isEnPassant(move));
+            }
         }
     }
 

@@ -142,7 +142,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
 
     public int getLength() {
         if(this.length == 0) {
-            List<PgnItem> children = null;
+            List<PgnItem> children;
             try {
                 children = getChildrenNames(null);
                 this.length = children.size();
@@ -491,7 +491,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
     }
 
     public static Item getPgnItem(PgnItem parent, int index) throws Config.PGNException {
-        if (index < 0 || parent == null || !(parent instanceof Pgn)) {
+        if (index < 0 || !(parent instanceof Pgn)) {
             throw new Config.PGNException("invalid parent type or invalid index");
         }
         Item item = new Item(parent, String.format("item%s", index));
@@ -515,7 +515,7 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         Dir grandParent = (Dir)parent.getParent();
         grandParent.walkThroughGrandChildren(parent, new EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader br) throws Config.PGNException {
+            public boolean handle(PgnItem entry, BufferedReader br) {
                 if(entry.index != item.index) {
                     return true;
                 }
@@ -835,7 +835,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
 
         public void save(ProgressObserver progressObserver) throws Config.PGNException {
             final PgnItem parent = this.getParent();
-            if (parent == null || !(parent instanceof Pgn)) {
+            if (!(parent instanceof Pgn)) {
                 throw new Config.PGNException(String.format("%s - invalid item type or invalid data", this.toString()));
             }
 
@@ -952,7 +952,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             final List<PgnItem> items = new LinkedList<>();
             ((Dir)getParent()).walkThroughGrandChildren(this, new EntryHandler() {
                 @Override
-                public boolean handle(PgnItem entry, BufferedReader br) throws Config.PGNException {
+                public boolean handle(PgnItem entry, BufferedReader br) {
                     entry.offset = offset[0];
                     items.add(entry);
                     return true;
@@ -1011,7 +1011,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
             final List<PgnItem> fileList = new ArrayList<>();
             walkThroughChildren(new EntryHandler() {
                 @Override
-                public boolean handle(PgnItem item, BufferedReader br) throws Config.PGNException {
+                public boolean handle(PgnItem item, BufferedReader br) {
                     fileList.add(item);
                     return true;
                 }
@@ -1184,7 +1184,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
-        public void walkThroughChildren(EntryHandler zipEntryHandler, boolean pgnOnly) throws Config.PGNException {
+        public void walkThroughChildren(EntryHandler zipEntryHandler, boolean pgnOnly) {
             try {
                 ZipFile zipFile = new ZipFile(self.getAbsolutePath());
                 Enumeration<? extends ZipEntry> entries = zipFile.entries();

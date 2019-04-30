@@ -1,5 +1,6 @@
 package com.ab.droid.chesspad;
 
+import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.text.Editable;
 import android.text.InputType;
@@ -29,7 +30,6 @@ public class GameView extends ChessPadView.CpView {
     private TextView glyph, move;
     private ChessPadView.CpEditText comment;
     boolean navigationEnabled = true;
-    private BoardHolder mainBoardHolder;
 
     private ChessPadView.CpImageButton[] imageButtons = new ChessPadView.CpImageButton[ChessPad.Command.total()];
 
@@ -38,6 +38,7 @@ public class GameView extends ChessPadView.CpView {
     }
 
     @Override
+    @SuppressLint("ClickableViewAccessibility")
     public void draw() {
         int x, y, dx, dy;
 
@@ -65,7 +66,7 @@ public class GameView extends ChessPadView.CpView {
         }
         y = Metrics.titleHeight + Metrics.ySpacing;
 
-        mainBoardHolder = new BoardHolder() {
+        BoardHolder mainBoardHolder = new BoardHolder() {
             @Override
             public Board getBoard() {
                 return chessPad.getBoard();

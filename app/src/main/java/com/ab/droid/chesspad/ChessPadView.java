@@ -2,6 +2,7 @@ package com.ab.droid.chesspad;
 
 import java.io.IOException;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
@@ -194,6 +195,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
         Metrics.boardViewSize = Metrics.squareSize * 8;
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     static TextView drawTitleBar(ChessPad chessPad, final TitleHolder titleHolder) {
         TextView title = new TextView(chessPad);
         title.setSingleLine();

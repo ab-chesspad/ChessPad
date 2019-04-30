@@ -1,5 +1,6 @@
 package com.ab.droid.chesspad;
 
+import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.text.InputType;
 import android.util.Log;
@@ -25,7 +26,7 @@ import java.util.List;
 
 public class SetupView extends ChessPadView.CpView {
     protected final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
-    protected BoardView piecesView;
+    private BoardView piecesView;
     protected ChessPadView.CpToggleButton btnWhiteMove, btnBlackMove;
     protected ChessPadView.CpToggleButton btnWhiteQueenCastle, btnWhiteKingCastle, btnBlackQueenCastle, btnBlackKingCastle;
     ChessPadView.CpEditText enPassEditText, hmClockEditText, moveNumEditText;
@@ -84,9 +85,11 @@ public class SetupView extends ChessPadView.CpView {
     }
 
     @Override
+    @SuppressLint("ClickableViewAccessibility")
     public void draw() {
         int x, y;
 
+        Log.d(DEBUG_TAG, "draw()");
         title = ChessPadView.drawTitleBar(chessPad, new TitleHolder() {
             @Override
             public String getTitleText() {
@@ -208,7 +211,7 @@ public class SetupView extends ChessPadView.CpView {
                 }
             });
         }
-
+        Log.d(DEBUG_TAG, "draw() done");
         invalidate();
     }
 

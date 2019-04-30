@@ -28,7 +28,12 @@ public class DgtBoardPad {
     public static boolean DEBUG = false;
     public static final int BOARD_UPDATE_TIMEOUT_MSEC = 1000;
 
-    public static final int LOCAL_VERSION_CODE = 0;
+    public static final int
+        LOCAL_VERSION_CODE = 0,
+        MSG_ID_SETUP_MESS = 1,
+        MSG_ID_GAME = 2,
+        dummy_int = 0;
+
     public enum BoardStatus {
         None,
         SetupMess,
@@ -162,20 +167,23 @@ public class DgtBoardPad {
     public void setBoardStatus(BoardStatus boardStatus, boolean preserveGame) {
         logger.debug(String.format("updateBoard: status:%s", boardStatus.toString()));
         this.boardStatus = boardStatus;
+        int msgId;
         if(boardStatus == BoardStatus.SetupMess) {
             newSetup(false);
             dgtBoardWatcher.dumpBoardLoopStart(BOARD_UPDATE_TIMEOUT_MSEC);
 //            dgtBoardWatcher.requestBoardDump();
+            msgId = MSG_ID_SETUP_MESS;
         } else {
             dgtBoardWatcher.dumpBoardLoopStop();
-            if(preserveGame) {
+            if(preserveGame && searchPgnGraph(setup.getBoard()) == BoardStatus.Game) {
                 resetChunks();
             } else {
                 newGame();
             }
+            msgId = MSG_ID_GAME;
         }
         if(dgtBoardObserver != null) {
-            dgtBoardObserver.update((byte) 0x00);
+            dgtBoardObserver.update((byte) msgId);
         }
     }
 
@@ -185,6 +193,10 @@ public class DgtBoardPad {
 
     public Setup getSetup() {
         return setup;
+    }
+
+    public PgnGraph getPgnGraph() {
+        return pgnGraph;
     }
 
     public Board getBoard() {
@@ -534,17 +546,11 @@ public class DgtBoardPad {
         }
         chunks.add(moveChunk);
         if(chunks.size() >= 2) {
-            try {
-                createMove();
-            } catch (Config.PGNException e) {
-                errorMsg = e.getMessage();
-                logger.error(errorMsg, e);
-                setBoardStatus(BoardStatus.SetupMess, true);
-            }
+            createMove();
         }
     }
 
-    private void createMove() throws Config.PGNException {
+    private void createMove() {
         String msg = "";
         String sep = "";
         if(DEBUG) {
@@ -611,7 +617,7 @@ public class DgtBoardPad {
         if((pieceChunk.piece & Config.PIECE_COLOR) != (board.getFlags() & Config.FLAGS_BLACK_MOVE) &&
                 (pieceChunk.piece & ~Config.PIECE_COLOR) == Config.KING && anyEmptyChunk.square.getX() == 4 && (pieceChunk.square.getX() == 2 || pieceChunk.square.getX() == 6)) {
             // check castling started with Rook
-            int y = -1;
+            int y;
             int rook;
             if (pieceChunk.piece == Config.WHITE_KING) {
                 y = 0;
@@ -668,14 +674,14 @@ public class DgtBoardPad {
                 if((move.moveFlags & Config.FLAGS_CASTLE) != 0) {
                     incompleteMove = move;
                     setChunksForCastling(move);
-                } else if((move.moveFlags & Config.FLAGS_ENPASSANT) != 0) {
+                } else if (board.isEnPassant(move)) {
                     if(setChunksForEnpassant(move)) {
                         incompleteMove = move;
                     } else {
                         addMove(move);
                         incompleteMove = null;
                     }
-                } else if((move.moveFlags & Config.FLAGS_PROMOTION) != 0) {
+                } else if(move.isPromotion()) {
                     if(oldPiece != pieceChunk.piece) {
                         addMove(move);
                         incompleteMove = null;

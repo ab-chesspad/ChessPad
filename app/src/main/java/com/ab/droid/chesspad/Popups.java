@@ -1,11 +1,11 @@
 package com.ab.droid.chesspad;
 
+import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.os.AsyncTask;
 import android.support.v7.app.AlertDialog;
 import android.text.Editable;
 import android.text.InputType;
@@ -92,7 +92,7 @@ public class Popups {
         OkCancel,
     }
 
-    public static final String ADD_HEADER_LABEL = "            ";
+    private static final String ADD_HEADER_LABEL = "            ";
     private ChessPad chessPad;
     private final int[][] promotionList = {
             {R.drawable.qw, R.drawable.rw, R.drawable.bw, R.drawable.nw},
@@ -106,7 +106,7 @@ public class Popups {
     private Dialog currentAlertDialog;
     private MergeData mergeData;
 
-    protected DialogType dialogType = DialogType.None;
+    private DialogType dialogType = DialogType.None;
     private String dialogMsg = null;
     private List<Pair<String, String>> editHeaders;
     CPPgnItemListAdapter cpPgnItemListAdapter;
@@ -166,23 +166,26 @@ public class Popups {
 
     protected void afterUnserialize() {
         // let UI be redrawn, otherwise ProgressBar will not show up
-        new AsyncTask<Void, Void, Void>() {
+        new CPAsyncTask(new CPExecutor() {
             @Override
-            protected Void doInBackground(Void... params) {
+            public void onExecuteException(Config.PGNException e) {
+                Log.e(DEBUG_TAG, "sleep", e);
+            }
+
+            @Override
+            public void doInBackground(ProgressPublisher progressPublisher) {
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                     Log.e(DEBUG_TAG, "sleep", e);
                 }
-                return null;
             }
 
             @Override
-            protected void onPostExecute(Void param) {
-                super.onPostExecute(param);
+            public void onPostExecute() {
                 launchDialog(Popups.this.dialogType);
             }
-        }.execute((Void)null);
+        }).execute();
     }
 
     private Resources getResources() {
@@ -299,21 +302,17 @@ public class Popups {
         if(dialogType == DialogType.SaveModified) {
             switch (selected) {
                 case DialogInterface.BUTTON_POSITIVE:
-                    try {
-                        if(chessPad.isSaveable()) {
-                            chessPad.savePgnGraph(true, new CPPostExecutor() {
-                                @Override
-                                public void onPostExecute() throws Config.PGNException {
-                                    chessPad.setPgnGraph(null);
-                                }
-                            });
-                        } else {
-                            dismissDlg();
-                            launchDialog(DialogType.Append);
-                            return;
-                        }
-                    } catch (Config.PGNException e) {
-                        Log.e(DEBUG_TAG, "dlgMessage()", e);
+                    if(chessPad.isSaveable()) {
+                        chessPad.savePgnGraph(true, new CPPostExecutor() {
+                            @Override
+                            public void onPostExecute() throws Config.PGNException {
+                                chessPad.setPgnGraph(null);
+                            }
+                        });
+                    } else {
+                        dismissDlg();
+                        launchDialog(DialogType.Append);
+                        return;
                     }
                     break;
 
@@ -348,7 +347,11 @@ public class Popups {
 
             case Glyphs:
                 dismissDlg();
-                chessPad.pgnGraph.setGlyph(selected);
+                if(chessPad.mode == ChessPad.Mode.Game) {
+                    chessPad.pgnGraph.setGlyph(selected);
+                } else if(chessPad.mode == ChessPad.Mode.DgtGame) {
+                    chessPad.dgtBoardPad.getPgnGraph().getCurrentMove().setGlyph(selected);
+                }
                 break;
 
             case Variations:
@@ -391,7 +394,7 @@ public class Popups {
                         }
 
                         @Override
-                        public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                        public void onExecuteException(Config.PGNException e) {
                             Log.e(DEBUG_TAG, "load, onExecuteException, thread " + Thread.currentThread().getName(), e);
                             crashAlert(R.string.crash_cannot_load);
                         }
@@ -479,7 +482,7 @@ public class Popups {
         this.dialogType = DialogType.None;
     }
 
-    void dlgMessage(final DialogType dialogType, String msg, int icon, DialogButton button) {
+    private void dlgMessage(final DialogType dialogType, String msg, int icon, DialogButton button) {
         launchDialog(dialogType, msg, icon, null, button);
     }
 
@@ -578,9 +581,9 @@ public class Popups {
         final Dialog mDialog = new Dialog(chessPad);
         mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         mDialog.setContentView(R.layout.dlg_append);
-        final Button btnOk = (Button)mDialog.findViewById(R.id.ok_button);
+        final Button btnOk = mDialog.findViewById(R.id.ok_button);
         btnOk.setEnabled(false);
-        final TextView textView = (TextView)mDialog.findViewById(R.id.file_name);
+        final TextView textView = mDialog.findViewById(R.id.file_name);
         textView.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -606,7 +609,7 @@ public class Popups {
             textView.setText(getTruncatedPath(path));
             path = path.getParent();
         }
-        final ListView listView = (ListView)mDialog.findViewById(R.id.file_list);
+        final ListView listView = mDialog.findViewById(R.id.file_list);
         if (fileListShown) {
             listView.setVisibility(View.VISIBLE);
         } else {
@@ -684,6 +687,7 @@ public class Popups {
         mDialog.show();
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     private void createMergeParamPane(RelativeLayout rlPane) {
         int height = (2 * Metrics.squareSize - 2 * Metrics.ySpacing) / 3;
         int x = Metrics.xSpacing;
@@ -735,10 +739,10 @@ public class Popups {
         final Dialog mDialog = new Dialog(chessPad);
         mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         mDialog.setContentView(R.layout.dlg_merge);
-        RelativeLayout rlHeaders = (RelativeLayout)mDialog.findViewById(R.id.controls_pane_merge);
+        RelativeLayout rlHeaders = mDialog.findViewById(R.id.controls_pane_merge);
         createMergeParamPane(rlHeaders);
 
-        final Button btnOk = (Button)mDialog.findViewById(R.id.ok_button);
+        final Button btnOk = mDialog.findViewById(R.id.ok_button);
         btnOk.setEnabled(mergeData.isMergeSetupOk());
         mergeData.setChangeObserver(new ChessPadView.ChangeObserver() {
             @Override
@@ -747,7 +751,7 @@ public class Popups {
             }
         });
 
-        final TextView textView = (TextView)mDialog.findViewById(R.id.file_name);
+        final TextView textView = mDialog.findViewById(R.id.file_name);
         textView.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -766,7 +770,7 @@ public class Popups {
             textView.setText(getTruncatedPath(path));
             path = path.getParent();
         }
-        final ListView fileListView = (ListView)mDialog.findViewById(R.id.file_list);
+        final ListView fileListView = mDialog.findViewById(R.id.file_list);
         if (fileListShown) {
             fileListView.setVisibility(View.VISIBLE);
         } else {
@@ -892,7 +896,7 @@ public class Popups {
             if (convertView == null) {
                 convertView = layoutInflater.inflate(R.layout.list_view, null);
             }
-            TextView textView = (TextView)convertView.findViewById(R.id.listViewRow);
+            TextView textView = convertView.findViewById(R.id.listViewRow);
             textView.setVisibility(View.VISIBLE);
             if (position == selectedIndex) {
                 textView.setBackgroundColor(Color.CYAN);
@@ -993,7 +997,7 @@ public class Popups {
                     }
 
                     @Override
-                    public void onExecuteException(Config.PGNException e) throws Config.PGNException {
+                    public void onExecuteException(Config.PGNException e) {
                         Log.e(DEBUG_TAG, "CPPgnItemListAdapter.onExecuteException, thread " + Thread.currentThread().getName(), e);
                         onLoadParentCrash();
                     }
@@ -1032,7 +1036,7 @@ public class Popups {
             if (convertView == null) {
                 convertView = layoutInflater.inflate(R.layout.list_view, null);
             }
-            TextView textView = (TextView)convertView.findViewById(R.id.listViewRow);
+            TextView textView = convertView.findViewById(R.id.listViewRow);
             textView.setVisibility(View.VISIBLE);
             textView.setSingleLine();
             if (position == selectedIndex + selectedIndexAdjustment) {
@@ -1064,10 +1068,7 @@ public class Popups {
         }
 
         public boolean isChanged(PgnItem parentItem) {
-            if(this.parentItem.equals(parentItem)) {
-                return false;
-            }
-            return true;
+            return !this.parentItem.equals(parentItem);
         }
     }
 
@@ -1101,11 +1102,11 @@ public class Popups {
                 convertView = layoutInflater.inflate(R.layout.list_view, null);
                 _rowViewHolder = new RowViewHolder();
                 convertView.setTag(_rowViewHolder);
-                LinearLayout layout = (LinearLayout)convertView.findViewById(R.id.headerRowLayout);
+                LinearLayout layout = convertView.findViewById(R.id.headerRowLayout);
                 layout.setVisibility(View.VISIBLE);
-                _rowViewHolder.labelView = (EditText)convertView.findViewById(R.id.headerLabel);
-                _rowViewHolder.valueView = (EditText)convertView.findViewById(R.id.headerValue);
-                _rowViewHolder.actionButton = (ImageButton)convertView.findViewById(R.id.headerActionButton);
+                _rowViewHolder.labelView = convertView.findViewById(R.id.headerLabel);
+                _rowViewHolder.valueView = convertView.findViewById(R.id.headerValue);
+                _rowViewHolder.actionButton = convertView.findViewById(R.id.headerActionButton);
             } else {
                 _rowViewHolder = (RowViewHolder)convertView.getTag();
             }

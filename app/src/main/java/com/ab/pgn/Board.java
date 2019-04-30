@@ -864,7 +864,7 @@ public class Board {
             } else if (this.getEnpassantX() == move.getToX()) {
                 pieceTaken = this.getPiece(move.getToX(), move.getToY() - d);
                 if (pieceTaken == hisPawn) {
-                    move.moveFlags |= Config.FLAGS_ENPASSANT | Config.FLAGS_CAPTURE;
+                    move.moveFlags |= Config.FLAGS_CAPTURE;     // en passant
                     ok = true;
                 }
             }
@@ -877,7 +877,6 @@ public class Board {
                     return false;
                 }
             }
-            move.moveFlags |= Config.FLAGS_PROMOTION;
         }
         return ok;
     }
@@ -1038,7 +1037,7 @@ public class Board {
     }
 
     // move contains the attacking piece
-    boolean validateCheckmate(Move move) {
+    public boolean validateCheckmate(Move move) {
         Move probeMove = new Move(move.moveFlags ^ Config.FLAGS_BLACK_MOVE);
         int probeTo_x, probeTo_y;
 
@@ -1162,6 +1161,79 @@ public class Board {
         return true;
     }
 
+    public boolean validateStalemate() {
+        final int[][][] probePawnMoves = {
+            {{0,1}, {-1,1}, {1,1}},             // white
+            {{0, -1}, {-1, -1}, {1, -1}},       // black
+        };
+        final int[][] probeKnigthMoves = {{-1,-2}, {-2,-1}, {-2,1}, {-1,2}, {1,2}, {2,1}, {2,-1}, {1,-2}};
+        final int[][] probeKingMoves = {{-1,0}, {-1,1}, {0,1}, {1,1}, {1,0}, {1,-1}, {0,-1}, {-1,-1}};
+        final int[][] probeBishopMoves = {{-1,-1}, {-1,1}, {1,1}, {1,-1}};
+        final int[][] probeRookMoves = {{-1,0}, {0,1}, {1,0}, {0,-1}};
+
+        Board tmp = this.clone();
+        int myColor = tmp.getFlags() & Config.BLACK;
+        int hisColor = Config.BLACK - myColor;
+        for (int i = 0; i < Config.BOARD_SIZE; ++i) {
+            for (int j = 0; j < Config.BOARD_SIZE; ++j) {
+                int piece = tmp.getPiece(i, j);
+                if(piece == Config.EMPTY || (piece & Config.BLACK) == hisColor) {
+                    continue;
+                }
+                Move move = tmp.newMove();
+                int moveFlags = move.moveFlags;
+                move.setFrom(i, j);
+                move.setPiece(piece);
+                int[][] probeMoves;
+                switch (piece & ~Config.BLACK) {
+                    case Config.PAWN:
+                        probeMoves = probePawnMoves[myColor];       // ASSUMING Config.BLACK == 1!!
+                        break;
+
+                    case Config.KNIGHT:
+                        probeMoves = probeKnigthMoves;
+                        break;
+
+                    case Config.ROOK:
+                        probeMoves = probeRookMoves;
+                        break;
+
+                    case Config.BISHOP:
+                        probeMoves = probeBishopMoves;
+                        break;
+
+                    default:
+                        probeMoves = probeKingMoves;
+                        break;
+                }
+                for(int k = 0; k < probeMoves.length; ++k) {
+                    int x = i + probeMoves[k][0];
+                    if(x < 0 || x >= Config.BOARD_SIZE) {
+                        continue;
+                    }
+                    int y = j + probeMoves[k][1];
+                    if(y < 0 || y >= Config.BOARD_SIZE) {
+                        continue;
+                    }
+                    int trgPiece = tmp.getPiece(x, y);
+                    if(trgPiece != Config.EMPTY && (trgPiece & Config.BLACK) == (piece & Config.BLACK)) {
+                        continue;
+                    }
+                    move.setTo(x, y);
+                    move.moveFlags = moveFlags;
+                    if("Be7".equals(move.toString().trim())) {
+                        logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
+                    }
+                    logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
+                    if(tmp.validatePgnMove(move, Config.VALIDATE_USER_MOVE)) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     // move pieces on board
     public void doMove(Move move) {
         this.incrementPlyNum(1);
@@ -1175,13 +1247,15 @@ public class Board {
         }
 
         setPiece(move.getFrom(), Config.EMPTY);
+        int toPiece = getPiece(move.getTo());
         if ((move.getPiecePromoted() == Config.EMPTY)) {
             setPiece(move.getTo(), move.getPiece());
         } else {
             setPiece(move.getTo(), move.getPiecePromoted());
         }
 
-        if ((move.moveFlags & Config.FLAGS_ENPASSANT) != 0) {
+        if(move.getColorlessPiece() == Config.PAWN && move.getFromX() != move.getToX() && toPiece == Config.EMPTY) {
+            // cannot use isEnPassant(move) because hisPawn is not taken out
             if (move.getToY() == 5) {
                 // white move
                 setPiece(move.getToX(), 4, Config.EMPTY);
@@ -1254,6 +1328,10 @@ public class Board {
         this.clearFlags(Config.FLAGS_ENPASSANT_OK);
         this.raiseFlags(move.moveFlags & Config.FLAGS_ENPASSANT_OK);
         this.invertFlags(Config.FLAGS_BLACK_MOVE);
+    }
+
+    public boolean isEnPassant(Move move) {
+        return move.getColorlessPiece() == Config.PAWN && move.getFromX() != move.getToX() && getPiece(move.getTo()) == Config.EMPTY;
     }
 
     /**

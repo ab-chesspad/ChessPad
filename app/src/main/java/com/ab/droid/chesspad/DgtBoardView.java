@@ -1,25 +1,28 @@
 package com.ab.droid.chesspad;
 
+import android.annotation.SuppressLint;
+import android.content.Context;
 import android.graphics.Color;
-import android.os.Build;
-import android.support.annotation.RequiresApi;
+import android.text.Editable;
 import android.text.InputType;
-import android.text.Layout;
 import android.text.TextUtils;
+import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewTreeObserver;
-import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.EditText;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.ab.pgn.Board;
+import com.ab.pgn.Config;
 import com.ab.pgn.Setup;
 import com.ab.pgn.Square;
 import com.ab.pgn.dgtboard.DgtBoardPad;
 
-import java.util.List;
+import java.util.Locale;
 
 /**
  *
@@ -27,9 +30,12 @@ import java.util.List;
  */
 
 public class DgtBoardView extends SetupView {
-    private ChessPadView.CpImageButton btnRevertView, btnTurnBoard;
-    private TextView moveText;
+    public static boolean DEBUG = false;
 
+    private ChessPadView.CpImageButton btnFlipView, btnFlipBoard;
+    private EditText moveText;
+    private TextView glyph;
+    private ChessPadView.CpEditText comment;
 
     public DgtBoardView(ChessPad chessPad) {
         super(chessPad);
@@ -84,31 +90,53 @@ public class DgtBoardView extends SetupView {
         };
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public void draw() {
-        moveText = new TextView(chessPad);
-        moveText.setElegantTextHeight(true);
-        moveText.setGravity(Gravity.FILL_VERTICAL);
+        Log.d(DEBUG_TAG, String.format("start draw() %s", getDgtBoardPad().getBoardStatus().toString()));
+        moveText = new EditText(chessPad);
+        moveText.setGravity(Gravity.BOTTOM);
         moveText.setFocusable(false);
         moveText.setSingleLine(false);
-        moveText.setImeOptions(EditorInfo.IME_FLAG_NO_ENTER_ACTION);
         moveText.setBackgroundColor(Color.WHITE);
-        moveText.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        moveText.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-            @Override
-            public boolean onPreDraw() {
-                Layout layout = moveText.getLayout();
-                if(layout != null) {
-                    List<String> movesText = getDgtBoardPad().getMovesText();
-//                    Log.d(DEBUG_TAG, String.format("onGlobalLayout(), movesText=%s", movesText));
-                    if(movesText != null) {
-                        updateMoveText(movesText);
+
+        if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
+            glyph = new TextView(chessPad);
+            glyph.setSingleLine();
+            glyph.setBackgroundColor(Color.GREEN);
+            glyph.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (event.getAction() == MotionEvent.ACTION_UP) {
+                        chessPad.onButtonClick(ChessPad.Command.ShowGlyphs);
                     }
+                    // true if the event was handled and should not be given further down to other views.
+                    return true;
                 }
-                return true;
-            }
-        });
+            });
+            glyph.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+
+            comment = new ChessPadView.CpEditText(chessPad);
+            comment.setBackgroundColor(Color.GREEN);
+            comment.setGravity(Gravity.START | Gravity.TOP);
+            // todo: enforce paired brackets {}
+            comment.addTextChangedListener(new TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                }
+
+                @Override
+                public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                }
+
+                @Override
+                public void afterTextChanged(Editable editable) {
+                    // fix it: called on every character, I only need the final value
+                    getDgtBoardPad().getPgnGraph().setComment(editable.toString());
+                }
+            });
+        }
+
         super.draw();
 
         setupStatus.setOnTouchListener(new View.OnTouchListener() {
@@ -120,34 +148,13 @@ public class DgtBoardView extends SetupView {
                     } else {
                         getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game, true);
                     }
-
+                    DgtBoardView.this.draw();
                 }
                 // true if the event was handled and should not be given further down to other views.
                 return true;
             }
         });
-    }
-
-    private void updateMoveText(List<String> movesText) {
-        if(movesText == null || movesText.size() == 0) {
-            return;
-        }
-//        Log.d(DEBUG_TAG, String.format("onGlobalLayout(), movesText=%s", movesText));
-        int height = moveText.getHeight();
-        Layout layout = moveText.getLayout();
-        int totalLines = moveText.getLineCount();
-        if(height > layout.getLineBottom(totalLines - 1)) {
-            return;     // whole text is visible, no truncation
-        }
-        int rows = 0;
-        for(int i = 0; i < totalLines; ++i) {
-            if(height <= layout.getLineBottom(i)) {
-                rows = i;
-                break;
-            }
-        }
-        int skip = movesText.size() - rows;
-        moveText.setText(TextUtils.join("\n", movesText.subList(skip, movesText.size())));
+        Log.d(DEBUG_TAG, String.format("draw() done %s", getDgtBoardPad().getBoardStatus().toString()));
     }
 
     @Override
@@ -161,45 +168,59 @@ public class DgtBoardView extends SetupView {
         }
 
         int width, height;
-        x = 0;
         y0 = Metrics.ySpacing;
+        if (getDgtBoardPad().getBoardStatus() != DgtBoardPad.BoardStatus.Game) {
+            // white / black move buttons
+            x = Metrics.xSpacing;
+            y = y0;
+            btnWhiteMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
+            y += toggleButtonSize + Metrics.ySpacing;
+            btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
 
-        // white / black move buttons
-        x = (Metrics.screenWidth - (Metrics.halfMoveClockLabelWidth + Metrics.moveLabelWidth / 2 + 3 * toggleButtonSize + 4 * Metrics.xSpacing)) / 2;
-        y = y0;
-        btnWhiteMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
-        y += toggleButtonSize + Metrics.ySpacing;
-        btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
+            // castle buttons
+            x0 = x + toggleButtonSize + Metrics.xSpacing;
+            x = x0;
+            y = y0;
+            btnWhiteQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+            x += toggleButtonSize + Metrics.xSpacing;
+            btnWhiteKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
 
-        // castle buttons
-        x0 = x + toggleButtonSize + Metrics.xSpacing;
-        x = x0;
-        y = y0;
-        btnWhiteQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
-        x += toggleButtonSize + Metrics.xSpacing;
-        btnWhiteKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+            x = x0;
+            y += toggleButtonSize + Metrics.ySpacing;
+            btnBlackQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+            x += toggleButtonSize + Metrics.xSpacing;
+            btnBlackKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
 
-        x = x0;
-        y += toggleButtonSize + Metrics.ySpacing;
-        btnBlackQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
-        x += toggleButtonSize + Metrics.xSpacing;
-        btnBlackKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+            // texts:
+            width = Metrics.halfMoveClockLabelWidth + Metrics.moveLabelWidth / 2 + Metrics.xSpacing;
+            x = Metrics.paneWidth - width;
+            y = y0;
+            height = (2 * toggleButtonSize - 2 * Metrics.ySpacing) / 3;
+            enPassEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+                    Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_en_pass);
 
-        // texts:
-        x += toggleButtonSize + 3 * Metrics.xSpacing;
-        y = y0;
-        height = (2 * toggleButtonSize - 2 * Metrics.ySpacing) / 3;
-        enPassEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
-                Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_en_pass);
+            y += height + Metrics.ySpacing;
+            hmClockEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+                    Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_halfmove_clock);
+            y += height + Metrics.ySpacing;
+            moveNumEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+                    Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_move_num);
+            y += height + 2 * Metrics.ySpacing;
 
-        y += height + Metrics.ySpacing;
-        hmClockEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
-                Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_halfmove_clock);
-        y += height + Metrics.ySpacing;
-        moveNumEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
-                Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_move_num);
-        y += height + Metrics.ySpacing;
+        } else {
+            y = y0;
+            height = 2 * toggleButtonSize + Metrics.ySpacing;
+            width = Metrics.maxMoveWidth / 2;
+            x = Metrics.paneWidth - Metrics.xSpacing - width;
+            ChessPadView.addTextView(relativeLayoutSetup, glyph, x, y, width, height);
 
+            x = Metrics.xSpacing;
+            width = Metrics.paneWidth - 3 * Metrics.xSpacing - width;
+            ChessPadView.addTextView(relativeLayoutSetup, comment, x, y, width, height);
+            y += height + Metrics.ySpacing;
+        }
+
+        y += Metrics.ySpacing;
         x = Metrics.xSpacing;
         width = (Metrics.paneWidth - x - Metrics.squareSize - 4 * Metrics.xSpacing) / 2;
         height = 2 * Metrics.squareSize + Metrics.ySpacing;
@@ -209,54 +230,65 @@ public class DgtBoardView extends SetupView {
         x += width + Metrics.xSpacing;
         ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
         x += width + Metrics.xSpacing;
-        btnRevertView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y, R.drawable.ic_menu_refresh);
-        btnTurnBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
+        btnFlipView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y, R.drawable.ic_menu_refresh);
+        btnFlipBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
     }
 
     @Override
     protected void drawSetupHorizonlalLayout(RelativeLayout relativeLayoutSetup) {
-        int x, y, x0, y0;
+        int x, y, x0, y0, height;
 
         int toggleButtonSize = Metrics.squareSize;
         x0 = Metrics.xSpacing;
         x = x0;
         y = 0;
 
-        // texts:
-        int height = (2 * toggleButtonSize - 2 * Metrics.ySpacing) / 3;
-        enPassEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
-                Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_en_pass);
+        if (getDgtBoardPad().getBoardStatus() != DgtBoardPad.BoardStatus.Game) {
+            // texts:
+            height = (2 * toggleButtonSize - 2 * Metrics.ySpacing) / 3;
+            enPassEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+                    Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_en_pass);
 
-        y += height + Metrics.ySpacing;
-        hmClockEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
-                Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_halfmove_clock);
-        y += height + Metrics.ySpacing;
-        moveNumEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
-                Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_move_num);
+            y += height + Metrics.ySpacing;
+            hmClockEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+                    Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_halfmove_clock);
+            y += height + Metrics.ySpacing;
+            moveNumEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+                    Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_move_num);
 
-        y0 = y + height + 2 * Metrics.ySpacing;
-        // white / black move buttons
-        x = x0;
-        y = y0;
-        btnWhiteMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
-        y += toggleButtonSize + Metrics.ySpacing;
-        btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
+            y0 = y + height + 2 * Metrics.ySpacing;
+            // white / black move buttons
+            x = x0;
+            y = y0;
+            btnWhiteMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
+            y += toggleButtonSize + Metrics.ySpacing;
+            btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
 
-        // castle buttons
-        x0 = x + toggleButtonSize + Metrics.xSpacing;
-        x = x0;
-        y = y0;
-        btnWhiteQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
-        x += toggleButtonSize + Metrics.xSpacing;
-        btnWhiteKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+            // castle buttons
+            x0 = x + toggleButtonSize + Metrics.xSpacing;
+            x = x0;
+            y = y0;
+            btnWhiteQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+            x += toggleButtonSize + Metrics.xSpacing;
+            btnWhiteKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
 
-        x = x0;
-        y += toggleButtonSize + Metrics.ySpacing;
-        btnBlackQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
-        x += toggleButtonSize + Metrics.xSpacing;
-        btnBlackKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
-        y0 = y + toggleButtonSize;
+            x = x0;
+            y += toggleButtonSize + Metrics.ySpacing;
+            btnBlackQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+            x += toggleButtonSize + Metrics.xSpacing;
+            btnBlackKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+            y0 = y + toggleButtonSize + 3 * Metrics.ySpacing;
+        } else {
+            int w = Metrics.maxMoveWidth / 2;
+            int width = Metrics.halfMoveClockLabelWidth + Metrics.moveLabelWidth / 2 - (w + Metrics.xSpacing);
+            height = 4 * toggleButtonSize + 4 * Metrics.ySpacing;
+            ChessPadView.addTextView(relativeLayoutSetup, comment, x, y, width, height);
 
+            x += width + Metrics.xSpacing;
+            int h = 2 * toggleButtonSize + Metrics.ySpacing;
+            ChessPadView.addTextView(relativeLayoutSetup, glyph, x, y, w, h);
+            y0 = y + height + 2 * Metrics.ySpacing;
+        }
         height = 2 * toggleButtonSize + Metrics.xSpacing;
         int width = Metrics.halfMoveClockLabelWidth + Metrics.moveLabelWidth / 2 - (toggleButtonSize + Metrics.xSpacing);
         x = Metrics.xSpacing;
@@ -264,8 +296,8 @@ public class DgtBoardView extends SetupView {
         ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
 
         x += width + Metrics.xSpacing;
-        btnRevertView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y, R.drawable.ic_menu_refresh);
-        btnTurnBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.TurnBoard, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
+        btnFlipView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y, R.drawable.ic_menu_refresh);
+        btnFlipBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.TurnBoard, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
 
         x = Metrics.xSpacing;
         int h = y - y0 - 2 * Metrics.ySpacing;
@@ -277,47 +309,44 @@ public class DgtBoardView extends SetupView {
         ChessPadView.addTextView(relativeLayoutSetup, moveText, x, y, width, height);
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void invalidate() {
-        boolean enable = false;
-        if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.SetupMess) {
-            enable = true;
+        try {
+            if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.SetupMess) {
+                enPassEditText.setText(getSetup().getEnPass());
+                hmClockEditText.setText("" + getBoard().getReversiblePlyNum());
+                moveNumEditText.setText("" + getBoard().getPlyNum() / 2);
+            } else if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
+                InputMethodManager imm = (InputMethodManager) chessPad.getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null) {
+                    imm.hideSoftInputFromWindow(comment.getWindowToken(), 0);
+                    Log.d(DEBUG_TAG, "kbd closed");
+                }
+            }
+        } catch (Exception e) {
+            Log.e(DEBUG_TAG, "invalidate() 1", e);
         }
-        btnWhiteMove.setEnabled(enable);
-        btnBlackMove.setEnabled(enable);
-        btnWhiteQueenCastle.setEnabled(enable);
-        btnWhiteKingCastle.setEnabled(enable);
-        btnBlackQueenCastle.setEnabled(enable);
-        btnBlackKingCastle.setEnabled(enable);
-        enPassEditText.setEnabled(enable);
-        hmClockEditText.setEnabled(enable);
-        moveNumEditText.setEnabled(enable);
-        btnTurnBoard.setEnabled(enable);
-
-        enPassEditText.setText(getSetup().getEnPass());
-        hmClockEditText.setText("" + getBoard().getReversiblePlyNum());
-        moveNumEditText.setText("" + getBoard().getPlyNum() / 2);
 
         super.invalidate();
-        if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
-            moveNumEditText.setStringKeeper(new ChessPadView.StringKeeper() {
-                @Override
-                public void setValue(TextView v, String str) {
-                    // do not update board plyNum
+        try {
+            if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
+                setupStatus.setText(R.string.dgt_status_game);
+                int g = getDgtBoardPad().getPgnGraph().getGlyph();
+                if (g == 0) {
+                    glyph.setText("");
+                } else {
+                    glyph.setText(String.format(Locale.getDefault(), "%s%d", Config.PGN_GLYPH, g));
                 }
-
-                @Override
-                public String getValue(TextView v) {
-                    return "" + (getBoard().getPlyNum() + 1) / 2;
-                }
-            });
-
-            setupStatus.setText(R.string.dgt_status_game);
+                comment.setText(getDgtBoardPad().getPgnGraph().getComment());
+            } else {
+                moveText.setText("");
+            }
             moveText.setText(TextUtils.join("\n", getDgtBoardPad().getMovesText()));
-        } else {
-            moveText.setText("");
+            moveText.setSelection(moveText.getText().length());
+        } catch (Exception e) {
+            Log.e(DEBUG_TAG, "invalidate() 2", e);
         }
-        moveText.setText(TextUtils.join("\n", getDgtBoardPad().getMovesText()));
     }
 
 }

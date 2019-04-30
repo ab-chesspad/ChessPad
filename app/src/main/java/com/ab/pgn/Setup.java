@@ -25,7 +25,7 @@ public class Setup {
         } catch (Exception e) {
             // ignore
         }
-        this.headers = pgnGraph.getPgn().cloneHeaders(pgnGraph.getPgn().getHeaders(), Config.HEADER_Round);
+        this.headers = PgnItem.cloneHeaders(pgnGraph.getPgn().getHeaders(), Config.HEADER_Round);
         this.headers.add(new Pair<>(Config.HEADER_Round, "" + round));
     }
 
