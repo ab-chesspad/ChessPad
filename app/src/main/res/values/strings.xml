@@ -6,14 +6,16 @@
 	<string name="about">\u00A0ChessPad %s\n PGN editor\n ab.chesspad@gmail.com\n\nFull info including source code:\nhttps://github.com/ab-chesspad/ChessPad
 	</string>
 
-    <string name="err_empty_new_tag_name">New tag name is empty</string>
-    <string name="err_tag_name_exists">Tag name exists already</string>
+    <string name="err_empty_new_tag_name">Missing tag name</string>
+    <string name="err_tag_name_exists">Tag already exists</string>
     <string name="toast_err_file">Could not save the specified file, check if the name is valid</string>
 
     <string name="alert_pgn_path_label">Full Path to Pgn File:</string>
     <string name="alert_merge_start_label">Start:</string>
     <string name="alert_merge_end_label">End:</string>
     <string name="alert_annotate_label">Annotate</string>
+    <string name="alert_merge_max_plys_label">Max plys:</string>
+
     <string name="alert_no_writable_dir">Android directory %s is not writable, check ChessPad permissions</string>
 
     <string name="alert_msg_wait">Please wait...</string>
@@ -41,6 +43,8 @@
     <string name="menu_cancel_setup">Cancel Setup</string>
     <string name="menu_start_dgt_game">Start Dgt Board Mode</string>
     <string name="menu_stop_dgt_game">Stop Dgt Board Mode</string>
+    <string name="menu_connect_to_fics">Connect to FICS</string>
+    <string name="menu_close_fics_connection">Close FICS connection</string>
     <string name="menu_about">About</string>
 
     <string name="label_en_pass">En passant: </string>
@@ -56,10 +60,16 @@
     <string name="label_header_action_button">Action Button</string>
     <string name="label_lookup_button">Lookup Button</string>
     <string name="hint_file_name">File Name</string>
-    <string name="hint_header_label">Header Label</string>
-    <string name="hint_header_value">Header Value</string>
+    <string name="hint_header_label">NewTag</string>
+    <string name="hint_header_value">New Value</string>
 
     <string name="dgt_status_game">Recording...</string>
+
+    <!--FICS resources:-->
+    <string name="hint_username">username</string>
+    <string name="hint_password">password</string>
+    <string name="login_as_guest">Login as guest</string>
+    <string name="login">Login</string>
 
     <string-array name="setup_errs">
         <item>0 Setup OK</item>

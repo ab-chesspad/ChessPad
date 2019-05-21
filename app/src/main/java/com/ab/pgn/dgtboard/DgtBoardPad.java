@@ -3,6 +3,7 @@ package com.ab.pgn.dgtboard;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
+import com.ab.pgn.CpEventObserver;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnGraph;
@@ -30,8 +31,6 @@ public class DgtBoardPad {
 
     public static final int
         LOCAL_VERSION_CODE = 0,
-        MSG_ID_SETUP_MESS = 1,
-        MSG_ID_GAME = 2,
         dummy_int = 0;
 
     public enum BoardStatus {
@@ -46,7 +45,7 @@ public class DgtBoardPad {
     private BoardStatus boardStatus = BoardStatus.None;
     private String outputDir;
     private final DgtBoardWatcher dgtBoardWatcher;
-    private final DgtBoardObserver dgtBoardObserver;
+    private final CpEventObserver cpEventObserver;
 
     private String recordedGames = "";
     private PgnGraph pgnGraph;
@@ -59,9 +58,9 @@ public class DgtBoardPad {
     private Move incompleteMove = null;
     private String errorMsg;
 
-    public DgtBoardPad(DgtBoardIO dgtBoardIO, String outputDir, DgtBoardObserver dgtBoardObserver) throws Config.PGNException {
+    public DgtBoardPad(DgtBoardIO dgtBoardIO, String outputDir, CpEventObserver cpEventObserver) throws Config.PGNException {
         this.outputDir = outputDir;
-        this.dgtBoardObserver = dgtBoardObserver;
+        this.cpEventObserver = cpEventObserver;
         dgtBoardWatcher = new DgtBoardWatcher(dgtBoardIO, new DgtBoardWatcher.BoardMessageConsumer() {
             @Override
             public void consume(DgtBoardWatcher.BoardMessage boardMessage) {
@@ -172,7 +171,7 @@ public class DgtBoardPad {
             newSetup(false);
             dgtBoardWatcher.dumpBoardLoopStart(BOARD_UPDATE_TIMEOUT_MSEC);
 //            dgtBoardWatcher.requestBoardDump();
-            msgId = MSG_ID_SETUP_MESS;
+            msgId = Config.MSG_DGT_BOARD_SETUP_MESS;
         } else {
             dgtBoardWatcher.dumpBoardLoopStop();
             if(preserveGame && searchPgnGraph(setup.getBoard()) == BoardStatus.Game) {
@@ -180,10 +179,10 @@ public class DgtBoardPad {
             } else {
                 newGame();
             }
-            msgId = MSG_ID_GAME;
+            msgId = Config.MSG_DGT_BOARD_GAME;
         }
-        if(dgtBoardObserver != null) {
-            dgtBoardObserver.update((byte) msgId);
+        if(cpEventObserver != null) {
+            cpEventObserver.update((byte) msgId);
         }
     }
 
@@ -251,8 +250,8 @@ public class DgtBoardPad {
         } else if(boardMessage instanceof DgtBoardWatcher.BoardMessageMoveChunk) {
             acceptMoveChunk((DgtBoardWatcher.BoardMessageMoveChunk) boardMessage);
         }
-        if(dgtBoardObserver != null) {
-            dgtBoardObserver.update(boardMessage.getMsgId());
+        if(cpEventObserver != null) {
+            cpEventObserver.update(boardMessage.getMsgId());
         }
     }
 
@@ -752,9 +751,4 @@ public class DgtBoardPad {
         }
         chunks.clear();
     }
-
-    public interface DgtBoardObserver {
-        void update(byte msgId);
-    }
-
 }

@@ -280,6 +280,26 @@ public class PgnItemTest extends BaseTest {
     }
 
     @Test
+    public void testParentIndex() throws Config.PGNException {
+        testParentIndex(new PgnItem.Dir(new File(TEST_ROOT).getAbsolutePath() + "/x/"));
+    }
+
+    private void testParentIndex(PgnItem parent) throws Config.PGNException {
+        List<PgnItem> list;
+        try {
+            list = parent.getChildrenNames(null);
+        } catch (RuntimeException e) {
+            return;     // no children
+        }
+        int index = -1;
+        for (PgnItem item : list) {
+            int realIndex = item.parentIndex(parent);
+            Assert.assertEquals(String.format("Invalid index of %s in %s", item.getAbsolutePath(), parent.getAbsolutePath()), ++index, realIndex);
+            testParentIndex(item);
+        }
+    }
+
+    @Test
     public void testRegex1() throws Exception {
         String s = "1. d4 d5\n" +
             "2. c4 e6\n" +

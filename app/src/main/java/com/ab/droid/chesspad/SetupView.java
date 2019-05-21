@@ -172,41 +172,44 @@ public class SetupView extends ChessPadView.CpView {
             enPassEditText.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
             enPassEditText.setStringKeeper(new ChessPadView.StringKeeper() {
                 @Override
-                public void setValue(TextView v, String str) {
+                public void setValue(String str) {
                     getSetup().setEnPass(str);
+                    invalidate();
                 }
 
                 @Override
-                public String getValue(TextView v) {
+                public String getValue() {
                     return getSetup().getEnPass();
                 }
             });
 
             hmClockEditText.setStringKeeper(new ChessPadView.StringKeeper() {
                 @Override
-                public void setValue(TextView v, String str) {
+                public void setValue(String str) {
                     int hmClock = getNumericValue(str);
                     getBoard().setReversiblePlyNum(hmClock);
+                    invalidate();
                 }
 
                 @Override
-                public String getValue(TextView v) {
+                public String getValue() {
                     return "" + getBoard().getReversiblePlyNum();
                 }
             });
 
             moveNumEditText.setStringKeeper(new ChessPadView.StringKeeper() {
                 @Override
-                public void setValue(TextView v, String str) {
+                public void setValue(String str) {
                     int moveNum = getNumericValue(str) * 2;
                     if ((getBoard().getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
                         ++moveNum;
                     }
                     getBoard().setPlyNum(moveNum);
+                    invalidate();
                 }
 
                 @Override
-                public String getValue(TextView v) {
+                public String getValue() {
                     return "" + getBoard().getPlyNum() / 2;
                 }
             });
@@ -375,13 +378,19 @@ public class SetupView extends ChessPadView.CpView {
         });
     }
 
+    private boolean alreadyThere = false;   // quick and dirty
     @Override
     public void invalidate() {
+        if(alreadyThere) {
+            return;
+        }
+        alreadyThere = true;
         getSetup().validate();
         setStatus(getSetup().getErrNum());
         super.invalidate();
         title.setText(getSetup().getTitleText());
         invalidateViewGroup(relativeLayoutMain);
+        alreadyThere = false;
     }
 
     public static void invalidateViewGroup(ViewGroup viewGroup) {

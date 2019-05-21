@@ -36,14 +36,18 @@ import java.util.zip.ZipOutputStream;
  */
 public abstract class PgnItem implements Comparable<PgnItem> {
     public static final String
-            EXT_PGN = ".pgn",
-            EXT_ZIP = ".zip",
-            EXT_TEMP = ".tmp",
-            COMMON_ITEM_NAME = "item",
+        EXT_TEMP = ".tmp",
+        COMMON_ITEM_NAME = "item",
+        TAG_START = "[",
+        TAG_END = "\"]",
+        dummy_pub_str = null;
 
-            TAG_START = "[",
-            TAG_END = "\"]",
-            dummy_str = null;
+    private static final String
+        EXT_PGN = ".pgn",
+        EXT_ZIP = ".zip",
+        WRONG_PGN = "/" + EXT_PGN,
+        WRONG_ZIP = "/" + EXT_ZIP,
+        dummy_prv_str = null;
 
     private static int i = -1;
 
@@ -84,6 +88,15 @@ public abstract class PgnItem implements Comparable<PgnItem> {
 
     public static File getRoot() {
         return root;
+    }
+
+    public static boolean isPgnOk(String path) {
+        path = path.toLowerCase();
+        return path.endsWith(EXT_PGN) && !path.endsWith(WRONG_PGN);
+    }
+
+    public static boolean isZipOk(String path) {
+        return path.endsWith(EXT_ZIP) && !path.endsWith(WRONG_ZIP);
     }
 
     protected PgnItem() {}
@@ -202,19 +215,37 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         return getAbsolutePath().equals(item.getAbsolutePath());
     }
 
-    public int parentIndex(PgnItem parent) throws Config.PGNException {
+    public int parentIndex(PgnItem parent) {
         String myPath = getAbsolutePath();
         if(!myPath.startsWith(parent.getAbsolutePath())) {
             return -1;
         }
-        int offset = parent.getAbsolutePath().length() + 1;
-        List<PgnItem> siblings = parent.getChildrenNames(null);
-        for(int i = 0; i < siblings.size(); ++i) {
-            PgnItem sibling = siblings.get(i);
-            String siblingName = sibling.getName() + "/";
-            if(myPath.substring(offset).startsWith(siblingName)) {
-                return i;
+
+        String parentPath = parent.getAbsolutePath();
+        String relativePath = myPath.substring(parentPath.length() + 1);
+        if(parent.getType() == PgnItemType.Zip) {
+            // SicilianGrandPrix.pgn/item
+            String[] parts = relativePath.split("/");
+            for(String part : parts) {
+                if(PgnItem.isPgnOk(part)) {
+                    relativePath = part;
+                    break;
+                }
             }
+        }
+        try {
+            List<PgnItem> siblings = parent.getChildrenNames(null);
+            for (int i = 0; i < siblings.size(); ++i) {
+                PgnItem sibling = siblings.get(i);
+                String siblingName = sibling.getName();
+                if (relativePath.startsWith(siblingName)) {
+                    if (relativePath.length() == siblingName.length() || relativePath.charAt(siblingName.length()) == '/') {
+                        return i;
+                    }
+                }
+            }
+        } catch (Config.PGNException e) {
+            logger.error(e.getMessage(), e);
         }
         return -1;      // should not be here;
     }
@@ -385,9 +416,9 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         String path = file.getAbsolutePath();
         if (file.isDirectory()) {
             pgnItem = new Dir(path);
-        } else if (path.toLowerCase().endsWith(EXT_PGN)) {
+        } else if (PgnItem.isPgnOk(path)) {
             pgnItem = new Pgn(path);
-        } else if (path.toLowerCase().endsWith(EXT_ZIP)) {
+        } else if (PgnItem.isZipOk(path)) {
             pgnItem = new Zip(path);
         }
         return  pgnItem;
@@ -555,6 +586,22 @@ public abstract class PgnItem implements Comparable<PgnItem> {
         return new Dir(root.getAbsolutePath());
     }
 
+    // relative to rootDir
+    public static String getRelativePath(PgnItem pgnItem) {
+        if(pgnItem == null) {
+            return "";          // sanity check
+        }
+        String rootPath = root.getAbsolutePath();
+        String itemPath = pgnItem.getAbsolutePath();
+        if(itemPath.startsWith(rootPath)) {
+            itemPath = itemPath.substring(rootPath.length());
+            if(itemPath.startsWith("/")) {
+                itemPath = itemPath.substring(1);
+            }
+        }
+        return itemPath;
+    }
+
     // returns resulting number of entries
     static int modifyItem(final Item item, BufferedReader bufferedReader, final OutputStream os, final ProgressNotifier progressNotifier) throws Config.PGNException {
         try {
@@ -672,7 +719,13 @@ public abstract class PgnItem implements Comparable<PgnItem> {
             List<Pair<String, String>> headers = new LinkedList<>();
             for (int i = 0; i < totalHeaders; ++i) {
                 String label = reader.readString();
+                if(label == null) {
+                    label = "";         // should never happen
+                }
                 String value = reader.readString();
+                if(value == null) {
+                    value = "";         // for editHeaders
+                }
                 headers.add(new Pair<>(label, value));
             }
             return headers;
@@ -885,7 +938,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
-        public int parentIndex(PgnItem parent) throws Config.PGNException {
+        public int parentIndex(PgnItem parent) {
             PgnItem thisParent = this.getParent();
             if(thisParent == null ||
                     !thisParent.getAbsolutePath().startsWith(parent.getAbsolutePath())) {
@@ -1044,14 +1097,14 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                     BufferedReader br = null;
                     if (file.isDirectory()) {
                         entry = new Dir(Dir.this, name);
-                    } else if (name.toLowerCase().endsWith(EXT_PGN)) {
+                    } else if (PgnItem.isPgnOk(name)) {
                         entry = new Pgn(Dir.this, name);
                         try {
                             br = new BufferedReader(new FileReader(entry.self.getAbsoluteFile()), Config.MY_BUF_SIZE);
                         } catch (FileNotFoundException e) {
                             logger.debug(entry.self.getAbsoluteFile(), e);
                         }
-                    } else if (name.toLowerCase().endsWith(EXT_ZIP)) {
+                    } else if (PgnItem.isPgnOk(name)) {
                         entry = new Zip(Dir.this, name);
                     } else {
                         return false;
@@ -1184,6 +1237,11 @@ clone:  for(Pair<String, String> header : oldHeaders) {
         }
 
         @Override
+        protected PgnItemType getType() {
+            return PgnItemType.Zip;
+        }
+
+        @Override
         public void walkThroughChildren(EntryHandler zipEntryHandler, boolean pgnOnly) {
             try {
                 ZipFile zipFile = new ZipFile(self.getAbsolutePath());
@@ -1192,7 +1250,7 @@ clone:  for(Pair<String, String> header : oldHeaders) {
                 while (entries.hasMoreElements()) {
                     ++index;
                     ZipEntry ze = entries.nextElement();
-                    if (pgnOnly && (ze.isDirectory() || !ze.getName().toLowerCase().endsWith(EXT_PGN))) {
+                    if (pgnOnly && (ze.isDirectory() || !PgnItem.isPgnOk(ze.getName()))) {
                         continue;
                     }
                     Pgn item = new Pgn(Zip.this, ze.getName());

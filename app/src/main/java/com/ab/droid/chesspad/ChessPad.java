@@ -19,6 +19,7 @@ import android.widget.Toast;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
+import com.ab.pgn.CpEventObserver;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnGraph;
@@ -26,6 +27,8 @@ import com.ab.pgn.PgnItem;
 import com.ab.pgn.Setup;
 import com.ab.pgn.Square;
 import com.ab.pgn.dgtboard.DgtBoardPad;
+import com.ab.pgn.fics.FicsPad;
+import com.ab.pgn.fics.chat.InboundMessage;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -45,6 +48,8 @@ import java.util.List;
 public class ChessPad extends AppCompatActivity {
     public static boolean DEBUG = false;
     public static boolean DEBUG_DGT_BOARD = false;
+    public static boolean DEBUG_DO_FICS = false;
+
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
     //* uncomment this line to replay crash providing the correct file name
     private final String CRASH_RESTORE = null;
@@ -106,6 +111,7 @@ public class ChessPad extends AppCompatActivity {
         Game(++j),
         Setup(++j),
         DgtGame(++j),
+        FicsConnection(++j),
         ;
 
         private final int value;
@@ -139,6 +145,8 @@ public class ChessPad extends AppCompatActivity {
         About,
         StartDgtGame,
         StopDgtGame,
+        ConnectToFics,
+        CloseFicsConnection,
     }
 
     protected PgnGraph pgnGraph;
@@ -169,10 +177,13 @@ public class ChessPad extends AppCompatActivity {
     private boolean currentItemModified;    // for unserialization only
 
     private DgtBoardInterface dgtBoardInterface;
-    private Handler dgtBoardMessageHandler;
+    private Handler bgMessageHandler;
 
     private boolean dgtBoardOpen = false;
     private boolean dgtBoardAccessible = DEBUG_DGT_BOARD;
+
+    private FicsPad ficsPad;
+    private FicsPad.FicsSettings ficsSettings = new FicsPad.FicsSettings();
 
     private static ChessPad instance;
     public static ChessPad getInstance() {
@@ -219,7 +230,7 @@ public class ChessPad extends AppCompatActivity {
         setupErrs = resources.getStringArray(R.array.setup_errs);
         init();
         freshStart = true;
-        dgtBoardMessageHandler = new CpHandler(this);
+        bgMessageHandler = new CpHandler(this);
         dgtBoardInterface = new DgtBoardInterface(new DgtBoardInterface.StatusObserver() {
             @Override
             public void isOpen(boolean open) {
@@ -251,7 +262,7 @@ public class ChessPad extends AppCompatActivity {
         });
         try {
             dgtBoardPad = new DgtBoardPad(dgtBoardInterface, new File(PgnItem.getRoot(), ChessPad.DEFAULT_DIRECTORY).getAbsolutePath(),
-                    getDgtBoardObserver());
+                    getCpEventObserver());
         } catch (Config.PGNException e) {
             e.printStackTrace();
             Toast.makeText(ChessPad.this, e.getMessage(), Toast.LENGTH_LONG).show();
@@ -377,13 +388,13 @@ public class ChessPad extends AppCompatActivity {
         }
     }
 
-    private DgtBoardPad.DgtBoardObserver getDgtBoardObserver() {
-        return new DgtBoardPad.DgtBoardObserver() {
+    private CpEventObserver getCpEventObserver() {
+        return new CpEventObserver() {
             @Override
             public void update(byte msgId) {
-                Message msg = dgtBoardMessageHandler.obtainMessage();
+                Message msg = bgMessageHandler.obtainMessage();
                 msg.arg1 = msgId & 0x0ff;
-                dgtBoardMessageHandler.sendMessage(msg);
+                bgMessageHandler.sendMessage(msg);
             }
         };
     }
@@ -401,7 +412,7 @@ public class ChessPad extends AppCompatActivity {
     protected List<MenuItem> getMenuItems() {
         List<MenuItem> menuItems = new LinkedList<>();
         boolean enabled = true;
-        if (mode == Mode.DgtGame) {
+        if (mode == Mode.DgtGame || mode == Mode.FicsConnection) {
             enabled = false;
         }
         menuItems.add(new MenuItem(MenuCommand.Load, getResources().getString(R.string.menu_load), enabled));
@@ -415,15 +426,29 @@ public class ChessPad extends AppCompatActivity {
         } else if (mode == Mode.Setup) {
             menuItems.add(new MenuItem(MenuCommand.CancelSetup, getResources().getString(R.string.menu_cancel_setup), true));
         }
+        if (mode == Mode.FicsConnection) {
+            fillFicsMenuItems(menuItems);
+        } else {
+            if(DEBUG_DO_FICS) {
+                menuItems.add(new MenuItem(MenuCommand.ConnectToFics, getResources().getString(R.string.menu_connect_to_fics), enabled));
+            }
+        }
+
         if(dgtBoardAccessible) {
             if (mode == Mode.DgtGame) {
                 menuItems.add(new MenuItem(MenuCommand.StopDgtGame, getResources().getString(R.string.menu_stop_dgt_game), true));
             } else {
-                menuItems.add(new MenuItem(MenuCommand.StartDgtGame, getResources().getString(R.string.menu_start_dgt_game), true));
+                menuItems.add(new MenuItem(MenuCommand.StartDgtGame, getResources().getString(R.string.menu_start_dgt_game), enabled));
             }
         }
+        
         menuItems.add(new MenuItem(MenuCommand.About, getResources().getString(R.string.menu_about)));
         return menuItems;
+    }
+
+    protected void fillFicsMenuItems(List<MenuItem> menuItems) {
+
+        menuItems.add(new MenuItem(MenuCommand.CloseFicsConnection, getResources().getString(R.string.menu_close_fics_connection), true));
     }
 
     private void sample() {
@@ -806,7 +831,7 @@ public class ChessPad extends AppCompatActivity {
         }
     }
 
-    void delete() throws Config.PGNException {
+    void delete() {
         if(isFirstMove()) {
             pgnGraph.getPgn().setMoveText(null);
             savePgnGraph(false, new CPPostExecutor() {
@@ -966,7 +991,7 @@ public class ChessPad extends AppCompatActivity {
         return pgnGraph.isEnd();
     }
 
-    protected void executeMenuCommand(MenuCommand menuCommand) throws Config.PGNException {
+    protected void executeMenuCommand(MenuCommand menuCommand) {
         Log.d(DEBUG_TAG, String.format("menu %s", menuCommand.toString()));
         switch (menuCommand) {
             case Load:
@@ -993,7 +1018,11 @@ public class ChessPad extends AppCompatActivity {
             case AnyMove:
                 Move anyMove = pgnGraph.getBoard().newMove();
                 anyMove.moveFlags |= Config.FLAGS_NULL_MOVE;
-                pgnGraph.addMove(anyMove);
+                try {
+                    pgnGraph.addMove(anyMove);
+                } catch (Config.PGNException e) {
+                    Log.e(DEBUG_TAG, e.getMessage(), e);
+                }
                 break;
 
             case Merge:
@@ -1014,6 +1043,14 @@ public class ChessPad extends AppCompatActivity {
 
             case StopDgtGame:
                 stopDgtMode();
+                break;
+
+            case ConnectToFics:
+                connectToFics();
+                break;
+
+            case CloseFicsConnection:
+                closeFicsConnection();
                 break;
         }
 
@@ -1061,6 +1098,53 @@ public class ChessPad extends AppCompatActivity {
         chessPadView.redraw();
     }
 
+    private void connectToFics() {
+        mode = Mode.FicsConnection;
+        if(pgnGraph.isModified()) {
+            popups.launchDialog(Popups.DialogType.SaveModified);
+        } else {
+            popups.launchDialog(Popups.DialogType.FicsLogin);
+        }
+    }
+
+    public FicsPad.FicsSettings getFicsSettings() {
+        return ficsSettings;
+    }
+
+    void openFicsConnection() {
+        Log.d(DEBUG_TAG, "openFicsConnection()");
+        mode = Mode.FicsConnection;
+        try {
+            ficsPad = new FicsPad(ficsSettings, new FicsPad.InboundMessageConsumer() {
+                @Override
+                public void consume(InboundMessage.Info inboundMessage) {
+                    Log.d(DEBUG_TAG, inboundMessage.toString());
+                    Message msg = bgMessageHandler.obtainMessage();
+                    msg.arg1 = inboundMessage.getMessageType().getValue();
+                    bgMessageHandler.sendMessage(msg);
+                }
+            });
+        } catch (IOException e) {
+            Log.e(DEBUG_TAG, e.getMessage(), e);
+            closeFicsConnection();
+        }
+        chessPadView.redraw();
+    }
+
+    private void closeFicsConnection() {
+        Log.d(DEBUG_TAG, "closeFicsConnection()");
+        mode = Mode.Game;
+        if(ficsPad != null && ficsPad.isConnected()) {
+            try {
+                ficsPad.close();
+            } catch (IOException e) {
+                Log.e(DEBUG_TAG, e.getMessage(), e);
+            }
+        }
+        ficsPad = null;
+        chessPadView.redraw();
+    }
+
     // after loading a new item or ending setup
     // in Setup on 'setup ok' (null)
     // after ending Append (null)
@@ -1073,6 +1157,12 @@ public class ChessPad extends AppCompatActivity {
             nextPgnItem = item;
             popups.launchDialog(Popups.DialogType.SaveModified);
         } else {
+            if(mode == Mode.FicsConnection) {
+                connectToFics();
+                // popups.launchDialog(Popups.DialogType.FicsLogin);
+                return;
+            }
+
             if (mode == Mode.Game && item == null) {
                 item = nextPgnItem;
             }
@@ -1179,7 +1269,7 @@ public class ChessPad extends AppCompatActivity {
 
     public void savePgnGraph(final boolean updateMoves, final CPPostExecutor cpPostExecutor) {
         if(pgnGraph.getPgn().getIndex() == -1) {
-            popups.cpPgnItemListAdapter = null;     // enforce reload
+//            popups.cpPgnItemListAdapter = null;     // enforce reload
         }
         new CPAsyncTask(chessPadView, new CPExecutor() {
             @Override
@@ -1307,9 +1397,12 @@ public class ChessPad extends AppCompatActivity {
             if (activity != null) {
                 int msgId = msg.arg1;
                 Log.d(activity.DEBUG_TAG, String.format("message 0x%s", Integer.toHexString(msgId)));
-                if(msgId == DgtBoardPad.MSG_ID_GAME || msgId == DgtBoardPad.MSG_ID_SETUP_MESS) {
+                if(msgId == Config.MSG_DGT_BOARD_SETUP_MESS || msgId == Config.MSG_DGT_BOARD_GAME) {
                     activity.chessPadView.redraw();
+                } else if( msgId <= Config.MSG_DGT_BOARD_LAST ) {
+                    activity.chessPadView.invalidate();
                 } else {
+                    // todo
                     activity.chessPadView.invalidate();
                 }
             }

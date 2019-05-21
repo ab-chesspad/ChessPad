@@ -1,154 +1,148 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:paddingLeft="5dp"
-    android:paddingRight="5dp"
-    android:background="@android:color/white"
+      android:layout_width="fill_parent"
+      android:layout_height="fill_parent"
+      android:paddingLeft="8dp"
+      android:paddingRight="8dp"
+      android:background="@android:color/white"
+      android:orientation="vertical"
     >
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="@string/alert_pgn_path_label"
+        android:textAppearance="@android:style/TextAppearance.Medium"
+        android:textColor="@android:color/black"
+        android:background="@android:color/white"
+        />
 
     <LinearLayout android:id="@+id/append_controls_pane"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         >
 
-        <TextView
-            android:layout_width="fill_parent"
+        <EditText android:id="@+id/file_name"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            android:layout_marginTop="10dp"
+            android:layout_weight="1"
+            android:layout_marginTop="-5dp"
             android:gravity="center"
-            android:text="@string/alert_pgn_path_label"
-            android:textAppearance="@android:style/TextAppearance.Medium"
-            android:textColor="@android:color/black"
-            android:background="@android:color/white"
-            android:layout_weight=".10"
+            android:inputType="textMultiLine"
             />
 
-        <LinearLayout android:id="@+id/append_controls_pane_path"
-            android:layout_width="fill_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_weight=".10"
-            >
-
-            <TextView android:id="@+id/file_name"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:inputType="textMultiLine"
-                />
-
-            <ImageButton android:id="@+id/lookup_button"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@android:drawable/ic_menu_search"
-                />
-        </LinearLayout>
-
-        <RelativeLayout android:id="@+id/controls_pane_merge"
-            android:layout_width="fill_parent"
+        <ImageButton android:id="@+id/lookup_button"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:layout_weight=".10"
+            android:src="@android:drawable/ic_menu_search"
             />
-
-<!--
-        <LinearLayout android:id="@+id/append_controls_pane_merge"
-            android:layout_width="fill_parent"
-            android:layout_height="0dp"
-            android:gravity="center"
-            android:layout_weight=".10"
-            android:orientation="horizontal"
-            >
-
-            <LinearLayout android:id="@+id/append_controls_start"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_weight=".30"
-                >
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/alert_merge_start_label"
-                    />
-
-                <EditText
-                    android:id="@+id/merge_start"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="-5dp"
-                    android:inputType="numberDecimal"
-                    android:layout_weight="1" />
-            </LinearLayout>
-
-            <LinearLayout android:id="@+id/append_controls_end"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:layout_weight=".30"
-                android:orientation="vertical"
-                >
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/alert_merge_end_label"
-                />
-
-            <EditText android:id="@+id/merge_end"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="-5dp"
-                android:inputType="numberDecimal"
-                android:layout_weight="1"
-                />
-            </LinearLayout>
-
-            <LinearLayout android:id="@+id/append_controls_headers"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="20dp"
-                android:gravity="center"
-                android:layout_weight=".40"
-                android:orientation="vertical"
-                >
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:text="@string/alert_add_tags_label"
-                    />
-
-                <ImageButton android:id="@+id/include_headers_button"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:src="@drawable/unchecked_square"
-                    android:layout_marginTop="-5dp"
-                    />
-            </LinearLayout>
-        </LinearLayout>
--->
 
     </LinearLayout>
 
-<!--
-    <ListView android:id="@+id/header_list"
+    <LinearLayout android:id="@+id/merge_controls_pane"
         android:layout_width="fill_parent"
-        android:layout_height="0dp"
-        android:layout_weight=".4"
-        />
--->
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:visibility="gone"
+        >
+
+        <LinearLayout android:id="@+id/append_pane_merge_1"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            >
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="@string/alert_merge_start_label"
+                android:textColor="@android:color/black"
+                android:background="@android:color/white"
+                />
+
+            <EditText
+                android:id="@+id/merge_start"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="-10dp"
+                android:layout_marginTop="-5dp"
+                android:inputType="numberDecimal"
+                />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_marginLeft="20dp"
+                android:layout_height="wrap_content"
+                android:text="@string/alert_merge_end_label"
+                android:textColor="@android:color/black"
+                android:background="@android:color/white"
+                />
+
+            <EditText android:id="@+id/merge_end"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="-10dp"
+                android:layout_marginTop="-5dp"
+                android:inputType="numberDecimal"
+                />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/append_pane_merge_2"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            >
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_weight="3"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="-3dp"
+                android:text="@string/alert_merge_max_plys_label"
+                android:textColor="@android:color/black"
+                android:background="@android:color/white"
+                />
+
+            <EditText
+                android:id="@+id/merge_max_plys"
+                android:layout_width="0dp"
+                android:layout_weight="3"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="-10dp"
+                android:layout_marginTop="-5dp"
+                android:inputType="numberDecimal"
+                />
+
+            <TextView
+                android:id="@+id/annotate"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="4"
+                android:layout_marginLeft="20dp"
+                android:layout_marginTop="-5dp"
+                android:gravity="center"
+                android:text="@string/alert_annotate_label"
+                android:textColor="@android:color/black"
+                android:background="#00ff00"
+                />
+
+        </LinearLayout>
+
+    </LinearLayout>
 
     <ListView android:id="@+id/file_list"
         android:layout_width="fill_parent"
         android:layout_height="0dp"
-        android:layout_weight=".6"
+        android:layout_weight="1"
+        android:visibility="gone"
         />
 
     <Button android:id="@+id/ok_button"

@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * replavement for PgnTree as of v0.3
+ * replacement for PgnTree as of v0.3
  * Created by Alexander Bootman on 10/29/17.
  */
 public class PgnGraph {
@@ -477,6 +477,10 @@ public class PgnGraph {
 
     public PgnItem.Item getPgn() {
         return pgn;
+    }
+
+    public boolean isDeletable() {
+        return !pgn.getParent().self.equals(PgnItem.getRoot());
     }
 
     // needed for serialization
@@ -1373,6 +1377,9 @@ public class PgnGraph {
                             Move prevMove = pgnGraph.moveLine.get(pgnGraph.moveLine.size() - 2);
                             pack = new Pack(prevMove.packData);
                             Board prevBoard = PgnGraph.this.positions.get(pack);
+                            if(mergeData.maxPlys > 0 && prevBoard.getPlyNum() >= mergeData.maxPlys) {
+                                return false;   // abort
+                            }
                             if(prevBoard == null) {
                                 String msg = String.format("When merging cannot find position \n%s after %s for %s",
                                         pgnGraph.getBoard(), prevMove.toString(true), currentMove.toString(true));
@@ -1552,6 +1559,11 @@ public class PgnGraph {
         public boolean withStatistics = true;   // for future use, constant so far
         public int start, end, merged;
         public String pgnPath;
+        public int maxPlys;
+
+        public MergeData() {
+            init(null);
+        }
 
         public MergeData(PgnItem target) {
             init(target);
@@ -1564,11 +1576,17 @@ public class PgnGraph {
         private void init(PgnItem target) {
             start = -1;
             end = -1;
-            pgnPath = target.getAbsolutePath();
+            maxPlys = -1;
+            if(target != null) {
+                pgnPath = target.getAbsolutePath();
+            }
         }
 
         public boolean isMergeSetupOk() {
-            if (!pgnPath.endsWith(PgnItem.EXT_PGN)) {
+            if(pgnPath == null) {
+                return false;
+            }
+            if (!PgnItem.isPgnOk(pgnPath)) {
                 return false;
             }
             return end == -1 || start <= end;
@@ -1578,6 +1596,7 @@ public class PgnGraph {
             try {
                 writer.write(start, 16);
                 writer.write(end, 16);
+                writer.write(maxPlys, 16);
                 if(annotate) {
                     writer.write(1, 1);
                 } else {
@@ -1592,7 +1611,17 @@ public class PgnGraph {
         public MergeData(BitStream.Reader reader) throws Config.PGNException {
             try {
                 start = reader.read(16);
+                if(start == 0x0ffff) {
+                    start = -1;
+                }
                 end = reader.read(16);
+                if(end == 0x0ffff) {
+                    end = -1;
+                }
+                maxPlys = reader.read(16);
+                if(maxPlys == 0x0ffff) {
+                    maxPlys = -1;
+                }
                 annotate = reader.read(1) == 1;
                 pgnPath = reader.readString();
             } catch (IOException e) {

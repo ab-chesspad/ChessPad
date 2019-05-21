@@ -159,8 +159,7 @@ followed by the data:
 /* DEFINITION OF THE BOARD-TO-PC MESSAGE ID CODES and message descriptions */
 
         //  MESSAGE_BIT is set in each message byte[0]
-        MESSAGE_BIT = (byte) 0x80,
-        MESSAGE_MASK = (byte) (0xff & ~MESSAGE_BIT),
+        // MESSAGE_BIT = (byte) 0x80,       // moved to Config
 
         /* ID codes: */
 

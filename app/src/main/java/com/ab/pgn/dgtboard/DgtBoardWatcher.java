@@ -27,7 +27,7 @@ public class DgtBoardWatcher {
     private static final boolean[] COMMANDS_WITH_LENGTH = new boolean[128];
     static {
         for (byte b : WITH_LENGTH) {
-            COMMANDS_WITH_LENGTH[b & DgtBoardProtocol.MESSAGE_MASK] = true;
+            COMMANDS_WITH_LENGTH[b & Config.DGT_BOARD_MESSAGE_MASK] = true;
         }
     }
 
@@ -141,7 +141,7 @@ public class DgtBoardWatcher {
 
     // async usb reader
     class ReadThread extends Thread {
-        private final byte MSG_BIT = DgtBoardProtocol.MESSAGE_BIT;
+        private final byte MSG_BIT = Config.DGT_BOARD_MESSAGE_BIT;
         private volatile boolean keepRunning;
         private BoardMessageConsumer boardMessageConsumer;
         private byte[] readBuffer = new byte[4096];
@@ -288,6 +288,7 @@ public class DgtBoardWatcher {
 
         public byte getMsgId() {
             return buffer[0];
+
         }
 
         public boolean equals(BoardMessage that) {

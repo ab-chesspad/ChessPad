@@ -253,7 +253,7 @@ public class GameView extends ChessPadView.CpView {
                 setButtonEnabled(ChessPad.Command.Start.getValue(), false);
                 setButtonEnabled(ChessPad.Command.Prev.getValue(), false);
                 setButtonEnabled(ChessPad.Command.PrevVar.getValue(), false);
-                setButtonEnabled(ChessPad.Command.Delete.getValue(), true);
+                setButtonEnabled(ChessPad.Command.Delete.getValue(), chessPad.pgnGraph.isDeletable());
             } else {
                 setButtonEnabled(ChessPad.Command.Start.getValue(), true);
                 setButtonEnabled(ChessPad.Command.Prev.getValue(), true);

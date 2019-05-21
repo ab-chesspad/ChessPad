@@ -1221,10 +1221,12 @@ public class Board {
                     }
                     move.setTo(x, y);
                     move.moveFlags = moveFlags;
-                    if("Be7".equals(move.toString().trim())) {
+//                    if("Be7".equals(move.toString().trim())) {
+//                        logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
+//                    }
+                    if(DEBUG) {
                         logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
                     }
-                    logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
                     if(tmp.validatePgnMove(move, Config.VALIDATE_USER_MOVE)) {
                         return false;
                     }

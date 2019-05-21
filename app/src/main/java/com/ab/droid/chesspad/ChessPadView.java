@@ -331,14 +331,17 @@ public class ChessPadView extends View implements ProgressBarHolder {
                         return;
                     }
                     String text = s.toString().toLowerCase();
-                    stringKeeper.setValue(CpEditText.this, text);
+                    String oldText = stringKeeper.getValue();
+                    if(!text.equals(oldText)) {
+                        stringKeeper.setValue(text);
+                    }
                 }
             });
         }
 
         public void setStringKeeper(ChessPadView.StringKeeper stringKeeper) {
             this.stringKeeper = stringKeeper;
-            this.setText(stringKeeper.getValue(CpEditText.this));
+            this.setText(stringKeeper.getValue());
         }
 
 /*
@@ -464,8 +467,8 @@ public class ChessPadView extends View implements ProgressBarHolder {
     }
 
     public abstract static class StringKeeper {
-        public void setValue(TextView v, String str) {}
-        public String getValue(TextView v) { return null; }
+        public void setValue(String str) {}
+        public String getValue() { return null; }
         public int getNumericValue(String value) {
             int res = 0;
             if(value != null && !value.isEmpty()) {
@@ -554,6 +557,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
         }
 
         public void invalidate() {
+            chessPad.chessPadView.invalidate();
         }
     }
 }

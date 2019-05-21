@@ -81,6 +81,22 @@ public class Config {
 
         dummy_int = 0;
 
+    public static final byte
+        // messages from Dgt Board and FICS
+        MSG_NOTHING = 0,
+        MSG_DGT_BOARD_SETUP_MESS = 1,
+        MSG_DGT_BOARD_GAME = MSG_DGT_BOARD_SETUP_MESS + 1,
+
+        //  MESSAGE_BIT is set in each message byte[0]:
+        DGT_BOARD_MESSAGE_BIT = (byte) 0x80,
+        DGT_BOARD_MESSAGE_MASK = (byte) (0xff & ~DGT_BOARD_MESSAGE_BIT),
+
+        MSG_DGT_BOARD_LAST = 0x13,      // DGT_VERSION
+
+        FICS_FIRST_MSG_TYPE = MSG_DGT_BOARD_LAST + 1,
+
+        dummy_byte = 0;
+
     public static final String
         PGN_GLYPH = "$",
         COMMENT_OPEN = "{",
@@ -114,6 +130,10 @@ public class Config {
         HEADER_FEN = "FEN",
 
         HEADER_UNKNOWN_VALUE = "?",
+
+        FICS_UNKNOWN_RATING = "++++",
+        FICS_NO_MOVE = "none",
+
         dummy_str = null;
 
     // STR - Seven Tag Roster

@@ -2,7 +2,9 @@ package com.ab.pgn;
 
 import com.ab.pgn.dgtboard.DgtBoardInterface;
 import com.ab.pgn.dgtboard.DgtBoardPad;
-import com.ab.pgn.dgtboard.DgtBoardWatcher;
+import com.ab.pgn.fics.FicsClient;
+import com.ab.pgn.fics.FicsPad;
+import com.ab.pgn.fics.chat.InboundMessage;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -21,6 +23,11 @@ import java.util.List;
 
 public class Cli {
     public static boolean DEBUG = false;
+
+    public static boolean doPrint = true;
+
+    public final static String FICS_LOG_FILE_NAME = "log/fics.log";
+
     private static int i = -1;
     enum command {
         none,
@@ -28,6 +35,7 @@ public class Cli {
         list,
         merge,
         dgtboard,
+        fics,
         total;
     };
 
@@ -37,9 +45,11 @@ public class Cli {
         "list",
         "merge",
         "dgtboard",
+        "fics",
     };
 
-    static DgtBoardPad dgtBoardPad;
+    final PgnLogger logger = PgnLogger.getLogger(this.getClass(), true);
+    DgtBoardPad dgtBoardPad;
 
     private static int getCommand(String name) {
         for(int i = 0; i < command_names.length; ++i) {
@@ -67,17 +77,22 @@ public class Cli {
         } catch (java.lang.IllegalArgumentException e) {
             // ignore
         }
+        Cli cli = new Cli();
         switch (cmd) {
             case list :
-                doList(args);
+                cli.doList(args);
                 break;
 
             case merge :
-                doMerge(args);
+                cli.doMerge(args);
                 break;
 
             case dgtboard :
-                doDgtBoard(args);
+                cli.doDgtBoard(args);
+                break;
+
+            case fics :
+                cli.doFICS(args);
                 break;
 
             case none:
@@ -107,7 +122,7 @@ public class Cli {
 
     // <directory/zip/pgn_file> print contents
     // java -jar target/pgn-1.0-SNAPSHOT-jar-with-dependencies.jar list etc/SicilianGrandPrix.zip/SicilianGrandPrix.pgn
-    private static void doList(String[] args) throws Config.PGNException {
+    private void doList(String[] args) throws Config.PGNException {
         if(args.length != 2) {
             System.out.println("invalid/missing parameters");
             mainHelp();
@@ -121,7 +136,7 @@ public class Cli {
     }
 
     // java -jar target/pgn-1.0-SNAPSHOT-jar-with-dependencies.jar merge "1.e4 c5 2. Nc3 Nc6 3.f4" etc/SicilianGrandPrix.zip/SicilianGrandPrix.pgn
-    private static void doMerge(String[] args) throws Config.PGNException, FileNotFoundException {
+    private void doMerge(String[] args) throws Config.PGNException, FileNotFoundException {
         if(args.length < 3) {
             System.out.println("invalid/missing parameters");
             mainHelp();
@@ -157,7 +172,7 @@ public class Cli {
         }
     }
 
-    private static List<PgnGraph> _parse(String pgn) throws Config.PGNException {
+    private List<PgnGraph> _parse(String pgn) throws Config.PGNException {
         List<PgnGraph> res = new LinkedList<>();
         BufferedReader br = new BufferedReader(new StringReader(pgn));
         final List<PgnItem> items = new LinkedList<>();
@@ -184,7 +199,7 @@ public class Cli {
         return res;
     }
 
-    private static void doDgtBoard(String[] args) throws Config.PGNException, IOException {
+    private void doDgtBoard(String[] args) throws Config.PGNException, IOException {
         if (args.length < 2) {
             System.out.println("invalid/missing parameters");
             mainHelp();
@@ -235,22 +250,63 @@ public class Cli {
 
     }
 
-    private static DgtBoardPad.BoardStatus boardStatus = DgtBoardPad.BoardStatus.None;
+    private DgtBoardPad.BoardStatus boardStatus = DgtBoardPad.BoardStatus.None;
 
-    private static void statusChanged() {
+    private void statusChanged() {
         DgtBoardPad.BoardStatus boardStatus = dgtBoardPad.getBoardStatus();
-        if(Cli.boardStatus == boardStatus) {
+        if(this.boardStatus == boardStatus) {
             return;
         }
         switch(boardStatus) {
             case Game:
                 System.out.println("\nMove pieces or click Enter to finish:");
-                Cli.boardStatus = boardStatus;
+                this.boardStatus = boardStatus;
                 break;
             case SetupMess:
                 System.out.println("\nRestore position on the board or start a new game.");
-                Cli.boardStatus = boardStatus;
+                this.boardStatus = boardStatus;
                 break;
         }
+    }
+
+    private void doFICS(String[] args) throws Config.PGNException, IOException {
+        String user = "guest";
+        String password = "";
+//        if (args.length < 2) {
+//            System.out.println("invalid/missing parameters");
+//            mainHelp();
+//            return;
+//        }
+
+        if (args.length == 3) {
+            user = args[1];
+            password = args[2];
+        } else  if (args.length != 1) {
+            System.out.println("invalid/missing parameters");
+            mainHelp();
+            return;
+        }
+
+        System.out.println(String.format("Running FICS with DEBUG=%b", DEBUG));
+        final int[] count = {0};
+        PgnLogger.setFile(FICS_LOG_FILE_NAME);
+        FicsPad ficsPad = new FicsPad(user, password);
+        System.out.println("\nEnter FICS command or 'bye' to finish:");
+        byte[] commandBuffer = new byte[256];
+        while (ficsPad.isConnected()) {
+            if (System.in.available() > 0) {
+                int len = System.in.read(commandBuffer);
+                String command = new String(commandBuffer, 0, len).trim();
+                ficsPad.write(command);
+            }
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+        ficsPad.close();
+        PgnLogger.setFile(null);
+        System.out.println("Done");
     }
 }
