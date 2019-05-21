@@ -1402,7 +1402,7 @@ public class ChessPad extends AppCompatActivity {
                 } else if( msgId <= Config.MSG_DGT_BOARD_LAST ) {
                     activity.chessPadView.invalidate();
                 } else {
-                    // todo
+                    // todo for fics
                     activity.chessPadView.invalidate();
                 }
             }

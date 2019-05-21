@@ -293,7 +293,7 @@ public class DgtBoardInterface extends DgtBoardIO {
         try {
             ChessPad.getContext().unregisterReceiver(usbReceiver);
         } catch (Exception e) {
-            // ignore, nothing todo
+            // ignore, nothing to do
         }
         if(statusObserver != null) {
             statusObserver.isOpen(false);
