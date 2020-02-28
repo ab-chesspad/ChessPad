@@ -2,8 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/ChessPad.iml" filepath="$PROJECT_DIR$/ChessPad.iml" />
-      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/ChessPad.iml" filepath="$PROJECT_DIR$/ChessPad.iml" group="ChessPad" />
+      <module fileurl="file://$PROJECT_DIR$/ChessPadApp/ChessPadApp.iml" filepath="$PROJECT_DIR$/ChessPadApp/ChessPadApp.iml" group="ChessPad/ChessPadApp" />
+      <module fileurl="file://$PROJECT_DIR$/buildSrc/buildSrc.iml" filepath="$PROJECT_DIR$/buildSrc/buildSrc.iml" group="ChessPad/buildSrc" />
     </modules>
   </component>
 </project>

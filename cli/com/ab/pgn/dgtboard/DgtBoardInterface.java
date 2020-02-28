@@ -34,20 +34,20 @@ public class DgtBoardInterface extends DgtBoardIO {
 
     public DgtBoardInterface(String libraryPath, String ttyPort) {
         String OS = System.getProperty("os.name", "generic").toLowerCase(Locale.ENGLISH);
-        if ((OS.indexOf("mac") >= 0) || (OS.indexOf("darwin") >= 0)) {
-            System.out.println(String.format("running on Mac"));
+        if ((OS.contains("mac")) || (OS.contains("darwin"))) {
+            System.out.println("running on Mac");
             setupPort(ttyPort);
             setupParams(libraryPath, MACOSX_JNI_LIBRARY_PATH);
-        } else if (OS.indexOf("win") >= 0) {
-            System.out.println(String.format("running on Windows"));
+        } else if (OS.contains("win")) {
+            System.out.println("running on Windows");
             setupPortWin(ttyPort);
             setupParams(libraryPath, WINDOWS_JNI_LIBRARY_PATH);
-        } else if (OS.indexOf("nux") >= 0) {
-            System.out.println(String.format("running on Linux"));
+        } else if (OS.contains("nux")) {
+            System.out.println("running on Linux");
             setupPort(ttyPort);
             setupParams(libraryPath, LINUX_JNI_LIBRARY_PATH);
         } else {
-            System.out.println(String.format("running on unknown OS"));
+            System.out.println(String.format("running on unknown OS %s", OS));
             this.libraryPath = libraryPath;
             this.ttyPort = ttyPort;
         }
@@ -94,12 +94,12 @@ public class DgtBoardInterface extends DgtBoardIO {
     }
 
     @Override
-    public void write(byte command) throws IOException {
+    public void write(byte command) {
         _write(command);
     }
 
     @Override
-    public int read(byte[] buffer, int offset, int length) throws IOException {
+    public int read(byte[] buffer, int offset, int length) {
         return _read(buffer, offset, length, TIMEOUT_MSEC);
     }
 

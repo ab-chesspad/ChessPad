@@ -21,8 +21,8 @@ they FORCE your opponent to reply in a certain way. Forcing moves limit your
 opponent's options.} 1.Qxf6+ {This allows your queen to be captured, but
 notice that Black can't move his king. White's rook on g1 covers all his
 escape squares. _MARK:g1?,e8->f6?,g1->g8!_} Nxf6 {Capturing the piece which is
-attacking - usually the best way out of check. But White has already
-anticipate this move...} (1...Ng7 {Blocking a check is usually a good move.}
+attacking - usually the best way out of abort. But White has already
+anticipate this move...} (1...Ng7 {Blocking a abort is usually a good move.}
 2.Qxg7# {The queen is protected and it is checkmate. _MARK:b2->g7!_}) 2.Bxf6#
 {The bishop and rook work together to give checkmate.
 _MARK:f6?,g1?,f6->h8!,g1->g8!_} 1-0
@@ -37,11 +37,11 @@ _MARK:f6?,g1?,f6->h8!,g1->g8!_} 1-0
 [FEN "rnbqkbn1/ppppp3/7r/6pp/3P1p2/3BP1B1/PPP2PPP/RN1QK1NR w KQ - 0 1"]
 
 {Always look for the checks and captures. Moving Bg6 looks like a good
-check... _MARK:d3->g6!_} 1.Qxh5+ {Check and attacking through the "Weak Spot"
+abort... _MARK:d3->g6!_} 1.Qxh5+ {Check and attacking through the "Weak Spot"
 (yellow f7 square). This lures the Black rook out of the way.
 _MARK:f7,h5?,h5->e8!_} (1.Bg6+ {If the black rook couldn't take you then it
 would be checkmate. That gives you an idea for the first move...
-_MARK:h6?,h6->g6!_}) 1...Rxh5 {Is the only move to get out of check - but it
+_MARK:h6?,h6->g6!_}) 1...Rxh5 {Is the only move to get out of abort - but it
 leaves the weak spot open again. _MARK:h6->h5!_} 2.Bg6# {After trying this on
 the first move and it not working out we found a way to lure Black's rook out
 of the way and now this move IS checkmate! _MARK:f7,d3->g6!_} 1-0
@@ -121,13 +121,13 @@ of the way and now this move IS checkmate! _MARK:f7,d3->g6!_} 1-0
 [Result "1-0"]
 [FEN "6rr/p2b1pk1/1pn1p1p1/2qpPP2/3N2P1/2P1Q3/P2B2K1/2R4R w - - 0 1"]
 
-{First you need to look at all the "forcing moves" - anything to check or
+{First you need to look at all the "forcing moves" - anything to abort or
 capture.} 1.Qh6+!! {Queen sacrifice is the winning move! But you have to be
 able to see two steps ahead.} (1.f6+? {A mistake - now Black's king can
 escape. _MARK:g7->f8?_} Kf8 {_MARK:f8->e8?_}) 1...Rxh6 {This was Black's only
-option.} 2.Bxh6+ {And now Black is in check again and only has two choices -
+option.} 2.Bxh6+ {And now Black is in abort again and only has two choices -
 both of them to move his king to the h-file. _MARK:g7->h8,g7->h7_} Kh7 {From
-here you notice that it would be check; IF the bishop wasn't there.
+here you notice that it would be abort; IF the bishop wasn't there.
 _MARK:h1!,h1->h6!_} 3.Bf8# {After this clever move it is checkmate... Black
 cannot take the attacking piece, can't block and can't run-away. The bishop
 covers the black squares and the rook covers the h-file.
