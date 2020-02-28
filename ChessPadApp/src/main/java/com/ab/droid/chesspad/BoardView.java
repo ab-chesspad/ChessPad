@@ -22,19 +22,19 @@ import com.ab.pgn.Square;
  */
 public class BoardView extends View {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
-    public static boolean DEBUG = false;    // todo: config
+    private final static boolean DEBUG = false;    // todo: config
 
-    private static Bitmap[] pieces;
-    private int squareSize, margin = 0;
+    private Bitmap[] pieces;
+    private final int squareSize, margin = 0;
     private Square selected = new Square();
-    private BoardHolder boardHolder;
+    private final BoardHolder boardHolder;
     private Bitmap[] bgBitmaps;
 
     @SuppressLint("ClickableViewAccessibility")
-    public BoardView(Context context, int squareSize, BoardHolder boardHolder) {
+    public BoardView(Context context, BoardHolder boardHolder) {
         super(context);
         this.boardHolder = boardHolder;
-        this.squareSize = squareSize;
+        this.squareSize = boardHolder.getBoardViewSize() / 8;
         this.setBackgroundColor(Color.BLACK);
         initBitmaps();
         initBitmaps(boardHolder.getBGResources());
@@ -89,13 +89,13 @@ public class BoardView extends View {
     }
 
     // translate board coords to local screen coords
-    protected Point board2screen(int x, int y) {
+    private Point board2screen(int x, int y) {
         Point res = new Point();
         Board board = boardHolder.getBoard();
         if (board == null) {
             return res;
         }
-        if (boardHolder.isReversed()) {
+        if (((ChessPad)ChessPad.getContext()).isFlipped()) {
             int xSize = board.getXSize();
             res.x = margin + (xSize - 1 - x) * squareSize;
             res.y = margin + y * squareSize;
@@ -108,13 +108,13 @@ public class BoardView extends View {
     }
 
     // translate local screen coords to board coords
-    protected Square screen2board(int x, int y) {
+    private Square screen2board(int x, int y) {
         Square res = new Square();
         Board board = boardHolder.getBoard();
         if (board == null) {
             return res;
         }
-        if (boardHolder.isReversed()) {
+        if (((ChessPad)ChessPad.getContext()).isFlipped()) {
             res.x = board.getXSize() - 1 - (x - margin) / squareSize;
             res.y = (y - margin) / squareSize;
         } else {

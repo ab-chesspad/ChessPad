@@ -73,11 +73,11 @@ public class Move {
         return m;
     }
 
-    public int getFromX() {
+    int getFromX() {
         return Util.getValue(moveData, COORD_MASK, FROM_X_OFFSET);
     }
 
-    public int getFromY() {
+    int getFromY() {
         return Util.getValue(moveData, COORD_MASK, FROM_Y_OFFSET);
     }
 
@@ -85,17 +85,17 @@ public class Move {
         return new Square(getFromX(), getFromY());
     }
 
-    public void setFromX(int x) {
+    void setFromX(int x) {
         moveData = Util.setValue(moveData, x, COORD_MASK, FROM_X_OFFSET);
         markFromXSet();
     }
 
-    public void setFromY(int y) {
+    void setFromY(int y) {
         moveData = Util.setValue(moveData, y, COORD_MASK, FROM_Y_OFFSET);
         markFromYSet();
     }
 
-    public void setFrom(int x, int y) {
+    void setFrom(int x, int y) {
         setFromX(x);
         setFromY(y);
     }
@@ -105,12 +105,12 @@ public class Move {
         setFromY(from.getY());
     }
 
-    public boolean isFromSet() {
+    boolean isFromSet() {
         return isFromXSet() && isFromYSet();
     }
 
 
-    public boolean isFromXSet() {
+    boolean isFromXSet() {
         return Util.getValue(moveData, 1, FROM_X_SET_OFFSET) == 0;
     }
 
@@ -122,7 +122,7 @@ public class Move {
         moveData = Util.setBits(moveData, 1, 1, FROM_X_SET_OFFSET);
     }
 
-    public boolean isFromYSet() {
+    boolean isFromYSet() {
         return Util.getValue(moveData, 1, FROM_Y_SET_OFFSET) == 0;
     }
 
@@ -134,11 +134,11 @@ public class Move {
         moveData = Util.setBits(moveData, 1, 1, FROM_Y_SET_OFFSET);
     }
 
-    public int getToX() {
+    int getToX() {
         return Util.getValue(moveData, COORD_MASK, TO_X_OFFSET);
     }
 
-    public int getToY() {
+    int getToY() {
         return Util.getValue(moveData, COORD_MASK, TO_Y_OFFSET);
     }
 
@@ -146,15 +146,15 @@ public class Move {
         return new Square(getToX(), getToY());
     }
 
-    public void setToX(int x) {
+    void setToX(int x) {
         moveData = Util.setValue(moveData, x, COORD_MASK, TO_X_OFFSET);
     }
 
-    public void setToY(int y) {
+    void setToY(int y) {
         moveData = Util.setValue(moveData, y, COORD_MASK, TO_Y_OFFSET);
     }
 
-    public void setTo(int x, int y) {
+    void setTo(int x, int y) {
         setToX(x);
         setToY(y);
     }
@@ -164,13 +164,12 @@ public class Move {
         setToY(to.getY());
     }
 
-    public int getPiecePromoted() {
+    int getPiecePromoted() {
         if(!isPromotion()) {
             return Config.EMPTY;
         }
         int bits = Util.getValue(moveData, PIECE_PROMOTED_MASK, PIECE_PROMOTED_OFFSET);
-        int piece = (bits << 1) + Config.QUEEN + (moveFlags & Config.BLACK);
-        return piece;
+        return (bits << 1) + Config.QUEEN + (moveFlags & Config.BLACK);
     }
 
     public void setPiecePromoted(int piecePromoted) {
@@ -178,7 +177,7 @@ public class Move {
         moveData = Util.setValue(moveData, bits, PIECE_PROMOTED_MASK, PIECE_PROMOTED_OFFSET);
     }
 
-    public int getGlyph() {
+    int getGlyph() {
         return Util.getValue(moveData, GLYPH_MASK, GLYPH_OFFSET);
     }
 
@@ -191,8 +190,7 @@ public class Move {
         if(bits == 0) {
             return Config.EMPTY;
         }
-        int piece = (bits << 1) + (moveFlags & Config.BLACK);
-        return piece;
+        return (bits << 1) + (moveFlags & Config.BLACK);
     }
 
     public void setPiece(int piece) {
@@ -202,30 +200,32 @@ public class Move {
 
     // flags contain HAS_NEXT_MOVE and HAS_VARIATION
     public void serialize(DataOutputStream os, int flags) throws Config.PGNException {
-        try {
-            int moveData = this.moveData | flags;
-            if( comment != null) {
-                moveData |= HAS_COMMENT;
+        if(!Config.USE_BIT_STREAMS) {
+            try {
+                int moveData = this.moveData | flags;
+                if (comment != null) {
+                    moveData |= HAS_COMMENT;
+                }
+                os.writeInt(moveData);
+                os.write(moveFlags >> 6);
+                if (comment != null) {
+                    Util.writeString(os, comment);
+                }
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
             }
-            os.writeInt(moveData);
-            os.write(moveFlags >> 6);
-            if( comment != null) {
-                Util.writeString(os, comment);
-            }
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
         }
     }
 
-    public boolean hasVariation() {
+    boolean hasVariation() {
         return (this.moveData & Move.HAS_VARIATION) != 0;
     }
 
-    public boolean hasNextMove() {
+    boolean hasNextMove() {
         return (this.moveData & Move.HAS_NEXT_MOVE) != 0;
     }
 
-    public void cleanupSerializationFlags() {
+    void cleanupSerializationFlags() {
         this.moveData &= ~(HAS_VARIATION | HAS_NEXT_MOVE | HAS_COMMENT);
     }
 
@@ -235,34 +235,34 @@ public class Move {
     }
 
     public Move(DataInputStream is, Board previousBoard) throws Config.PGNException {
-        try {
-            this.moveData = is.readInt();
-            int v = is.read();
-            moveFlags = v << 6;
+        if(!Config.USE_BIT_STREAMS) {
+            try {
+                this.moveData = is.readInt();
+                int v = is.read();
+                moveFlags = v << 6;
 
-            if(previousBoard != null) {
-                moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
-                setPiece(previousBoard.getPiece(getFrom()));
-                if(previousBoard.getPiece(getTo()) != Config.EMPTY || previousBoard.isEnPassant(this)) {
-                    moveFlags |= Config.FLAGS_CAPTURE;
+                if (previousBoard != null) {
+                    moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
+                    setPiece(previousBoard.getPiece(getFrom()));
+                    if (previousBoard.getPiece(getTo()) != Config.EMPTY || previousBoard.isEnPassant(this)) {
+                        moveFlags |= Config.FLAGS_CAPTURE;
+                    }
                 }
+                if ((moveData & HAS_COMMENT) != 0) {
+                    this.comment = Util.readString(is);
+                }
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
             }
-            if((moveData & HAS_COMMENT) != 0) {
-                this.comment = Util.readString(is);
-            }
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
         }
     }
 
     private int promotedToSerialized(int piece) {
-        int serialized = (piece - Config.QUEEN) >> 1;
-        return  serialized;
+        return (piece - Config.QUEEN) >> 1;
     }
 
     private int serializedToPromoted(int serialized, int flags) {
-        int piece = (serialized << 1) + Config.QUEEN + (flags & Config.BLACK);
-        return  piece;
+        return (serialized << 1) + Config.QUEEN + (flags & Config.BLACK);
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
@@ -333,7 +333,7 @@ public class Move {
     }
 
     // cannot do full check with flags because it is called in PgnGraph.addMove
-    public boolean isSameAs(Move that) {
+    boolean isSameAs(Move that) {
         if(that == null) {
             return false;
         }
@@ -352,19 +352,19 @@ public class Move {
         return this.getTo().equals(that.getTo());
     }
 
-    public Move getVariation() {
+    Move getVariation() {
         return variation;
     }
 
-    public void setVariation(Move variation) {
+    void setVariation(Move variation) {
         this.variation = variation;
     }
 
-    public boolean isNullMove() {
+    boolean isNullMove() {
         return (moveFlags & Config.FLAGS_NULL_MOVE) != 0;
     }
 
-    public void setNullMove() {
+    void setNullMove() {
         moveFlags |= Config.FLAGS_NULL_MOVE;
     }
 
@@ -429,7 +429,7 @@ public class Move {
         return new String(res.append(" "));
     }
 
-    public int getColorlessPiece() {
+    int getColorlessPiece() {
         return this.getPiece() & ~Config.PIECE_COLOR;
     }
 }

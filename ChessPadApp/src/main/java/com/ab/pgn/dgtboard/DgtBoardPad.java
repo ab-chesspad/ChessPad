@@ -19,6 +19,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
+import java.util.Locale;
 
 /**
  *
@@ -26,10 +27,10 @@ import java.util.ListIterator;
  */
 
 public class DgtBoardPad {
-    public static boolean DEBUG = false;
-    public static final int BOARD_UPDATE_TIMEOUT_MSEC = 1000;
+    public static boolean DEBUG = false;        // accessed from Cli
+    private static final int BOARD_UPDATE_TIMEOUT_MSEC = 1000;
 
-    public static final int
+    private static final int
         LOCAL_VERSION_CODE = 0,
         dummy_int = 0;
 
@@ -37,13 +38,13 @@ public class DgtBoardPad {
         None,
         SetupMess,
         Game,
-    };
+    }
 
     private final PgnLogger logger = PgnLogger.getLogger(this.getClass());
     private final Board initBoard = new Board();
 
     private BoardStatus boardStatus = BoardStatus.None;
-    private String outputDir;
+    private final String outputDir;
     private final DgtBoardWatcher dgtBoardWatcher;
     private final CpEventObserver cpEventObserver;
 
@@ -52,21 +53,16 @@ public class DgtBoardPad {
     private Setup setup;
     private boolean invertedBoard;
 
-    private List<DgtBoardWatcher.BoardMessageMoveChunk> chunks = new LinkedList<>();
+    private final List<DgtBoardWatcher.BoardMessageMoveChunk> chunks = new LinkedList<>();
     private DgtBoardWatcher.BoardMessageMoveChunk expectedChunk;
     private Square expectedPromotion;
     private Move incompleteMove = null;
     private String errorMsg;
 
-    public DgtBoardPad(DgtBoardIO dgtBoardIO, String outputDir, CpEventObserver cpEventObserver) throws Config.PGNException {
+    public DgtBoardPad(DgtBoardIO dgtBoardIO, String outputDir, CpEventObserver cpEventObserver) {
         this.outputDir = outputDir;
         this.cpEventObserver = cpEventObserver;
-        dgtBoardWatcher = new DgtBoardWatcher(dgtBoardIO, new DgtBoardWatcher.BoardMessageConsumer() {
-            @Override
-            public void consume(DgtBoardWatcher.BoardMessage boardMessage) {
-                updatePad(boardMessage);
-            }
-        });
+        dgtBoardWatcher = new DgtBoardWatcher(dgtBoardIO, (boardMessage) -> updatePad(boardMessage));
         _resume();
     }
 
@@ -74,16 +70,12 @@ public class DgtBoardPad {
         // todo ?
     }
 
-    public void resume() throws Config.PGNException {
-        try {
-            dgtBoardWatcher.start();
-        } catch (IOException e) {
-            throw  new Config.PGNException(e);
-        }
+    public void resume() {
+        dgtBoardWatcher.start();
         _resume();
     }
 
-    public void _resume() throws Config.PGNException {
+    private void _resume() {
         if(pgnGraph == null) {
             pgnGraph = new PgnGraph();
         }
@@ -94,7 +86,7 @@ public class DgtBoardPad {
         dgtBoardWatcher.stop();
         appendGame();
         if(!recordedGames.isEmpty()) {
-            String fname = String.format("rec-%s.pgn", new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new Date()));
+            String fname = String.format("rec-%s.pgn", new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(new Date()));
             File f = new File(new File(outputDir), fname);
             try {
                 FileOutputStream fos = new FileOutputStream(f);
@@ -205,18 +197,18 @@ public class DgtBoardPad {
         return pgnGraph.getBoard();
     }
 
-    public List<Pair<String, String>> getHeaders() {
+    public List<Pair<String, String>> getTags() {
         if(boardStatus == BoardStatus.SetupMess) {
-            return setup.getHeaders();
+            return setup.getTags();
         }
-        return pgnGraph.getPgn().getHeaders();
+        return pgnGraph.getPgn().getTags();
     }
 
-    public void setHeaders(List<Pair<String, String>> headers) {
+    public void setTags(List<Pair<String, String>> tags) {
         if(boardStatus == BoardStatus.SetupMess) {
-            setup.setHeaders(headers);
+            setup.setTags(tags);
         } else {
-            pgnGraph.getPgn().setHeaders(headers);
+            pgnGraph.getPgn().setTags(tags);
         }
     }
 
@@ -351,57 +343,56 @@ public class DgtBoardPad {
 
     private synchronized void newSetup(boolean increment) {
         setup = new Setup(pgnGraph);
-        String pgn = pgnGraph.toPgn();
-        if(!pgn.isEmpty()) {
+        if(pgnGraph.hasMoves()) {
             increment = true;
         }
 
         if(increment) {
-            List<Pair<String, String>> headers = new LinkedList<>();
+            List<Pair<String, String>> tags = new LinkedList<>();
             String save = null;
-            for (int i = 0; i < pgnGraph.getPgn().getHeaders().size(); ++i) {
-                Pair<String, String> header = pgnGraph.getPgn().getHeaders().get(i);
-                switch (header.first) {
-                    case Config.HEADER_Round:
+            List<Pair<String, String>> pgnTags = pgnGraph.getPgn().getTags();
+            for(Pair<String, String> tag : pgnTags) {
+                switch (tag.first) {
+                    case Config.TAG_Round:
                         int round = 0;
                         try {
-                            round = Integer.valueOf(header.second);
+                            round = Integer.valueOf(tag.second);
                         } catch (Exception e) {
                             // ignore
                         }
                         ++round;
-                        headers.add(new Pair<>(Config.HEADER_Round, "" + round));
+                        tags.add(new Pair<>(Config.TAG_Round, "" + round));
                         break;
 
-                    case Config.HEADER_Date:
-                        String date = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-                        headers.add(new Pair<>(Config.HEADER_Date, date));
+                    case Config.TAG_Date:
+                        String date = new SimpleDateFormat(Config.CP_DATE_FORMAT, Locale.getDefault()).format(new Date());
+                        tags.add(new Pair<>(Config.TAG_Date, date));
                         break;
 
-                    case Config.HEADER_White:
+                    case Config.TAG_White:
                         if (save != null) {
                             // preserve order
-                            headers.add(new Pair<>(Config.HEADER_Black, header.second));
-                            headers.add(new Pair<>(Config.HEADER_White, save));
+                            tags.add(new Pair<>(Config.TAG_Black, tag.second));
+                            tags.add(new Pair<>(Config.TAG_White, save));
                         }
-                        save = header.second;
+                        save = tag.second;
                         break;
 
-                    case Config.HEADER_Black:
+                    case Config.TAG_Black:
                         if (save != null) {
                             // preserve order
-                            headers.add(new Pair<>(Config.HEADER_White, header.second));
-                            headers.add(new Pair<>(Config.HEADER_Black, save));
+                            tags.add(new Pair<>(Config.TAG_White, tag.second));
+                            tags.add(new Pair<>(Config.TAG_Black, save));
                         }
-                        save = header.second;
+                        save = tag.second;
                         break;
 
                     default:
-                        headers.add(new Pair<>(header.first, header.second));
+                        tags.add(new Pair<>(tag.first, tag.second));
                         break;
                 }
             }
-            setup.setHeaders(headers);
+            setup.setTags(tags);
         }
         resetChunks();
     }
@@ -414,9 +405,9 @@ public class DgtBoardPad {
     }
 
     private void appendGame() {
-        String pgn = pgnGraph.toPgn();
-        if(!pgn.isEmpty()) {
-            recordedGames += new String(pgnGraph.getPgn().headersToString(true, true)) + "\n\n" + pgn + "\n";
+        String fullPgn = pgnGraph.toString(true);
+        if(!fullPgn.isEmpty()) {
+            recordedGames += new String(pgnGraph.getPgn().tagsToString(true, true)) + "\n\n" + fullPgn + "\n";
             logger.debug(String.format("recordedGames:\n%s", recordedGames));
         }
     }
@@ -652,9 +643,8 @@ public class DgtBoardPad {
             if (oldPiece != pieceChunk.piece) {
                 move.setPiecePromoted(pieceChunk.piece);
             }
-        } else if((oldPiece & ~Config.PIECE_COLOR) == Config.KING && (pieceChunk.piece & ~Config.PIECE_COLOR) == Config.ROOK ||
-                (oldPiece & ~Config.PIECE_COLOR) == Config.KING && (pieceChunk.piece & ~Config.PIECE_COLOR) == Config.ROOK) {
-
+        } else if((oldPiece & ~Config.PIECE_COLOR) == Config.KING && (pieceChunk.piece & ~Config.PIECE_COLOR) == Config.ROOK) {
+            // todo: verify!
         } else {
             msg += " -> ??";
             logger.debug(msg);

@@ -15,66 +15,66 @@ import java.util.StringTokenizer;
  */
 public class Board {
     public static boolean DEBUG = false;
-    final static PgnLogger logger = PgnLogger.getLogger(Board.class);
+    private final static PgnLogger logger = PgnLogger.getLogger(Board.class);
     final static int
-            // boardData:
-            COORD_MASK = 0x0007,
-            COORD_LENGTH = 3,
-            FLAGS_OFFSET = 0,
-            FLAGS_MASK = 0x007f,
-            FLAGS_LENGTH = 7,
-            ENPASS_OFFSET = FLAGS_OFFSET + FLAGS_LENGTH,            //  7
-            WK_X_OFFSET = ENPASS_OFFSET + COORD_LENGTH,             // 10
-            WK_Y_OFFSET = WK_X_OFFSET + COORD_LENGTH,               // 13
-            BK_X_OFFSET = WK_Y_OFFSET + COORD_LENGTH,               // 16
-            BK_Y_OFFSET = BK_X_OFFSET + COORD_LENGTH,               // 19
+        // boardData:
+        COORD_MASK = 0x0007,
+        COORD_LENGTH = 3,
+        FLAGS_OFFSET = 0,
+        FLAGS_MASK = 0x007f,
+        FLAGS_LENGTH = 7,
+        ENPASS_OFFSET = FLAGS_OFFSET + FLAGS_LENGTH,            //  7
+        WK_X_OFFSET = ENPASS_OFFSET + COORD_LENGTH,             // 10
+        WK_Y_OFFSET = WK_X_OFFSET + COORD_LENGTH,               // 13
+        BK_X_OFFSET = WK_Y_OFFSET + COORD_LENGTH,               // 16
+        BK_Y_OFFSET = BK_X_OFFSET + COORD_LENGTH,               // 19
 
-    BOARD_DATA_PACK_LENGTH = BK_Y_OFFSET + COORD_LENGTH,    // 22
+        BOARD_DATA_PACK_LENGTH = BK_Y_OFFSET + COORD_LENGTH,    // 22
 
-    // using in toPgn
-    VERTEX_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,           // 22
-            VERTEX_VISITED_LENGTH = 1,
-            VERTEX_VISITED_MASK = 0x1,
+        // using in toPgn
+        VERTEX_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,           // 22
+        VERTEX_VISITED_LENGTH = 1,
+        VERTEX_VISITED_MASK = 0x1,
 
-    // boardCounts:
-    PLY_NUM_OFFSET = 0,
-            PLY_NUM_LENGTH = 9,
-            PLY_NUM_MASK = 0x01ff,
-            REVERSIBLE_PLY_NUM_OFFSET = PLY_NUM_OFFSET + PLY_NUM_LENGTH,    //  9
-            REVERSIBLE_PLY_NUM_LENGTH = 7,
-            REVERSIBLE_PLY_NUM_MASK = 0x007f,
+        // boardCounts:
+        PLY_NUM_OFFSET = 0,
+        PLY_NUM_LENGTH = 9,
+        PLY_NUM_MASK = 0x01ff,
+        REVERSIBLE_PLY_NUM_OFFSET = PLY_NUM_OFFSET + PLY_NUM_LENGTH,    //  9
+        REVERSIBLE_PLY_NUM_LENGTH = 7,
+        REVERSIBLE_PLY_NUM_MASK = 0x007f,
 
-    IN_MOVES_OFFSET = REVERSIBLE_PLY_NUM_OFFSET + REVERSIBLE_PLY_NUM_LENGTH,    // 16
-            IN_MOVES_LENGTH = 3,
-            IN_MOVES_MASK = 0x7,
+        IN_MOVES_OFFSET = REVERSIBLE_PLY_NUM_OFFSET + REVERSIBLE_PLY_NUM_LENGTH,    // 16
+        IN_MOVES_LENGTH = 3,
+        IN_MOVES_MASK = 0x7,
 
-    BOARD_COUNTS_PACK_LENGTH = IN_MOVES_OFFSET + IN_MOVES_LENGTH,               // 19
+        BOARD_COUNTS_PACK_LENGTH = IN_MOVES_OFFSET + IN_MOVES_LENGTH,               // 19
 
-    dummy_int = 0;
+        dummy_int = 0;
 
     public static final int[][] init = {
-            {Config.WHITE_ROOK, Config.WHITE_KNIGHT, Config.WHITE_BISHOP, Config.WHITE_QUEEN, Config.WHITE_KING, Config.WHITE_BISHOP, Config.WHITE_KNIGHT, Config.WHITE_ROOK},
-            {Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN},
-            {Config.BLACK_ROOK, Config.BLACK_KNIGHT, Config.BLACK_BISHOP, Config.BLACK_QUEEN, Config.BLACK_KING, Config.BLACK_BISHOP, Config.BLACK_KNIGHT, Config.BLACK_ROOK},
+        {Config.WHITE_ROOK, Config.WHITE_KNIGHT, Config.WHITE_BISHOP, Config.WHITE_QUEEN, Config.WHITE_KING, Config.WHITE_BISHOP, Config.WHITE_KNIGHT, Config.WHITE_ROOK},
+        {Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN, Config.WHITE_PAWN},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN, Config.BLACK_PAWN},
+        {Config.BLACK_ROOK, Config.BLACK_KNIGHT, Config.BLACK_BISHOP, Config.BLACK_QUEEN, Config.BLACK_KING, Config.BLACK_BISHOP, Config.BLACK_KNIGHT, Config.BLACK_ROOK},
     };
 
-    static final int[][] empty = {
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
-            {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+    private static final int[][] empty = {
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
+        {Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY, Config.EMPTY},
     };
 
-    private int[] board = new int[Config.BOARD_SIZE];
+    private final int[] board = new int[Config.BOARD_SIZE];
     private final int xSize, ySize;
 
     private int boardCounts;      // plynum, reversable plynum
@@ -95,15 +95,20 @@ public class Board {
     }
 
     public void serialize(DataOutputStream os) throws Config.PGNException {
-        pack(os);
+        if(!Config.USE_BIT_STREAMS) {
+            pack(os);
+        }
     }
 
+    // not used
     public Board(DataInputStream is) throws Config.PGNException {
         ySize =
         xSize = Config.BOARD_SIZE;
-        Board tmp = unpack(is);
-        tmp.validate(null);
-        copy(tmp);
+        if(!Config.USE_BIT_STREAMS) {
+            Board tmp = unpack(is);
+            tmp.validate(null);
+            copy(tmp);
+        }
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
@@ -141,15 +146,15 @@ public class Board {
         boardData = Util.setValue(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
     }
 
-    public void raiseFlags(int value) {
+    void raiseFlags(int value) {
         boardData = Util.setBits(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
     }
 
-    public void clearFlags(int value) {
+    void clearFlags(int value) {
         boardData = Util.clearBits(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
     }
 
-    public void invertFlags(int value) {
+    void invertFlags(int value) {
         boardData = Util.invertBits(boardData, value, FLAGS_MASK, FLAGS_OFFSET);
     }
 
@@ -161,22 +166,22 @@ public class Board {
         return square.charAt(0) - 'a';
     }
 
-    public void setEnpassant(Square enpass) {
+    void setEnpassant(Square enpass) {
         setEnpassantX(enpass.getX());
     }
 
-    public void setEnpassantX(int enpass) {
+    private void setEnpassantX(int enpass) {
         boardData = Util.setValue(boardData, enpass, COORD_MASK, ENPASS_OFFSET);
     }
 
-    public int getEnpassantX() {
+    int getEnpassantX() {
         if ((this.getFlags() & Config.FLAGS_ENPASSANT_OK) == 0) {
             return -1;
         }
         return Util.getValue(boardData, COORD_MASK, ENPASS_OFFSET);
     }
 
-    public Square getEnpassant() {
+    Square getEnpassant() {
         Square square = new Square();
         int flags = this.getFlags();
         if ((flags & Config.FLAGS_ENPASSANT_OK) == 0) {
@@ -210,63 +215,63 @@ public class Board {
         return square;
     }
 
-    public void setWKingX(int x) {
+    private void setWKingX(int x) {
         boardData = Util.setValue(boardData, x, COORD_MASK, WK_X_OFFSET);
     }
 
-    public void setWKingY(int y) {
+    private void setWKingY(int y) {
         boardData = Util.setValue(boardData, y, COORD_MASK, WK_Y_OFFSET);
     }
 
-    public void setWKing(int x, int y) {
+    void setWKing(int x, int y) {
         setWKingX(x);
         setWKingY(y);
     }
 
-    public void setWKing(Square wKing) {
+    private void setWKing(Square wKing) {
         setWKingX(wKing.getX());
         setWKingY(wKing.getY());
     }
 
-    public int getWKingX() {
+    int getWKingX() {
         return Util.getValue(boardData, COORD_MASK, WK_X_OFFSET);
     }
 
-    public int getWKingY() {
+    int getWKingY() {
         return Util.getValue(boardData, COORD_MASK, WK_Y_OFFSET);
     }
 
-    public Square getWKing() {
+    Square getWKing() {
         return new Square(getWKingX(), getWKingY());
     }
 
-    public void setBKingX(int x) {
+    private void setBKingX(int x) {
         boardData = Util.setValue(boardData, x, COORD_MASK, BK_X_OFFSET);
     }
 
-    public void setBKingY(int y) {
+    private void setBKingY(int y) {
         boardData = Util.setValue(boardData, y, COORD_MASK, BK_Y_OFFSET);
     }
 
-    public void setBKing(int x, int y) {
+    void setBKing(int x, int y) {
         setBKingX(x);
         setBKingY(y);
     }
 
-    public void setBKing(Square bKing) {
+    private void setBKing(Square bKing) {
         setBKingX(bKing.getX());
         setBKingY(bKing.getY());
     }
 
-    public int getBKingX() {
+    int getBKingX() {
         return Util.getValue(boardData, COORD_MASK, BK_X_OFFSET);
     }
 
-    public int getBKingY() {
+    int getBKingY() {
         return Util.getValue(boardData, COORD_MASK, BK_Y_OFFSET);
     }
 
-    public Square getBKing() {
+    Square getBKing() {
         return new Square(getBKingX(), getBKingY());
     }
 
@@ -278,7 +283,7 @@ public class Board {
         return Util.getValue(boardCounts, PLY_NUM_MASK, PLY_NUM_OFFSET);
     }
 
-    public void incrementPlyNum(int x) {
+    void incrementPlyNum(int x) {
         boardCounts = Util.incrementValue(boardCounts, x, PLY_NUM_MASK, PLY_NUM_OFFSET);
     }
 
@@ -286,7 +291,7 @@ public class Board {
         boardCounts = Util.setValue(boardCounts, x, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
     }
 
-    public void incrementReversiblePlyNum(int x) {
+    private void incrementReversiblePlyNum(int x) {
         boardCounts = Util.incrementValue(boardCounts, x, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
     }
 
@@ -294,19 +299,19 @@ public class Board {
         return Util.getValue(boardCounts, REVERSIBLE_PLY_NUM_MASK, REVERSIBLE_PLY_NUM_OFFSET);
     }
 
-    public void setInMoves(int x) {
+    void setInMoves(int x) {
         boardCounts = Util.setValue(boardCounts, x, IN_MOVES_MASK, IN_MOVES_OFFSET);
     }
 
-    public void incrementInMoves(int x) {
+    void incrementInMoves(int x) {
         boardCounts = Util.incrementValue(boardCounts, x, IN_MOVES_MASK, IN_MOVES_OFFSET);
     }
 
-    public int getInMoves() {
+    int getInMoves() {
         return Util.getValue(boardCounts, IN_MOVES_MASK, IN_MOVES_OFFSET);
     }
 
-    public void validate(Move move) {
+    private void validate(Move move) {
         if (DEBUG) {
             int err = validateSetup();
             if (err != 0) {
@@ -337,22 +342,22 @@ public class Board {
         this.move = move;
     }
 
-    public void setVisited(boolean visited) {
+    void setVisited(boolean visited) {
         int flag = visited ? 1 : 0;
         boardData = Util.setValue(boardData, flag, VERTEX_VISITED_MASK, VERTEX_VISITED_OFFSET);
     }
 
-    public boolean wasVisited() {
+    boolean wasVisited() {
         return Util.getValue(boardData, VERTEX_VISITED_MASK, VERTEX_VISITED_OFFSET) == 1;
     }
 
-    public void copy(Board src) {
+    private void copy(Board src) {
         this.boardCounts = src.boardCounts;
         this.boardData = src.boardData;
         copyPosition(src);
     }
 
-    public void copyPosition(Board src) {
+    void copyPosition(Board src) {
         this.copyBoard(src.board);
         this.setWKing(src.getWKing());
         this.setBKing(src.getBKing());
@@ -362,14 +367,14 @@ public class Board {
         return Arrays.equals(this.board, src.board);
     }
 
-    public void toInit() {
+    private void toInit() {
         setWKing(-1, -1);   // ??
         setBKing(-1, -1);   // ??
         copyBoard(init);
         setFlags(Config.INIT_POSITION_FLAGS);
     }
 
-    public void toEmpty() {
+    void toEmpty() {
         setWKing(-1, -1);   // ??
         setBKing(-1, -1);   // ??
         copyBoard(empty);
@@ -378,11 +383,10 @@ public class Board {
 
     @Override
     public String toString() {
-        String res = "";
-
-        res += "   a b c d e f g h".substring(0, 2 * getXSize() + 2) + "\n";
+        StringBuilder sb = new StringBuilder(256);
+        sb.append("   a b c d e f g h".substring(0, 2 * getXSize() + 2)).append("\n");
         for (int j = getYSize() - 1; j >= 0; j--) {
-            res += (j + 1) + " ";
+            sb.append(j + 1).append(" ");
             for (int i = 0; i < getXSize(); i++) {
                 char ch;
                 int piece = getPiece(i, j);
@@ -390,12 +394,12 @@ public class Board {
                 if (ch == ' ') {
                     ch = '.';
                 }
-                res += " " + ch;
+                sb.append(" ").append(ch);
             }
-            res += "  " + (j + 1) + "\n";
+            sb.append("  ").append(j + 1).append("\n");
         }
-        res += "   a b c d e f g h".substring(0, 2 * getXSize() + 2) + "\n";
-        return res;
+        sb.append("   a b c d e f g h".substring(0, 2 * getXSize() + 2)).append("\n");
+        return sb.toString();
     }
 
     @Override
@@ -434,18 +438,17 @@ public class Board {
     private void copyBoard(int[][] from) {
         for (int j = 0; j < from.length; ++j) {
             int line = 0;
-            int y = j;
             for (int i = from[j].length - 1; i >= 0; --i) {
                 int piece = from[j][i];
                 line = (line << 4) + piece;
                 if (piece == Config.WHITE_KING) {
-                    setWKing(i, y);
+                    setWKing(i, j);
                 }
                 if (piece == Config.BLACK_KING) {
-                    setBKing(i, y);
+                    setBKing(i, j);
                 }
             }
-            board[y] = line;
+            board[j] = line;
         }
     }
 
@@ -458,7 +461,7 @@ public class Board {
      */
     public Board(String fen) throws Config.PGNException {
         ySize =
-                xSize = Config.BOARD_SIZE;
+        xSize = Config.BOARD_SIZE;
         this.toEmpty();
         StringTokenizer st = new StringTokenizer(fen, "/ ");
         for (int j = Config.BOARD_SIZE - 1; j >= 0; j--) {
@@ -523,6 +526,7 @@ public class Board {
         }
 
         if (st.hasMoreTokens()) {
+            // this is the next move number!
             int plyNum = 2 * (Integer.parseInt(st.nextToken()) - 1);
             if ((flags & Config.FLAGS_BLACK_MOVE) != 0) {
                 ++plyNum;
@@ -687,7 +691,7 @@ public class Board {
             return 8;                       // no black king
         }
 
-        int extra[] = new int[2];
+        int[] extra = new int[2];
         for (int i = Config.QUEEN / 2; i <= Config.ROOK / 2; ++i) {
             for (int color = 0; color < 2; ++color) {
                 int e = count[i][color] - count[i][3];
@@ -990,7 +994,7 @@ public class Board {
     }
 
     // true means not checked, move is ok
-    public boolean validateOwnKingCheck(Move move) {
+    boolean validateOwnKingCheck(Move move) {
         Board tmp = this.clone();
         tmp.doMove(move);
         Square sq;
@@ -1037,7 +1041,7 @@ public class Board {
     }
 
     // move contains the attacking piece
-    public boolean validateCheckmate(Move move) {
+    boolean validateCheckmate(Move move) {
         Move probeMove = new Move(move.moveFlags ^ Config.FLAGS_BLACK_MOVE);
         int probeTo_x, probeTo_y;
 
@@ -1161,7 +1165,7 @@ public class Board {
         return true;
     }
 
-    public boolean validateStalemate() {
+    boolean validateStalemate() {
         final int[][][] probePawnMoves = {
             {{0,1}, {-1,1}, {1,1}},             // white
             {{0, -1}, {-1, -1}, {1, -1}},       // black
@@ -1206,12 +1210,12 @@ public class Board {
                         probeMoves = probeKingMoves;
                         break;
                 }
-                for(int k = 0; k < probeMoves.length; ++k) {
-                    int x = i + probeMoves[k][0];
+                for(int[] probeMove : probeMoves) {
+                    int x = i + probeMove[0];
                     if(x < 0 || x >= Config.BOARD_SIZE) {
                         continue;
                     }
-                    int y = j + probeMoves[k][1];
+                    int y = j + probeMove[1];
                     if(y < 0 || y >= Config.BOARD_SIZE) {
                         continue;
                     }
@@ -1221,9 +1225,6 @@ public class Board {
                     }
                     move.setTo(x, y);
                     move.moveFlags = moveFlags;
-//                    if("Be7".equals(move.toString().trim())) {
-//                        logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
-//                    }
                     if(DEBUG) {
                         logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
                     }
@@ -1237,7 +1238,7 @@ public class Board {
     }
 
     // move pieces on board
-    public void doMove(Move move) {
+    void doMove(Move move) {
         this.incrementPlyNum(1);
         if ((move.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             this.invertFlags(Config.FLAGS_BLACK_MOVE);
@@ -1390,7 +1391,7 @@ public class Board {
         }
     }
 
-    public static Board unpack(int[] ints) throws Config.PGNException {
+    static Board unpack(int[] ints) throws Config.PGNException {
         try {
             byte[] bits = new byte[ints.length * 4];
             for (int i = 0; i < ints.length / 2; ++i) {
@@ -1405,92 +1406,98 @@ public class Board {
 
             BitStream.Reader reader = new BitStream.Reader(bits);
             return unpack(reader);
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
+        } catch(Exception e) {
+            throw  new Config.PGNException(e);
         }
     }
 
-    public void pack(DataOutputStream os) throws Config.PGNException {
-        try {
-            byte[] b = new byte[Config.BOARD_SIZE];
-            int pieces = 0;
-            List<Integer> values = new LinkedList<>();
-            int val = 0;
-            int factor = 1;
-            for (int j = 0; j < Config.BOARD_SIZE; j++) {
-                int mask = 1;
-                int buf = 0;
-                for (int i = 0; i < Config.BOARD_SIZE; i++) {
-                    int code = this.getPiece(i, j) - PACK_PIECE_ADJUSTMENT;
-                    if (code >= 0) {
-                        // ignoring kings
-                        ++pieces;
-                        buf |= mask;
-                        val += factor * code;
-                        factor *= 10;
-                        if (factor == 1000) {
-                            values.add(val);    // store 3-decimal-digits number
-                            factor = 1;
-                            val = 0;
+    private void pack(DataOutputStream os) throws Config.PGNException {
+        if(!Config.USE_BIT_STREAMS) {
+            try {
+                byte[] b = new byte[Config.BOARD_SIZE];
+                int pieces = 0;
+                List<Integer> values = new LinkedList<>();
+                int val = 0;
+                int factor = 1;
+                for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                    int mask = 1;
+                    int buf = 0;
+                    for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                        int code = this.getPiece(i, j) - PACK_PIECE_ADJUSTMENT;
+                        if (code >= 0) {
+                            // ignoring kings
+                            ++pieces;
+                            buf |= mask;
+                            val += factor * code;
+                            factor *= 10;
+                            if (factor == 1000) {
+                                values.add(val);    // store 3-decimal-digits number
+                                factor = 1;
+                                val = 0;
+                            }
                         }
+                        mask <<= 1;
                     }
-                    mask <<= 1;
+                    b[j] = (byte) buf;
                 }
-                b[j] = (byte) buf;
+                os.write(b);
+                if (factor != 1) {
+                    values.add(val);
+                }
+                os.writeInt(this.boardCounts);
+                os.writeInt(this.boardData);
+                for (int v : values) {
+                    os.writeInt(v);
+                }
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
             }
-            os.write(b);
-            if (factor != 1) {
-                values.add(val);
-            }
-            os.writeInt(this.boardCounts);
-            os.writeInt(this.boardData);
-            for (int v : values) {
-                os.writeInt(v);
-            }
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
         }
     }
 
-    public static Board unpack(DataInputStream is) throws Config.PGNException {
-        try {
-            Board board = new Board();
-            board.toEmpty();
+    private static Board unpack(DataInputStream is) throws Config.PGNException {
+        if(Config.USE_BIT_STREAMS) {
+            return null;
+        } else {
+            try {
+                Board board = new Board();
+                board.toEmpty();
 
-            byte[] pieceBits = new byte[Config.BOARD_SIZE];
-            is.read(pieceBits);
-            board.boardCounts = is.readInt();
-            board.boardData = is.readInt();
+                byte[] pieceBits = new byte[Config.BOARD_SIZE];
+                is.read(pieceBits);
+                board.boardCounts = is.readInt();
+                board.boardData = is.readInt();
 
-            int val = 0;
-            int factor = 3;
-            for (int j = 0; j < Config.BOARD_SIZE; j++) {
-                int mask = 1;
-                for (int i = 0; i < Config.BOARD_SIZE; i++) {
-                    if ((pieceBits[j] & mask) != 0) {
-                        if (factor == 3) {
-                            // copy 3-decimal-digits number in 10-bit array
-                            val = is.readInt();
-                            factor = 0;
+                int val = 0;
+                int factor = 3;
+                for (int j = 0; j < Config.BOARD_SIZE; j++) {
+                    int mask = 1;
+                    for (int i = 0; i < Config.BOARD_SIZE; i++) {
+                        if ((pieceBits[j] & mask) != 0) {
+                            if (factor == 3) {
+                                // copy 3-decimal-digits number in 10-bit array
+                                val = is.readInt();
+                                factor = 0;
+                            }
+                            int code = val % 10;
+                            int piece = code + PACK_PIECE_ADJUSTMENT;
+                            board.setPiece(i, j, piece);
+                            val /= 10;
+                            ++factor;
                         }
-                        int code = val % 10;
-                        int piece = code + PACK_PIECE_ADJUSTMENT;
-                        board.setPiece(i, j, piece);
-                        val /= 10;
-                        ++factor;
+                        mask <<= 1;
                     }
-                    mask <<= 1;
                 }
+                board.setPiece(board.getWKingX(), board.getWKingY(), Config.WHITE_KING);
+                board.setPiece(board.getBKingX(), board.getBKingY(), Config.BLACK_KING);
+                return board;
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
             }
-            board.setPiece(board.getWKingX(), board.getWKingY(), Config.WHITE_KING);
-            board.setPiece(board.getBKingX(), board.getBKingY(), Config.BLACK_KING);
-            return board;
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
         }
     }
 
-    public void pack(BitStream.Writer writer) throws Config.PGNException {
+    void pack(BitStream.Writer writer) throws Config.PGNException {
         try {
             int pieces = 0;
             List<Integer> values = new LinkedList<>();
@@ -1530,7 +1537,7 @@ public class Board {
         }
     }
 
-    public static Board unpack(BitStream.Reader reader) throws Config.PGNException {
+    static Board unpack(BitStream.Reader reader) throws Config.PGNException {
         try {
             Board board = new Board();
             board.toEmpty();
@@ -1540,8 +1547,12 @@ public class Board {
                 pieceBits[j] = (byte) (reader.read(8) & 0x0ff);
             }
 
-            int moveNum = reader.read(Board.MOVE_NUMBER_LENGTH);    // ignore
+            int plyNum = reader.read(Board.MOVE_NUMBER_LENGTH) * 2;
             board.boardData = reader.read(Board.BOARD_DATA_PACK_LENGTH);
+            if ((board.getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
+                ++plyNum;
+            }
+            board.setPlyNum(plyNum);
 
             int val = 0;
             int factor = 3;

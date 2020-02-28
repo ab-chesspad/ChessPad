@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 
 /**
  *
@@ -16,7 +17,7 @@ import java.util.Date;
 public class PgnLogger {
     private static PrintStream ps = System.out;
     private final String name;
-    private boolean includeTimeStamp = false;
+    private boolean includeTimeStamp;
 
     public static void setPrintStream(PrintStream ps) {
         PgnLogger.ps = ps;
@@ -33,7 +34,7 @@ public class PgnLogger {
         }
     }
 
-    public static void close() {
+    private static void close() {
         ps.flush();
         ps.close();
     }
@@ -46,7 +47,7 @@ public class PgnLogger {
         this(name, false);
     }
 
-    public PgnLogger(String name, boolean includeTimeStamp) {
+    private PgnLogger(String name, boolean includeTimeStamp) {
         this.name = Config.DEBUG_TAG + name;
         this.includeTimeStamp = includeTimeStamp;
     }
@@ -71,7 +72,7 @@ public class PgnLogger {
     private String getTS() {
         String ts = "";
         if(includeTimeStamp) {
-            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MM-dd HH:mm:ss.SSS ");
+            SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MM-dd HH:mm:ss.SSS ", Locale.getDefault());
             ts = simpleDateFormat.format(new Date());
         }
         return ts;

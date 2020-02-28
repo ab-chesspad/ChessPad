@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -13,11 +12,11 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * Created by Alexander Bootman on 5/1/19.
  */
-public class TimesealSocket extends Socket {
-    private long initialTime = System.currentTimeMillis();
-    private Lock writeLock = new ReentrantLock(true);
+class TimesealSocket extends Socket {
+    private final long initialTime = System.currentTimeMillis();
+    private final Lock writeLock = new ReentrantLock(true);
 
-    public TimesealSocket(String address, int port, String initialTimesealString) throws UnknownHostException, IOException {
+    public TimesealSocket(String address, int port, String initialTimesealString) throws IOException {
         super(address, port);
         try {
             if(!initialTimesealString.endsWith("\n")) {
@@ -51,12 +50,12 @@ public class TimesealSocket extends Socket {
     }
 
     private class CryptOutputStream extends OutputStream {
-        private byte buffer[];
+        private final byte[] buffer;
         private final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        private OutputStream outputStreamToDecorate;
-        private final byte timesealKey[] = "Timestamp (FICS) v1.0 - programmed by Henrik Gram.".getBytes();
+        private final OutputStream outputStreamToDecorate;
+        private final byte[] timesealKey = "Timestamp (FICS) v1.0 - programmed by Henrik Gram.".getBytes();
 
-        public CryptOutputStream(OutputStream outputstream) {
+        CryptOutputStream(OutputStream outputstream) {
             buffer = new byte[10000];
             outputStreamToDecorate = outputstream;
         }
@@ -77,11 +76,11 @@ public class TimesealSocket extends Socket {
             }
         }
 
-        private int crypt(byte stringToWriteBytes[], long timestamp) {
+        private int crypt(byte[] stringToWriteBytes, long timestamp) {
             int bytesInLength = stringToWriteBytes.length;
             System.arraycopy(stringToWriteBytes, 0, buffer, 0, stringToWriteBytes.length);
             buffer[bytesInLength++] = 24;
-            byte abyte1[] = Long.toString(timestamp).getBytes();
+            byte[] abyte1 = Long.toString(timestamp).getBytes();
             System.arraycopy(abyte1, 0, buffer, bytesInLength, abyte1.length);
             bytesInLength += abyte1.length;
             buffer[bytesInLength++] = 25;
@@ -123,7 +122,7 @@ public class TimesealSocket extends Socket {
     }
 
     private class CryptInputStream extends InputStream {
-        byte[] internalBuffer = new byte[40000];
+        final byte[] internalBuffer = new byte[40000];
 
         @Override
         public int read() throws IOException {
@@ -161,7 +160,7 @@ public class TimesealSocket extends Socket {
                  * all were acked!
                  */
                 sendAck();
-                result = result.replaceFirst("\\[G\\]\0", "");
+                result = result.replaceFirst("\\[G]\0", "");
             }
             return result.getBytes();
         }

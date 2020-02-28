@@ -1,5 +1,6 @@
 package com.ab.pgn.fics;
 
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Map;
@@ -11,6 +12,7 @@ import java.util.regex.Pattern;
  */
 public class OrderedPropertiesTest {
     @Test
+    @Ignore("raptor test")
     public void testLoading() {
         OrderedProperties orderedProperties = new OrderedProperties("/home/alex/.raptor/raptor.properties");
 

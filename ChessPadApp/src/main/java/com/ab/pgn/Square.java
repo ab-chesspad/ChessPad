@@ -40,11 +40,11 @@ public class Square {
         return this.x;
     }
 
-    public String x2String() {
+    String x2String() {
         return "" + (char) ('a' + getX());
     }
 
-    public String y2String() {
+    String y2String() {
         return "" + (char) ('1' + getY());
     }
 
@@ -79,7 +79,7 @@ public class Square {
         return "" + (char) ('a' + x);
     }
 
-    public static int fromX(char x) {
+    static int fromX(char x) {
         return x - 'a';
     }
 
@@ -87,7 +87,7 @@ public class Square {
         return "" + (char) ('1' + y);
     }
 
-    public static int fromY(char y) {
+    static int fromY(char y) {
         return y - '1';
     }
 

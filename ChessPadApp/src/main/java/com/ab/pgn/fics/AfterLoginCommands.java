@@ -1,6 +1,6 @@
 package com.ab.pgn.fics;
 
-public class AfterLoginCommands {
+class AfterLoginCommands {
     private final String[] afterLoginCommands = {
         "iset defprompt 1",         // Setting ivariable defprompt forces the user's prompt to 'fics% '
         "iset gameinfo 1",          // Provides extra notifications when the game starts or becomes observed

@@ -13,8 +13,8 @@ import com.ab.pgn.Config;
 public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> implements ProgressPublisher {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
-    private CPExecutor cpExecutor;
-    private ProgressBarHolder progressBarHolder;
+    private final CPExecutor cpExecutor;
+    private final ProgressBarHolder progressBarHolder;
     private int oldProgress;
 
     public CPAsyncTask(CPExecutor cpExecutor) {
@@ -101,7 +101,7 @@ interface CPPostExecutor {
 }
 
 interface CPExecutor extends CPPostExecutor{
-    void onExecuteException(Config.PGNException e) throws Config.PGNException;
+    void onExecuteException(Config.PGNException e);
     void doInBackground(ProgressPublisher progressPublisher) throws Config.PGNException;
 }
 

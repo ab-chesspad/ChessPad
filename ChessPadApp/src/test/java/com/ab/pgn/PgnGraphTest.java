@@ -27,39 +27,44 @@ import java.util.ListIterator;
  */
 //@Ignore
 public class PgnGraphTest extends BaseTest {
-    public static boolean USE_BIT_STREAMS = false;
-    public static String LOG_FILE_WRITER_NAME = prefix + "log/graph-w.log";
-    public static String LOG_FILE_READER_NAME = prefix + "log/graph-r.log";
+    private static final String LOG_FILE_WRITER_NAME = prefix + "log/graph-w.log";
+    private static final String LOG_FILE_READER_NAME = prefix + "log/graph-r.log";
 
-    private final int TEST_GLYPH = 79;
-    private final String TEST_COMMENT = "Test comment";
+    private static final int TEST_GLYPH = 79;
+    private static final String TEST_COMMENT = "Test comment";
+
     private List<PgnGraph> _parse(String pgn) throws Config.PGNException {
         List<PgnGraph> res = new LinkedList<>();
         BufferedReader br = new BufferedReader(new StringReader(pgn));
-        final List<PgnItem> items = new LinkedList<>();
-        PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
+        final List<CpFile> items = new LinkedList<>();
+        CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
+            public boolean handle(CpFile entry, BufferedReader bufferedReader) {
                 items.add(entry);
                 return true;
             }
 
             @Override
-            public boolean getMoveText(PgnItem entry) {
+            public boolean getMoveText(CpFile entry) {
                 return true;
             }
 
             @Override
-            public void addOffset(int length, int totalLength) {
+            public boolean addOffset(int length, int totalLength) {
+                return false;
+            }
 
+            @Override
+            public boolean skip(CpFile entry) {
+                return false;
             }
         });
 
-        for (PgnItem item : items) {
+        for (CpFile item : items) {
             if(DEBUG) {
                 logger.debug(item.toString());
             }
-            res.add(new PgnGraph((PgnItem.Item) item, null));
+            res.add(new PgnGraph((CpFile.Item) item, null));
         }
         return res;
     }
@@ -71,12 +76,12 @@ public class PgnGraphTest extends BaseTest {
                 logger.debug(pgnGraph.getInitBoard().toFEN());
                 logger.debug(pgnGraph.getBoard().toFEN());
             }
-            String finalFen = pgnGraph.pgn.getHeader(MY_HEADER);
-            if(finalFen != null) {
+            String finalFen = pgnGraph.pgn.getTag(MY_TAG);
+            if(!finalFen.equals(Config.TAG_UNKNOWN_VALUE)) {
                 Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
             }
-            String headers = new String(pgnGraph.getPgn().headersToString(true, false));
-            String resPgn = headers + "\n" + pgnGraph.toPgn();
+            String tags = new String(pgnGraph.getPgn().tagsToString(true, false));
+            String resPgn = tags + "\n" + pgnGraph.toPgn();
             if(DEBUG) {
                 System.out.println(resPgn);
             }
@@ -117,7 +122,7 @@ public class PgnGraphTest extends BaseTest {
     }
 
     @Test
-    public void testParsingAnnotated() throws Config.PGNException, IOException {
+    public void testParsingAnnotated() throws Config.PGNException {
         String pgn =
             "[Event \"Amsterdam\"]\n" +
             "[Site \"?\"]\n" +
@@ -132,7 +137,7 @@ public class PgnGraphTest extends BaseTest {
             "[PlyCount \"27\"]\n" +
             "[Source \"Hays Publishing\"]\n" +
             "[SourceDate \"1964.01.01\"]\n" +
-            finalFen2Header("4nk2/1b3pp1/p2b4/1p6/2p4B/2P5/PPB2PPP/5NK1 b - - 1 14") +
+            finalFen2Tag("4nk2/1b3pp1/p2b4/1p6/2p4B/2P5/PPB2PPP/5NK1 b - - 1 14") +
             "\n" +
             "{An active bishop obtained at the cost of a backward pawn  With his last move .\n" +
             ".. Pd5, Black has taken the initiative in the centre, and now threatens either\n" +
@@ -186,15 +191,6 @@ public class PgnGraphTest extends BaseTest {
         }
     }
 
-/*
-    @Test
-    public void testParsingInit() throws Config.PGNException {
-        PgnGraph pgnGraph = new PgnGraph();
-        Board board = pgnGraph.getBoard();
-
-    }
-*/
-
     @Test
     public void testParsingVariants() throws Config.PGNException {
         String pgn =
@@ -214,13 +210,13 @@ public class PgnGraphTest extends BaseTest {
             "1. e4 Nf6 (1. ... Nc6 (1. ... e5 2. Bc4) 2. Nf3 (2. Nc3 Nf6) 2. ... Nf6 3. Nc3 e6) 2. Nc3 Nc6 3. Nf3 e5" +
             "\n";
         List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 3);
+        Assert.assertEquals(3, graphs.size());
         Assert.assertTrue(areEqual(graphs.get(2), graphs.get(1)));
 
         PgnGraph pgnGraph = graphs.get(0);
         String s = pgnGraph.toPgn();
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1}"));
+        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} \n *"));
         System.out.println(s);
         List<String> movesText = pgnGraph.getMovesText();
         for(String part : movesText) {
@@ -237,12 +233,12 @@ public class PgnGraphTest extends BaseTest {
             "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
             "\n";
         List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         String s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1}"));
+        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} \n *"));
 
         graph.delCurrentMove();
         s = graph.toPgn();
@@ -252,12 +248,12 @@ public class PgnGraphTest extends BaseTest {
         graph.delCurrentMove();
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        Assert.assertTrue(s.trim().endsWith("3. Bc4 {main}"));
+        Assert.assertTrue(s.trim().endsWith("3. Bc4 {main} \n *"));
 
         graph.delCurrentMove();
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        Assert.assertTrue(s.trim().endsWith("2. ... Nc6 {main}"));
+        Assert.assertTrue(s.trim().endsWith("2. ... Nc6 {main} \n *"));
 
         // test navigation through graph
         graph.toInit();
@@ -297,7 +293,7 @@ public class PgnGraphTest extends BaseTest {
         graph.delCurrentMove();
         Assert.assertEquals(1, graph.moveLine.size());
         s = graph.toPgn().trim();
-        Assert.assertEquals(String.format("{%s}", TEST_COMMENT), s);
+        Assert.assertEquals(String.format("{%s} \n *", TEST_COMMENT), s);
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Assert.assertTrue(graph.isModified());
@@ -314,7 +310,7 @@ public class PgnGraphTest extends BaseTest {
             "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
             "\n";
         List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         Assert.assertTrue(graph.isEnd());
         Assert.assertTrue(graph.okToSetGlyph());
@@ -324,7 +320,7 @@ public class PgnGraphTest extends BaseTest {
         String s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1}", TEST_GLYPH)));
+        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1} \n *", TEST_GLYPH)));
 
         graph.toPrevVar();                      // 1. ... e5
         List<Move> variations = graph.getVariations();
@@ -334,7 +330,7 @@ public class PgnGraphTest extends BaseTest {
 
         graph.delCurrentMove();
         s = graph.toPgn();
-        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1}", TEST_GLYPH)));
+        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1} \n *", TEST_GLYPH)));
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Move m = new Move(0);
@@ -351,9 +347,10 @@ public class PgnGraphTest extends BaseTest {
             "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c5{main}\n" +
             "\n";
         List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
-        Assert.assertTrue(graph.getParsingError().startsWith("invalid move 4. c5 "));
+        // 2/12 ??
+        Assert.assertTrue(graph.getParsingError().startsWith("com.ab.pgn.Config$PGNException: invalid move 4. c5 "));
         Assert.assertEquals(0, graph.getParsingErrorNum());
     }
 
@@ -366,7 +363,7 @@ public class PgnGraphTest extends BaseTest {
             "3. Nc3 Bd6 4. Nb1 Bf8 5. Nc3 Bd6 6. Nb1 Bf8 {creates 3-fold repetition}" +
             "\n";
         List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         Move m = graph.getCurrentMove();
         Assert.assertTrue((m.moveFlags & Config.FLAGS_REPETITION) != 0);
@@ -384,19 +381,19 @@ public class PgnGraphTest extends BaseTest {
 
     @Test
     public void testMerge_SicilianMisc2() throws Config.PGNException {
-        String pgn =
+        String pgnText =
             "[White \"Staunton, Howard\"]\n" +
             "[Black \"Cochrane, John Miles\"]\n" +
             "1.e4 c5 2.c4" +
             "\n";
-        List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        List<PgnGraph> graphs = _parse(pgnText);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         Move m = graph.getCurrentMove();
         Board b = graph.getBoard();
 
-        PgnItem.Pgn pgnItem = new PgnItem.Pgn("SicilianMisc2.pgn");
-        PgnGraph.MergeData md = new PgnGraph.MergeData(pgnItem);
+        CpFile.Pgn pgn = new CpFile.Pgn("SicilianMisc2.pgn");
+        PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
         md.end = md.start = -1;
         md.annotate = true;
         graph.merge(md, null);
@@ -411,13 +408,13 @@ public class PgnGraphTest extends BaseTest {
     public void testMerge_SicilianTaimanovMain() throws Config.PGNException, IOException {
         String pgnFile = "SicilianTaimanovMain";
         String pgnFileName = pgnFile + ".pgn";
-        String pgn =
+        String pgnText =
             "[White \"SicilianTaimanov\"]\n" +
             "[Black \"Main\"]\n" +
             "1. e4 c5 " +
             "\n";
-        List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        List<PgnGraph> graphs = _parse(pgnText);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         Move m = graph.getCurrentMove();
         Board b = graph.getBoard();
@@ -425,27 +422,25 @@ public class PgnGraphTest extends BaseTest {
         File origFile = new File(TEST_ROOT + pgnFileName);
         String root = TEST_TMP_ROOT;
         File testFile = new File(root + pgnFileName);
-        PgnItem.copy(origFile, testFile);
-        PgnItem.setRoot(new File(root));
+        CpFile.copy(origFile, testFile);
+        CpFile.setRoot(new File(root));
 
-        PgnItem.Pgn pgnItem = new PgnItem.Pgn(pgnFileName);
-        PgnGraph.MergeData md = new PgnGraph.MergeData(pgnItem);
+        CpFile.Pgn pgn = new CpFile.Pgn(pgnFileName);
+        PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
         md.end = md.start = -1;
         md.annotate = true;
-        graph.merge(md, new PgnItem.ProgressObserver() {
-            @Override
-            public void setProgress(int progress) {
-                if(DEBUG) {
-                    logger.debug(String.format("\t offset=%s", progress));
-                }
+        graph.merge(md, (progress) -> {
+            if(DEBUG) {
+                logger.debug(String.format("\t offset=%s", progress));
             }
+            return false;
         });
         logger.debug(String.format("merged %s items", md.merged));
         List<Move> moveLine = navigate(graph, "1.e4 c5 2. Nf3 Nc6 3.d4 e6");
         logger.debug(moveLine);
 
         String s = graph.toPgn();
-        PrintStream ps = new PrintStream(new FileOutputStream(root + pgnFile + "-merged.pgn"));
+        PrintStream ps = new PrintStream(new FileOutputStream(root + pgnFile + "-merged.pgnText"));
         ps.print(s);
         ps.flush();
         ps.close();
@@ -477,27 +472,32 @@ public class PgnGraphTest extends BaseTest {
         String fName = "SicilianTaimanovMain-merged.pgn";
 
         BufferedReader br = new BufferedReader(new FileReader(String.format("%s%s", TEST_ROOT, fName)));
-        final List<PgnItem> items = new LinkedList<>();
-        PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
+        final List<CpFile> items = new LinkedList<>();
+        CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
+            public boolean handle(CpFile entry, BufferedReader bufferedReader) {
                 items.add(entry);
                 return true;
             }
 
             @Override
-            public boolean getMoveText(PgnItem entry) {
+            public boolean getMoveText(CpFile entry) {
                 return true;
             }
 
             @Override
-            public void addOffset(int length, int totalLength) {
+            public boolean addOffset(int length, int totalLength) {
+                return false;
+            }
 
+            @Override
+            public boolean skip(CpFile entry) {
+                return false;
             }
         });
 
-        Assert.assertTrue(items.size() == 1);
-        PgnGraph graph = new PgnGraph((PgnItem.Item)items.get(0), null);
+        Assert.assertEquals(1, items.size());
+        PgnGraph graph = new PgnGraph((CpFile.Item)items.get(0), null);
         logger.debug(graph.toPgn());
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
@@ -507,7 +507,7 @@ public class PgnGraphTest extends BaseTest {
 
     @Test
 //    @Ignore("lond test")
-    public void testMerge_SicilianGranPrix() throws Config.PGNException, IOException {
+    public void testMerge_SicilianGranPrix() throws Config.PGNException {
         String pgnFile = "SicilianGrandPrix.pgn";
         String[] moveLines = {
             "e4 c5 Nc3 Nc6 f4",
@@ -518,11 +518,11 @@ public class PgnGraphTest extends BaseTest {
         for(int i = 0; i < moveLines.length; ++i) {
             String moveLine = moveLines[i];
             List<PgnGraph> graphs = _parse(moveLine);
-            Assert.assertTrue(graphs.size() == 1);
+            Assert.assertEquals(1, graphs.size());
             PgnGraph graph = graphs.get(0);
 
-            PgnItem.Pgn pgnItem = new PgnItem.Pgn(pgnFile);
-            PgnGraph.MergeData md = new PgnGraph.MergeData(pgnItem);
+            CpFile.Pgn pgn = new CpFile.Pgn(pgnFile);
+            PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
             md.end = md.start = -1;
             md.annotate = true;
             graph.merge(md, null);
@@ -550,36 +550,33 @@ public class PgnGraphTest extends BaseTest {
 
     @Test
     public void testMerge_MaxLangeAttack() throws Config.PGNException, FileNotFoundException {
-        String pgn =
+        String pgnText =
             "[White \"Max Lange\"]\n" +
             "[Black \"Attack\"]\n" +
             "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4.d4" +
             "\n";
-        List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        List<PgnGraph> graphs = _parse(pgnText);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         Move m = graph.getCurrentMove();
         Board b = graph.getBoard();
 
         String pgnFile = "GiuocoPiano";
-        PgnItem.Pgn pgnItem = new PgnItem.Pgn("GiuocoPiano.zip/" + pgnFile + ".pgn");
-        PgnGraph.MergeData md = new PgnGraph.MergeData(pgnItem);
+        CpFile.Pgn pgn = new CpFile.Pgn("GiuocoPiano.zip/" + pgnFile + ".pgnText");
+        PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
         md.end = md.start = -1;
         md.annotate = true;
-        graph.merge(md, new PgnItem.ProgressObserver() {
-            @Override
-            public void setProgress(int progress) {
-                if(DEBUG) {
-                    logger.debug(String.format("\t offset=%s", progress));
-                }
+        graph.merge(md, (progress) -> {
+            if(DEBUG) {
+                logger.debug(String.format("\t offset=%s", progress));
             }
+            return false;
         });
         logger.debug(String.format("merged %s items", md.merged));
         String s = graph.toPgn();
         logger.debug(s);
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        String root = TEST_TMP_ROOT;
-        PrintStream ps = new PrintStream(new FileOutputStream(root + pgnFile + "-merged.pgn"));
+        PrintStream ps = new PrintStream(new FileOutputStream(TEST_TMP_ROOT + pgnFile + "-merged.pgnText"));
         ps.print(s);
         ps.flush();
         ps.close();
@@ -596,21 +593,16 @@ public class PgnGraphTest extends BaseTest {
             "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. O-O Bc5" +
             "\n";
         List<PgnGraph> graphs = _parse(targetPgn);
-        Assert.assertTrue(graphs.size() == 1);
+        Assert.assertEquals(1, graphs.size());
         PgnGraph targetGraph = graphs.get(0);
         Move m = targetGraph.getCurrentMove();
         Board b = targetGraph.getBoard();
 
-        PgnItem.Pgn pgnItem = new PgnItem.Pgn("MaxLange-0.pgn");
-        PgnGraph.MergeData md = new PgnGraph.MergeData(pgnItem);
+        CpFile.Pgn pgn = new CpFile.Pgn("MaxLange-0.pgn");
+        PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
         md.end = md.start = -1;
         md.annotate = true;
-        targetGraph.merge(md, new PgnItem.ProgressObserver() {
-            @Override
-            public void setProgress(int progress) {
-//                logger.debug(String.format("\t offset=%s", progress));
-            }
-        });
+        targetGraph.merge(md, (progress) -> false);
         logger.debug(String.format("merged %s items", md.merged));
         String s = targetGraph.toPgn();
         logger.debug(s);
@@ -629,7 +621,7 @@ public class PgnGraphTest extends BaseTest {
             "\n";
 
         List<PgnGraph> graphs = _parse(pgn);
-        Assert.assertTrue(graphs.size() == 1);
+        Assert.assertEquals(1, graphs.size());
         for (PgnGraph graph : graphs) {
             logger.debug(graph.toPgn());
             PgnGraph unserialized;
@@ -660,7 +652,7 @@ public class PgnGraphTest extends BaseTest {
     @Test
     @Ignore("unused functionality")
     public void testSerializeGraph_1() throws Config.PGNException, IOException {
-        PgnItem.setRoot(new File(TEST_ROOT));
+        CpFile.setRoot(new File(TEST_ROOT));
         String[] fNames = {
             "MaxLange-0.pgn",
             "MaxLange-00.pgn",
@@ -669,27 +661,32 @@ public class PgnGraphTest extends BaseTest {
 
         for(final String fName : fNames) {
             BufferedReader br = new BufferedReader(new FileReader(String.format("%s%s", TEST_ROOT, fName)));
-            final List<PgnItem> items = new LinkedList<>();
-            PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
+            final List<CpFile> items = new LinkedList<>();
+            CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
                 @Override
-                public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
+                public boolean handle(CpFile entry, BufferedReader bufferedReader) {
                     items.add(entry);
                     return true;
                 }
 
                 @Override
-                public boolean getMoveText(PgnItem entry) {
+                public boolean getMoveText(CpFile entry) {
                     return true;
                 }
 
                 @Override
-                public void addOffset(int length, int totalLength) {
+                public boolean addOffset(int length, int totalLength) {
+                    return false;
+                }
 
+                @Override
+                public boolean skip(CpFile entry) {
+                    return false;
                 }
             });
 
-            for(PgnItem item : items) {
-                PgnGraph graph = new PgnGraph((PgnItem.Item)item, null);
+            for(CpFile item : items) {
+                PgnGraph graph = new PgnGraph((CpFile.Item)item, null);
                 logger.debug(graph.toPgn());
                 Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
@@ -704,13 +701,11 @@ public class PgnGraphTest extends BaseTest {
                     PgnLogger.setFile(LOG_FILE_READER_NAME);
 
                     BitStream.Reader reader = new BitStream.Reader(new FileInputStream(serFileName));
-                    unserialized = new PgnGraph(reader, TEST_SERIALIZATION_VERSION, new PgnItem.ProgressObserver() {
-                        @Override
-                        public void setProgress(int progress) {
-                            if(DEBUG) {
-                                System.out.println(String.format("%s, unserialized %d%%", fName, progress));
-                            }
+                    unserialized = new PgnGraph(reader, TEST_SERIALIZATION_VERSION, (progress) -> {
+                        if(DEBUG) {
+                            System.out.println(String.format("%s, unserialized %d%%", fName, progress));
                         }
+                        return false;
                     });
                     Assert.assertEquals(writer.bitCount, reader.bitCount);
                 } else {
@@ -721,13 +716,11 @@ public class PgnGraphTest extends BaseTest {
 
                     PgnLogger.setFile(LOG_FILE_READER_NAME);
                     DataInputStream dis = new DataInputStream(new FileInputStream(serFileName));
-                    unserialized = new PgnGraph(dis, TEST_SERIALIZATION_VERSION, new PgnItem.ProgressObserver() {
-                        @Override
-                        public void setProgress(int progress) {
-                            if (DEBUG) {
-                                System.out.println(String.format("%s, unserialized %d%%", fName, progress));
-                            }
+                    unserialized = new PgnGraph(dis, TEST_SERIALIZATION_VERSION, (progress) -> {
+                        if (DEBUG) {
+                            System.out.println(String.format("%s, unserialized %d%%", fName, progress));
                         }
+                        return false;
                     });
                     Assert.assertEquals(0, dis.available());
                 }

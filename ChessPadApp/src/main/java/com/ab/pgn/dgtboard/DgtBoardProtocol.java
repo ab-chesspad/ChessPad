@@ -125,7 +125,7 @@ file can be read and processed.
 Start of Definitions:
 ---------------------*/
 
-    public static final byte
+    byte
         DGT_SEND_RESET = 0x40,		/* puts the board in IDLE mode, cancelling any UPDATE mode */
         DGT_SEND_CLK = 0x41,		/* results in a DGT_MSG_BWTIME message   */
         DGT_SEND_BRD = 0x42,		/* results in a DGT_MSG_BOARD_DUMP message   */

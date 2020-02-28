@@ -1,9 +1,3 @@
-/**
- *
- * 04/22/2019 Alexander Bootman - simplified and optimized
- *
- */
-
 package com.ab.pgn.fics.chat;
 
 import com.ab.pgn.Board;
@@ -11,11 +5,15 @@ import com.ab.pgn.Config;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  *
  * Created by Alexander Bootman on 4/30/19.
+ * simplified and optimized
+ *
  */
+
 public class InboundMessage {
 
     private static int i = -1;
@@ -38,7 +36,7 @@ public class InboundMessage {
 
         private final char abbr;
         private final int value;
-        private static GameType[] values = GameType.values();
+        private static final GameType[] values = GameType.values();
 
         GameType(char abbr, int value) {
             this.abbr = abbr;
@@ -48,7 +46,7 @@ public class InboundMessage {
         public int getValue() {
             return value;
         }
-        public char getAbbreviation() {
+        char getAbbreviation() {
             return abbr;
         }
 
@@ -64,7 +62,7 @@ public class InboundMessage {
             return values[total() - 1];
         }
 
-        public static int total() {
+        static int total() {
             return values.length;
         }
 
@@ -74,50 +72,35 @@ public class InboundMessage {
 //        }
     }
 
-    /*
+    /* https://www.freechess.org/Help/HelpFiles/style12.html
     * my relation to this game:
-            -3 isolated position, such as for "ref 3" or the "sposition" command
+    -3 isolated position, such as for "ref 3" or the "sposition" command
     -2 I am observing game being examined
      2 I am the examiner of this game
     -1 I am playing, it is my opponent's move
-            1 I am playing and it is my move
+     1 I am playing and it is my move
      0 I am observing a game being played
-*/
-    public enum MyRelationToGame {
-        Unknown("-999"),
-        IsolatedPosition("-3"),
-        MeObservingExamined("-2"),
-        MePlayingHisMove("-1"),
-        MeObserving("0"),
-        MePlayingMyMove("1"),
-        MeExamining("2"),
-        ;
+//*/
 
-        private final int value;
-        private static MyRelationToGame[] values = MyRelationToGame.values();
+    public static final int NO_STATE = 0;   // to complete set of states
 
-        MyRelationToGame(int value) {
-            this.value = value;
-        }
+    // game being played
+    public static final int PLAYED_STATE = 0x0001;
 
-        MyRelationToGame(String value) {
-            this.value = Integer.valueOf(value);
-        }
+    // -3 isolated position, such as for "ref 3" or the "sposition" command
+    public static final int ISOLATED_STATE = 0x0002;
 
-        public int getValue() {
-            return value;
-        }
+    // I am observing a game
+    public static final int OBSERVING_STATE = 0x0004;
 
-        public static MyRelationToGame myRelationToGame(int v)
-        {
-            for(MyRelationToGame value : values) {
-                if(v == value.value) {
-                    return value;
-                }
-            }
-            return null;
-        }
-    }
+    // game being examined
+    public static final int EXAMINED_STATE = 0x0008;
+
+    // 2 I am the examiner of this game
+    public static final int EXAMINER_STATE = 0x0010;
+
+    // my move
+    public static final int MY_MOVE_STATE = 0x0020;
 
 
     public final static String
@@ -125,24 +108,28 @@ public class InboundMessage {
         BLACK_ABBR = "b",
         dummy_string = null;
 
-    public final static int DEFAULT_INT = -1;
+    private final static int DEFAULT_INT = -1;
 
 //    Message msg = bgMessageHandler.obtainMessage();
 //    msg.arg1 = msgId & 0x0ff;
-//                bgMessageHandler.sendMessage(msg);
+//    bgMessageHandler.sendMessage(msg);
 
-    private static int j = Config.FICS_FIRST_MSG_TYPE;
+    private static int j = Config.MSG_FICS_FIRST - 1;
     public enum MessageType {
-        Info(++j),
-        Challenge(++j),
-        PlayedGame(++j),
-        Ad(++j),
-        G1Game(++j),
-        InboundList(++j),
+        Closed(++j),    // 0x14,
+        Ready(++j),     // 0x15, sent after login and setup
+        InboundList(++j), // 0x16
+        Challenge(++j), // 0x17
+        KibitzMsg(++j), // 0x18
+        PlayedGame(++j), // 0x19
+        Ad(++j),        // 0x1a
+        G1Game(++j),    // 0x1b
+        Timer(++j),     // 0x1c, timer updated locally
+        Info(++j),      // 0x1d     // must be the last one
         ;
 
         private final int value;
-        private static MessageType[] values = MessageType.values();
+        private static final MessageType[] values = MessageType.values();
 
         MessageType(int value) {
             this.value = value;
@@ -164,18 +151,22 @@ public class InboundMessage {
     // base minimal class
     public static class Info {
         private MessageType messageType;
-        private String message;
+        private String message = "";
 
-        public Info() {
+        Info() {
             setMessageType(MessageType.Info);
         }
 
-        public Info(String message) {
+        Info(String message) {
             setMessageType(MessageType.Info);
             this.message = message;
         }
 
-        public void setMessageType(MessageType messageType) {
+        public Info(MessageType messageType) {
+            setMessageType(messageType);
+        }
+
+        void setMessageType(MessageType messageType) {
             this.messageType = messageType;
         }
 
@@ -193,7 +184,7 @@ public class InboundMessage {
 
         @Override
         public String toString() {
-            return message;
+            return String.format("%s: %s", messageType.name(), message);
         }
     }
 
@@ -209,14 +200,32 @@ public class InboundMessage {
         }
     }
 
+    public static class KibitzMsg extends Info {
+        private final String kibitzer;
+        public KibitzMsg(String kibitzer, String message) {
+            super(message);
+            setMessageType(MessageType.KibitzMsg);
+            this.kibitzer = kibitzer;
+        }
+
+        public String getKibitzer() {
+            return kibitzer;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("%s kibitzes: %s", kibitzer, super.toString());
+        }
+    }
+
     public static abstract class GameInfo extends Info {
-        protected String id;
-        protected boolean isRated;
-        protected boolean isWhitesMove;
-        protected boolean isPrivate;
-        protected GameType gameType;
-        protected int time;
-        protected int inc;
+        String id;
+        boolean isRated;
+        boolean isWhitesMove;
+        boolean isPrivate;
+        GameType gameType;
+        int time;
+        int inc;
 
         public String getId() {
             return id;
@@ -230,15 +239,15 @@ public class InboundMessage {
             return isRated;
         }
 
-        public void setRated(boolean rated) {
+        void setRated(boolean rated) {
             isRated = rated;
         }
 
-        public boolean isWhitesMove() {
+        boolean isWhitesMove() {
             return isWhitesMove;
         }
 
-        public void setWhitesMove(boolean whitesMove) {
+        void setWhitesMove(boolean whitesMove) {
             isWhitesMove = whitesMove;
         }
 
@@ -250,11 +259,11 @@ public class InboundMessage {
             isPrivate = aPrivate;
         }
 
-        public GameType getGameType() {
+        GameType getGameType() {
             return gameType;
         }
 
-        public void setGameType(GameType gameType) {
+        void setGameType(GameType gameType) {
             this.gameType = gameType;
         }
 
@@ -262,27 +271,27 @@ public class InboundMessage {
             return time;
         }
 
-        public int getTimeMin() {
+        int getTimeMin() {
             return time / 60;
         }
 
-        public void setTime(int time) {
+        void setTime(int time) {
             this.time = time;
         }
 
-        public void setTimeMin(int time) {
+        void setTimeMin(int time) {
             this.time = time * 60;
         }
 
-        public int getInc() {
+        int getInc() {
             return inc;
         }
 
-        public void setInc(int inc) {
+        void setInc(int inc) {
             this.inc = inc;
         }
 
-        public void clear() {
+        void clear() {
             id = null;
             isRated = false;
             isWhitesMove = true;
@@ -298,13 +307,12 @@ public class InboundMessage {
         private String blackName;
         private String whiteElo;
         private String blackElo;
-        private boolean isBeingExamined;
         private int moveNumber;
-        private MyRelationToGame myRelationToGame;
+        private int state;
         private int whiteRemainingTime;
         private int blackRemainingTime;
 
-        public PlayedGame() {
+        PlayedGame() {
             setMessageType(MessageType.PlayedGame);
         }
 
@@ -312,7 +320,7 @@ public class InboundMessage {
             return whiteName;
         }
 
-        public void setWhiteName(String whiteName) {
+        void setWhiteName(String whiteName) {
             this.whiteName = whiteName;
         }
 
@@ -320,48 +328,73 @@ public class InboundMessage {
             return blackName;
         }
 
-        public void setBlackName(String blackName) {
+        void setBlackName(String blackName) {
             this.blackName = blackName;
         }
 
-        public String getWhiteElo() {
+        String getWhiteElo() {
             return whiteElo;
         }
 
-        public void setWhiteElo(String whiteElo) {
+        void setWhiteElo(String whiteElo) {
             this.whiteElo = whiteElo;
         }
 
-        public String getBlackElo() {
+        String getBlackElo() {
             return blackElo;
         }
 
-        public void setBlackElo(String blackElo) {
+        void setBlackElo(String blackElo) {
             this.blackElo = blackElo;
         }
 
-        public boolean isBeingExamined() {
-            return isBeingExamined;
-        }
-
-        public void setBeingExamined(boolean beingExamined) {
-            isBeingExamined = beingExamined;
-        }
-
-        public int getMoveNumber() {
+        int getMoveNumber() {
             return moveNumber;
         }
 
-        public void setMoveNumber(int moveNumber) {
+        void setMoveNumber(int moveNumber) {
             this.moveNumber = moveNumber;
         }
 
-        public MyRelationToGame getMyRelationToGame() {
-            return myRelationToGame;
+        void setState(int state) {
+            this.state = state;
         }
 
-        public void setMyRelationToGame(MyRelationToGame myRelationToGame) {
-            this.myRelationToGame = myRelationToGame;
+        /**
+         * Adds the state flag to the games state.
+         */
+        void addState(int state) {
+            setState(this.state | state);
+        }
+
+        /**
+         * Clears the specified state constant from the games state.
+         */
+        void clearState(int state) {
+            setState(this.state & ~state);
+        }
+
+        /**
+         * Returns true if one of the state flags is in the specified state.
+         */
+        public boolean isInState(int state) {
+            return (this.state & state) != 0;
+        }
+
+        public int getState() {
+            return this.state;
+        }
+
+        boolean isBeingExamined() {
+            return isInState(EXAMINED_STATE);
+        }
+
+        void setBeingExamined(boolean beingExamined) {
+            if(beingExamined) {
+                addState(EXAMINED_STATE);
+            } else {
+                clearState(EXAMINED_STATE);
+            }
         }
 
         public int getWhiteRemainingTime() {
@@ -384,9 +417,8 @@ public class InboundMessage {
         public void clear() {
             super.clear();
             whiteName = blackName = whiteElo = blackElo = null;
-            isBeingExamined = false;
             moveNumber = DEFAULT_INT;
-            myRelationToGame = MyRelationToGame.Unknown;
+            state = NO_STATE;
             whiteRemainingTime = blackRemainingTime = -1;
         }
 
@@ -424,6 +456,7 @@ public class InboundMessage {
         }
     }
 
+    // item on InboundList
     public static class Ad extends GameInfo {
         private String soughtColor;
         private String soughtName;
@@ -433,7 +466,7 @@ public class InboundMessage {
         private int minElo;
         private int maxElo;
 
-        public Ad() {
+        Ad() {
             setMessageType(MessageType.Ad);
         }
 
@@ -441,31 +474,31 @@ public class InboundMessage {
             return soughtColor;
         }
 
-        public void setSoughtColor(String soughtColor) {
+        void setSoughtColor(String soughtColor) {
             this.soughtColor = soughtColor;
         }
 
-        public String getSoughtName() {
+        String getSoughtName() {
             return soughtName;
         }
 
-        public void setSoughtName(String soughtName) {
+        void setSoughtName(String soughtName) {
             this.soughtName = soughtName;
         }
 
-        public String getSoughtElo() {
+        String getSoughtElo() {
             return soughtElo;
         }
 
-        public void setSoughtElo(String soughtElo) {
+        void setSoughtElo(String soughtElo) {
             this.soughtElo = soughtElo;
         }
 
-        public boolean isManual() {
+        boolean isManual() {
             return manual;
         }
 
-        public void setManual(boolean manual) {
+        void setManual(boolean manual) {
             this.manual = manual;
         }
 
@@ -473,23 +506,23 @@ public class InboundMessage {
             return useFormula;
         }
 
-        public void setUseFormula(boolean useFormula) {
+        void setUseFormula(boolean useFormula) {
             this.useFormula = useFormula;
         }
 
-        public int getMinElo() {
+        int getMinElo() {
             return minElo;
         }
 
-        public void setMinElo(int minElo) {
+        void setMinElo(int minElo) {
             this.minElo = minElo;
         }
 
-        public int getMaxElo() {
+        int getMaxElo() {
             return maxElo;
         }
 
-        public void setMaxElo(int maxElo) {
+        void setMaxElo(int maxElo) {
             this.maxElo = maxElo;
         }
 
@@ -546,6 +579,11 @@ public class InboundMessage {
 
         public G1Game() {
             setMessageType(MessageType.G1Game);
+        }
+
+        public G1Game(int gameId) {
+            setMessageType(MessageType.G1Game);
+            this.id = "" + gameId;
         }
 
         public int getBlackTime() {
@@ -651,7 +689,7 @@ public class InboundMessage {
     }
 
     public static class InboundList extends Info {
-        private List<Info> objects = new LinkedList<>();
+        private final List<Info> objects = new LinkedList<>();
 
         public InboundList() {
             setMessageType(MessageType.InboundList);
@@ -660,7 +698,7 @@ public class InboundMessage {
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            sb.append(String.format("List of %d\n", objects.size()));
+            sb.append(String.format(Locale.getDefault(), "List of %d\n", objects.size()));
             for(Info info : objects) {
                 sb.append(info.toString()).append("\n");
             }
@@ -673,8 +711,8 @@ public class InboundMessage {
     }
 
     public static class InboundMove {
-        public String moveText;
-        public Board board;
+        public final String moveText;
+        public final Board board;
 
         public InboundMove(String moveText, Board board) {
             this.moveText = moveText;

@@ -16,7 +16,7 @@
 
     <build>
         <sourceDirectory>.</sourceDirectory>
-        <testSourceDirectory>app/src/test/java</testSourceDirectory>
+        <testSourceDirectory>ChessPadApp/src/test/java</testSourceDirectory>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -25,11 +25,11 @@
                 <configuration>
 	            <includes>
         	    	<include>cli/**/*.java</include>
-	            	<include>app/src/main/java/**/*.java</include>
+	            	<include>ChessPadApp/src/main/java/**/*.java</include>
         	    </includes>
                     <excludes>
                         <exclude>etc</exclude>
-                        <exclude>app/src/main/java/com/ab/droid/chesspad/*.java</exclude>
+                        <exclude>ChessPadApp/src/main/java/com/ab/droid/chesspad/*.java</exclude>
                     </excludes>
                     <source>${sourceJavaVersion}</source>
                     <target>${targetJavaVersion}</target>

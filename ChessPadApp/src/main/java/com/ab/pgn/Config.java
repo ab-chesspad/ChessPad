@@ -11,6 +11,7 @@ import java.util.List;
 public class Config {
     public static final String version = "1.0";
     public static final String DEBUG_TAG = "chesspad-debug.";
+    public static final boolean USE_BIT_STREAMS = false;
 
     public static final int
         MY_BUF_SIZE = 0x2000,
@@ -93,7 +94,9 @@ public class Config {
 
         MSG_DGT_BOARD_LAST = 0x13,      // DGT_VERSION
 
-        FICS_FIRST_MSG_TYPE = MSG_DGT_BOARD_LAST + 1,
+        MSG_OOM = MSG_DGT_BOARD_LAST + 1,
+
+        MSG_FICS_FIRST = MSG_OOM + 1,
 
         dummy_byte = 0;
 
@@ -120,16 +123,18 @@ public class Config {
         PGN_OLD_GLYPHS = "?!",
 
         // http://en.wikipedia.org/wiki/Portable_Game_Notation#Tag_pairs
-        HEADER_Event = "Event",
-        HEADER_Site = "Site",
-        HEADER_Date = "Date",
-        HEADER_Round = "Round",
-        HEADER_White = "White",
-        HEADER_Black = "Black",
-        HEADER_Result = "Result",
-        HEADER_FEN = "FEN",
+        TAG_Event = "Event",    // 0
+        TAG_Site = "Site",      // 1
+        TAG_Date = "Date",      // 2
+        TAG_Round = "Round",    // 3
+        TAG_White = "White",    // 4
+        TAG_Black = "Black",    // 5
+        TAG_Result = "Result",  // 6
+        TAG_FEN = "FEN",
 
-        HEADER_UNKNOWN_VALUE = "?",
+        TAG_UNKNOWN_VALUE = "?",
+
+        CP_DATE_FORMAT = "yyyy-MM-dd",
 
         FICS_UNKNOWN_RATING = "++++",
         FICS_NO_MOVE = "none",
@@ -137,10 +142,9 @@ public class Config {
         dummy_str = null;
 
     // STR - Seven Tag Roster
-    public static final List<String> STR = Arrays.asList(HEADER_Event, HEADER_Site, HEADER_Date, HEADER_Round, HEADER_White, HEADER_Black, HEADER_Result);
+    public static final List<String> STR = Arrays.asList(TAG_Event, TAG_Site, TAG_Date, TAG_Round, TAG_White, TAG_Black, TAG_Result);
 
     public static final HashMap<String, Integer> old_glyph_translation;
-
     static {
         old_glyph_translation = new HashMap<>();
         old_glyph_translation.put("!", 1);
@@ -149,12 +153,13 @@ public class Config {
         old_glyph_translation.put("??", 4);
         old_glyph_translation.put("!?", 5);
         old_glyph_translation.put("?!", 6);
-
     }
 
-    public static String[] titleHeaders = {
-        HEADER_White, HEADER_Black, HEADER_Date, HEADER_Event, HEADER_Site,
+    public static final String[] titleTags = {
+            TAG_White, TAG_Black, TAG_Date, TAG_Event, TAG_Site,
     };
+
+    public static final int[] titleTagIndexes = {4, 5, 2, 0, 1 };
 
     static public class PGNException extends Exception {
         static final long serialVersionUID = 1989L;

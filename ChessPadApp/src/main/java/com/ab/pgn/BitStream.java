@@ -2,21 +2,24 @@ package com.ab.pgn;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
+import java.io.Flushable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 
 /**
  * BitStream.Reader and BitStream.Writer
  * Created by Alexander Bootman on 8/13/16.
  */
-public abstract class BitStream {
-    protected byte[] bits = new byte[1];
-    protected int bitIndex;
+public abstract class BitStream implements Closeable {
+    final byte[] bits = new byte[1];
+    int bitIndex;
 
-    protected int bitCount;     // debug
+    int bitCount;     // debug
 
-    public static class Writer extends  BitStream {
+    public static class Writer extends  BitStream implements Flushable {
         private OutputStream os;
 
         public Writer(OutputStream os) {
@@ -32,8 +35,8 @@ public abstract class BitStream {
             if(os instanceof ByteArrayOutputStream) {
                 os = new ByteArrayOutputStream();
                 bitIndex = 0;
-            } else {
-                // exception?
+//            } else {
+//                // exception?
             }
             bitCount = 0;
         }
@@ -58,6 +61,7 @@ public abstract class BitStream {
             }
         }
 
+        @Override
         public void flush() throws IOException {
             if(bitIndex > 0) {
                 os.write(bits);
@@ -87,6 +91,19 @@ public abstract class BitStream {
             }
         }
 
+        // assuming list.size() < 64K byte long
+        public void writeList(List<String> list) throws IOException {
+            int length = list.size();
+            if(length > 0x0ffff) {
+                // throw exception?
+                length = 0x0ffff;
+            }
+            write(length, 16);
+            for(String item : list) {
+                writeString(item);
+            }
+        }
+
         public byte[] getBits() throws IOException {
             if(os instanceof ByteArrayOutputStream) {
                 flush();
@@ -95,6 +112,7 @@ public abstract class BitStream {
             return null;
         }
 
+        @Override
         public void close() throws IOException {
             flush();
             os.close();
@@ -124,14 +142,14 @@ public abstract class BitStream {
     }
 
     public static class Reader extends  BitStream {
-        private InputStream is;
+        private final InputStream is;
 
         public Reader(InputStream is) {
             this.is = is;
             bitIndex = 8;
         }
 
-        public Reader(byte[] bits) throws IOException {
+        public Reader(byte[] bits) {
             this.is = new ByteArrayInputStream(bits);
             bitIndex = 8;
         }
@@ -176,15 +194,34 @@ public abstract class BitStream {
             if(len == 0) {
                 return null;        // distinguish between null & empty string?
             }
-            is.read(bytes);
+            int readBytes = is.read(bytes);
+            if(readBytes != len) {
+                throw new IOException(String.format("Read %s bytes, expected %s", readBytes, len));
+            }
             bitCount = ((bitCount + 7) / 8 + bytes.length) * 8;
             bitIndex = 8;           // force read is
             return new String(bytes);
         }
 
-        public int available() throws IOException {
+        // assuming list.size() < 64K byte long
+        public void readList(List<String> list) throws IOException {
+            // clear list?
+            int len = read(16);
+            if(len == 0) {
+                return;
+            }
+            for(int i = 0; i < len; ++i) {
+                list.add(readString());
+            }
+        }
+
+        int available() throws IOException {
             return is.available();
         }
-    }
 
+        @Override
+        public void close() throws IOException {
+            is.close();
+        }
+    }
 }

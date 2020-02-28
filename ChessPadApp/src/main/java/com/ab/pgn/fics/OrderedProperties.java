@@ -11,10 +11,10 @@ import java.util.regex.Pattern;
  *
  * Created by Alexander Bootman on 4/23/19.
  */
-public class OrderedProperties extends LinkedHashMap<String, String> {
+class OrderedProperties extends LinkedHashMap<String, String> {
     private static final Pattern pattern = Pattern.compile("^([^=^ ]+) *=? *(.*)$");
 
-    public OrderedProperties(String propertiesFileName) {
+    OrderedProperties(String propertiesFileName) {
         try {
             BufferedReader br = new BufferedReader(new FileReader(propertiesFileName));
             String line;

@@ -7,15 +7,16 @@ import com.ab.pgn.Square;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Locale;
 
 /**
  *
  * Created by Alexander Bootman on 3/18/18.
  */
-public class DgtBoardWatcher {
-    public static boolean DEBUG = false;
-    public static final byte BOARD_MESSAGE_ERROR = 0x0;
-    public static final byte GENERATED_CHUNK = 0x0;
+class DgtBoardWatcher {
+    private static final boolean DEBUG = false;
+    private static final byte BOARD_MESSAGE_ERROR = 0x0;
+    private static final byte GENERATED_CHUNK = 0x0;
     private static final byte[] WITH_LENGTH = {
         DgtBoardProtocol.DGT_MSG_BOARD_DUMP,
         DgtBoardProtocol.DGT_MSG_FIELD_UPDATE,
@@ -26,6 +27,7 @@ public class DgtBoardWatcher {
         DgtBoardProtocol.DGT_MSG_VERSION,
         DgtBoardProtocol.DGT_MSG_SBI_TIME,
     };
+    private static final byte MSG_BIT = Config.DGT_BOARD_MESSAGE_BIT;
 
     private static final boolean[] COMMANDS_WITH_LENGTH = new boolean[128];
     static {
@@ -41,14 +43,14 @@ public class DgtBoardWatcher {
     private WriteThread writeThread;
     private boolean passMessages;
 
-    public DgtBoardWatcher(DgtBoardIO dgtBoardIO, BoardMessageConsumer boardMessageConsumer) {
+    DgtBoardWatcher(DgtBoardIO dgtBoardIO, BoardMessageConsumer boardMessageConsumer) {
         logger.setIncludeTimeStamp(true);
         this.dgtBoardIO = dgtBoardIO;
         this.boardMessageConsumer = boardMessageConsumer;
         logger.debug(String.format("DgtBoardWatcher: dgtBoardIO %s", dgtBoardIO));
     }
 
-    public void start() throws IOException {
+    public void start() {
         logger.debug("start");
         if(readThread == null) {
             readThread = new ReadThread(boardMessageConsumer);
@@ -56,12 +58,12 @@ public class DgtBoardWatcher {
         passMessages = true;
     }
 
-    public void stop() {
+    void stop() {
         logger.debug("stop");
         passMessages = false;
     }
 
-    public void finish() {
+    void finish() {
         stop();
         if(readThread != null) {
             readThread.finish();
@@ -69,13 +71,13 @@ public class DgtBoardWatcher {
         readThread = null;
     }
 
-    public void dumpBoardLoopStart(int timeout) {
+    void dumpBoardLoopStart(int timeout) {
         if(readThread != null && writeThread == null) {
             writeThread = new WriteThread(DgtBoardProtocol.DGT_SEND_BRD, timeout);
         }
     }
 
-    public void dumpBoardLoopStop() {
+    void dumpBoardLoopStop() {
         if(writeThread != null) {
             writeThread.finish();
             writeThread = null;
@@ -88,7 +90,7 @@ public class DgtBoardWatcher {
 
     private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
 
-    public static String bytesToHex(byte[] bytes, int offset, int length) {
+    private static String bytesToHex(byte[] bytes, int offset, int length) {
         if (length == -1) {
             length = bytes.length - offset;
         }
@@ -101,11 +103,10 @@ public class DgtBoardWatcher {
             hexChars[j * 2] = hexArray[v >>> 4];
             hexChars[j * 2 + 1] = hexArray[v & 0x0F];
         }
-        String res = new String(hexChars);
-        return res;
+        return new String(hexChars);
     }
 
-    public static String bytesToString(byte[] bytes, int offset, int length) {
+    private static String bytesToString(byte[] bytes, int offset, int length) {
         if (length == -1) {
             length = bytes.length - offset;
         }
@@ -144,10 +145,9 @@ public class DgtBoardWatcher {
 
     // async usb reader
     class ReadThread extends Thread {
-        private final byte MSG_BIT = Config.DGT_BOARD_MESSAGE_BIT;
         private volatile boolean keepRunning;
-        private BoardMessageConsumer boardMessageConsumer;
-        private byte[] readBuffer = new byte[4096];
+        private final BoardMessageConsumer boardMessageConsumer;
+        private final byte[] readBuffer = new byte[4096];
 
         ReadThread(BoardMessageConsumer boardMessageConsumer) {
             this.boardMessageConsumer = boardMessageConsumer;
@@ -168,8 +168,9 @@ public class DgtBoardWatcher {
                 try {
                     Thread.sleep(timeout);
                 } catch (InterruptedException e) {
+                    // ignore
                 }
-                int readCount = 0;
+                int readCount;
                 try {
                     String tName = Thread.currentThread().getName();
                     if(DEBUG) {
@@ -180,12 +181,11 @@ public class DgtBoardWatcher {
                         throw new IOException("Read length=-1");
                     }
                     if(DEBUG) {
-                        logger.debug(String.format("%s: read %d bytes %s", tName, readCount, bytesToHex(readBuffer, 0, offset + readCount)));
+                        logger.debug(String.format(Locale.getDefault(), "%s: read %d bytes %s", tName, readCount, bytesToHex(readBuffer, 0, offset + readCount)));
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
                     continue;
-//                    break;
                 }
                 if (readCount == 0) {
                     continue;
@@ -222,7 +222,7 @@ public class DgtBoardWatcher {
                 if (length < expectedLength) {
                     return length;
                 }
-                if(expectedLength <= 0 || expectedLength > length) {
+                if(expectedLength <= 0) {
                     expectedLength = length;    // another undocumented message?
                 }
                 if(passMessages) {
@@ -237,7 +237,7 @@ public class DgtBoardWatcher {
             return length;
         }
 
-        public void finish() {
+        void finish() {
             keepRunning = false;
             try {
                 // trigger read finish
@@ -249,8 +249,9 @@ public class DgtBoardWatcher {
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
+                // ignore
             }
-            logger.debug(String.format("ReadThread.finish()"));
+            logger.debug("ReadThread.finish()");
             DgtBoardWatcher.this.readThread = null;
         }
     }
@@ -260,10 +261,10 @@ public class DgtBoardWatcher {
     }
 
     public static class BoardMessage {
-        private final PgnLogger logger = PgnLogger.getLogger(this.getClass());
+        protected final PgnLogger logger = PgnLogger.getLogger(this.getClass());
         private final byte[] buffer;
 
-        public static BoardMessage createMessage(byte[] buffer, int length) {
+        static BoardMessage createMessage(byte[] buffer, int length) {
             switch (buffer[0]) {
                 case DgtBoardProtocol.DGT_MSG_SERIALNR:
                 case DgtBoardProtocol.DGT_MSG_TRADEMARK:
@@ -289,7 +290,7 @@ public class DgtBoardWatcher {
             }
         }
 
-        public byte getMsgId() {
+        byte getMsgId() {
             return buffer[0];
 
         }
@@ -304,7 +305,7 @@ public class DgtBoardWatcher {
     }
 
     public static class BoardMessageInfo extends BoardMessage {
-        public String text;
+        public final String text;
 
         private BoardMessageInfo(String text) {
             super(new byte[] {BOARD_MESSAGE_ERROR}, 1);
@@ -318,8 +319,8 @@ public class DgtBoardWatcher {
     }
 
     public static class BoardMessageMoveChunk extends BoardMessage {
-        public Square square;
-        public int piece;
+        public final Square square;
+        public final int piece;
 
         private BoardMessageMoveChunk(byte[] buffer, int length) {
             super(buffer, length);
@@ -327,7 +328,7 @@ public class DgtBoardWatcher {
             this.piece = dgt2Piece(buffer[4]);
         }
 
-        public BoardMessageMoveChunk(int x, int y, int piece) {
+        BoardMessageMoveChunk(int x, int y, int piece) {
             super(new byte[] {GENERATED_CHUNK}, 1);
             this.square = new Square(x, y);
             this.piece = piece;
@@ -369,7 +370,7 @@ public class DgtBoardWatcher {
     }
 
     public static class BoardMessagePosition extends BoardMessage {
-        public Board board = new Board();
+        public final Board board = new Board();
 
         private BoardMessagePosition(byte[] buffer, int length) {
             super(buffer, length);
@@ -378,14 +379,17 @@ public class DgtBoardWatcher {
                 Square sq = dgt2Square((byte) (i - 3));
                 board.setPiece(sq, piece);
             }
+            if(DEBUG) {
+                logger.debug(String.format("BoardMessagePosition %s", board.toFEN()));
+            }
         }
     }
 
     // async usb writer
     private class WriteThread extends Thread {
         private boolean keepRunning = true;
-        private byte command;
-        private int timeout;
+        private final byte command;
+        private final int timeout;
 
         WriteThread(int command, int timeout) {
             this.command = (byte)command;
@@ -399,6 +403,7 @@ public class DgtBoardWatcher {
                 try {
                     Thread.sleep(timeout);
                 } catch (InterruptedException e) {
+                    // ignore
                 }
                 try {
                     if(DEBUG) {
@@ -416,7 +421,7 @@ public class DgtBoardWatcher {
             }
         }
 
-        public void finish() {
+        void finish() {
             this.interrupt();   // interrupt read
             keepRunning = false;
         }

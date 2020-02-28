@@ -10,7 +10,6 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.MotionEvent;
-import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
@@ -37,21 +36,21 @@ public class DgtBoardView extends SetupView {
     private TextView glyph;
     private ChessPadView.CpEditText comment;
 
-    public DgtBoardView(ChessPad chessPad) {
+    DgtBoardView(ChessPad chessPad) {
         super(chessPad);
     }
 
     @Override
-    protected Board getBoard() {
+    Board getBoard() {
         return getDgtBoardPad().getBoard();
     }
 
     @Override
-    protected Setup getSetup() {
+    Setup getSetup() {
         return getDgtBoardPad().getSetup();
     }
 
-    protected DgtBoardPad getDgtBoardPad() {
+    private DgtBoardPad getDgtBoardPad() {
         return chessPad.dgtBoardPad;
     }
 
@@ -64,18 +63,13 @@ public class DgtBoardView extends SetupView {
             }
 
             @Override
+            public int getBoardViewSize() {
+                return Metrics.boardViewSize;
+            }
+
+            @Override
             public int[] getBGResources() {
                 return new int[]{R.drawable.bsquare, R.drawable.wsquare};
-            }
-
-            @Override
-            public void setReversed(boolean reversed) {
-                chessPad.setReversed(reversed);
-            }
-
-            @Override
-            public boolean isReversed() {
-                return chessPad.isReversed();
             }
 
             @Override
@@ -84,8 +78,7 @@ public class DgtBoardView extends SetupView {
             }
 
             @Override
-            public boolean onFling(Square clicked) {
-                return false;
+            public void onFling(Square clicked) {
             }
         };
     }
@@ -104,15 +97,12 @@ public class DgtBoardView extends SetupView {
             glyph = new TextView(chessPad);
             glyph.setSingleLine();
             glyph.setBackgroundColor(Color.GREEN);
-            glyph.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (event.getAction() == MotionEvent.ACTION_UP) {
-                        chessPad.onButtonClick(ChessPad.Command.ShowGlyphs);
-                    }
-                    // true if the event was handled and should not be given further down to other views.
-                    return true;
+            glyph.setOnTouchListener((v, event) -> {
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    chessPad.onButtonClick(ChessPad.Command.ShowGlyphs);
                 }
+                // true if the event was handled and should not be given further down to other views.
+                return true;
             });
             glyph.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
 
@@ -139,20 +129,19 @@ public class DgtBoardView extends SetupView {
 
         super.draw();
 
-        setupStatus.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
-                    if(getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
-                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.SetupMess, false);
-                    } else {
-                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game, true);
-                    }
-                    DgtBoardView.this.draw();
+        // functionality:
+
+        setupStatus.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
+                if(getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
+                    getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.SetupMess, false);
+                } else {
+                    getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game, true);
                 }
-                // true if the event was handled and should not be given further down to other views.
-                return true;
+                DgtBoardView.this.draw();
             }
+            // true if the event was handled and should not be given further down to other views.
+            return true;
         });
         Log.d(DEBUG_TAG, String.format("draw() done %s", getDgtBoardPad().getBoardStatus().toString()));
     }
@@ -230,8 +219,8 @@ public class DgtBoardView extends SetupView {
         x += width + Metrics.xSpacing;
         ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
         x += width + Metrics.xSpacing;
-        btnFlipView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y, R.drawable.ic_menu_refresh);
-        btnFlipBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
+        btnFlipView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Flip, x, y, R.drawable.flip_board_view);
+        btnFlipBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Flip, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
     }
 
     @Override
@@ -296,8 +285,8 @@ public class DgtBoardView extends SetupView {
         ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
 
         x += width + Metrics.xSpacing;
-        btnFlipView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Reverse, x, y, R.drawable.ic_menu_refresh);
-        btnFlipBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.TurnBoard, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
+        btnFlipView = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.Flip, x, y, R.drawable.flip_board_view);
+        btnFlipBoard = ChessPadView.addImageButton(chessPad, relativeLayoutSetup, ChessPad.Command.FlipBoard, x, y + Metrics.squareSize + Metrics.ySpacing, R.drawable.turn_board);
 
         x = Metrics.xSpacing;
         int h = y - y0 - 2 * Metrics.ySpacing;
@@ -313,11 +302,7 @@ public class DgtBoardView extends SetupView {
     @Override
     public void invalidate() {
         try {
-            if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.SetupMess) {
-                enPassEditText.setText(getSetup().getEnPass());
-                hmClockEditText.setText("" + getBoard().getReversiblePlyNum());
-                moveNumEditText.setText("" + getBoard().getPlyNum() / 2);
-            } else if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
+            if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
                 InputMethodManager imm = (InputMethodManager) chessPad.getSystemService(Context.INPUT_METHOD_SERVICE);
                 if (imm != null) {
                     imm.hideSoftInputFromWindow(comment.getWindowToken(), 0);

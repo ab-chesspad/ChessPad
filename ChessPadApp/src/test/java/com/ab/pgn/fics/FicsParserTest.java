@@ -7,9 +7,13 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Ignore("fics software is buggy and seems not too popular")
 public class FicsParserTest {
-    FicsParser ficsParser = new FicsParser();
-    InboundMessage.G1Game currentGame = new InboundMessage.G1Game();
+    private final FicsParser ficsParser = new FicsParser();
+    private final InboundMessage.G1Game currentGame = new InboundMessage.G1Game();
 
     @Test
     public void testParseGameInfo() {
@@ -109,6 +113,47 @@ public class FicsParserTest {
             InboundMessage.Info inboundMessage = ficsParser.parse(s12, currentGame);
             Assert.assertNotNull(inboundMessage);
             System.out.println(inboundMessage.toString());
+        }
+    }
+
+    @Test
+    public void testGameId() {
+        String line = "You are now observing game 35.";
+        String tag = " observing game ";
+        int res = -1;
+
+        int j;
+        if ((j = line.indexOf(tag)) > 0) {
+            String s = line.substring(j + tag.length());
+            Pattern p = Pattern.compile("^(\\d+)");
+            Matcher m = p.matcher(s);
+            if(m.find()) {
+                String g1 = m.group(1);
+                res = Integer.valueOf(g1);
+            }
+//            res = Integer.valueOf(line.substring(j + tag.length()));
+        }
+        System.out.println(res);
+    }
+
+    @Test
+    public void testKibitz() {
+        String[] msgs = {
+            "endgamebot(*)(TD)(----)[58] kibitzes: Hello from endgamebot. \"tell endgamebot hint\" if you want a hint or \"back\" if you want to make a different move",
+            "puzzlebot(TD)(----)[58] kibitzes: This is study problem number [01539]",
+            "puzzlebot(TD)(----)[169] kibitzes: Black moves and wins in 3 moves.",
+        };
+        Pattern p = Pattern.compile("^([\\pL\\pN]+).*? kibitzes: (.*?)$");
+
+        for(String msg : msgs) {
+            Matcher m = p.matcher(msg);
+            if (m.find()) {
+//                int n = m.groupCount();
+//                System.out.println(String.format("groups %s", n));
+                String kibitzer = m.group(1);
+                String kibitzMsg = m.group(2);
+                System.out.println(String.format("%s kibitzed %s", kibitzer, kibitzMsg));
+            }
         }
     }
 }

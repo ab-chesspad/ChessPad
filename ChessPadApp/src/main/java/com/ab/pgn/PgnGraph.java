@@ -18,12 +18,13 @@ import java.util.Map;
  */
 public class PgnGraph {
 /*
-    public static String DEBUG_MOVE = "fxe6+";
+    private static String DEBUG_MOVE = "Kxh8";
 /*/
-    public static String DEBUG_MOVE = null;
+    private static final String DEBUG_MOVE = null;
 //*/
+    public static final boolean PARSE_MOVES_ANYWAY = true;      // parse moves even if FEN has issues, e. g. in https://github.com/xinyangz/chess-tactics-pgn/
     public static boolean DEBUG = false;    // todo: config
-    final static PgnLogger logger = PgnLogger.getLogger(PgnGraph.class);
+    private static final PgnLogger logger = PgnLogger.getLogger(PgnGraph.class);
 
     enum MergeState {
         Search,
@@ -31,49 +32,40 @@ public class PgnGraph {
         Skip,
     }
 
-    protected Move rootMove = new Move(Config.FLAGS_NULL_MOVE); // can hold initial comment
-    protected PgnItem.Item pgn;                                 // headers and moveText
+    Move rootMove = new Move(Config.FLAGS_NULL_MOVE); // can hold initial comment
+    CpFile.Item pgn;                                 // tags and moveText
     private boolean modified;
-    public LinkedList<Move> moveLine = new LinkedList<>();
+    public final LinkedList<Move> moveLine = new LinkedList<>();
     Map<Pack, Board> positions = new HashMap<>();
 
     transient private String parsingError;
     transient private int parsingErrorNum;
 
-    public PgnGraph() throws Config.PGNException {
-        init(new Board(), null);
+    public PgnGraph() {
+        try {
+            init(new Board(), null);
+        } catch (Config.PGNException e) {
+            logger.error(e.getMessage()); // should never happen
+        }
     }
 
     public PgnGraph(Board initBoard) throws Config.PGNException {
         init(initBoard, null);
     }
 
-    private void init(Board initBoard, PgnItem.Item pgn) throws Config.PGNException {
+    private void init(Board initBoard, CpFile.Item pgn) throws Config.PGNException {
         initBoard.setMove(null);
         if(pgn == null) {
-            pgn = new PgnItem.Item("dummy");
-        } else if(pgn.headers == null ) {
-            pgn.headers = new LinkedList<>();
+            pgn = new CpFile.Item("dummy");
         }
         this.pgn = pgn;
-        if(pgn.headers.size() == 0 ) {
-            setSTR();
-        }
         modified = false;
-        parsingError = null;
-        parsingErrorNum = 0;
         rootMove.packData = initBoard.pack();
         positions.put(new Pack(rootMove.packData), initBoard);
         moveLine.add(rootMove);
     }
 
-    private void setSTR() {
-        for (String str : Config.STR) {
-            pgn.addHeader(new Pair<>(str, "?"));
-        }
-    }
-
-    public PgnGraph(PgnItem.Item item, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
+    public PgnGraph(CpFile.Item item, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
         Board initBoard;
         Date start = new Date();
         String fen = item.getFen();
@@ -84,8 +76,8 @@ public class PgnGraph {
             parsingErrorNum = initBoard.validateSetup();
         }
 
-        if (parsingErrorNum == 0) {
-            init(initBoard, item);
+        init(initBoard, item);
+        if (PARSE_MOVES_ANYWAY || parsingErrorNum == 0) {
             try {
                 PgnParser.parseMoves(item.getMoveText(), new CpMoveTextHandler(this), progressObserver);
             } catch (Exception e) {
@@ -114,134 +106,144 @@ public class PgnGraph {
         return parsingErrorNum;
     }
 
-    // not used
-    public void serializeGraph(DataOutputStream os, int versionCode) throws Config.PGNException {
-        for(Map.Entry<Pack, Board> entry : positions.entrySet()) {
-            entry.getValue().setVisited(false);
-        }
-        try {
-            os.write(versionCode);  // single byte
-            os.writeInt(positions.size());
-            Date start = new Date();
-            Board board = getInitBoard();
-            board.serialize(os);
-            // 1. serialize movessave
-            serializeGraph(os, rootMove);
-
-            // 2. serialize headers, modified
-            pgn.serialize(os);
-            if (modified) {
-                os.write(1);    // single byte
-            } else {
-                os.write(0);
+    void serializeGraph(DataOutputStream os, int versionCode) throws Config.PGNException {
+        if(!Config.USE_BIT_STREAMS) {
+            for (Map.Entry<Pack, Board> entry : positions.entrySet()) {
+                entry.getValue().setVisited(false);
             }
-            os.flush();
-            Date end = new Date();
-            printDuration("Pgn serialized", start, end);
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
+            try {
+                os.write(versionCode);  // single byte
+                os.writeInt(positions.size());
+                Date start = new Date();
+                Board board = getInitBoard();
+                board.serialize(os);
+                // 1. serialize movessave
+                serializeGraph(os, rootMove);
+
+                // 2. serialize tags, modified
+                pgn.serialize(os);
+                if (modified) {
+                    os.write(1);    // single byte
+                } else {
+                    os.write(0);
+                }
+                os.flush();
+                Date end = new Date();
+                printDuration("Pgn serialized", start, end);
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
+            }
         }
     }
 
     private void serializeGraph(DataOutputStream os, Move move) throws Config.PGNException {
-        Board nextBoard = this.getBoard(move.packData);
-        int flags = 0;
-        Move nextMove = nextBoard.getMove();
-        if(nextMove != null) {
-            flags |= Move.HAS_NEXT_MOVE;
-        }
-        Move variation = move.getVariation();
-        if(variation != null) {
-            flags |= Move.HAS_VARIATION;
-        }
-        move.serialize(os, flags);
-        if(DEBUG) {
-            logger.debug(String.format("writer %s, %d", move.toCommentedString(), os.size()));
-        }
-        if (nextBoard.wasVisited()) {
-            if(DEBUG) {
-                logger.debug(String.format("writer visited %s, skip", move.toCommentedString()));
+        if(!Config.USE_BIT_STREAMS) {
+            Board nextBoard = this.getBoard(move.packData);
+            int flags = 0;
+            Move nextMove = nextBoard.getMove();
+            if (nextMove != null) {
+                flags |= Move.HAS_NEXT_MOVE;
             }
-            if(variation != null) {
+            Move variation = move.getVariation();
+            if (variation != null) {
+                flags |= Move.HAS_VARIATION;
+            }
+            move.serialize(os, flags);
+            if (DEBUG) {
+                logger.debug(String.format(Locale.getDefault(), "writer %s, %d", move.toCommentedString(), os.size()));
+            }
+            if (nextBoard.wasVisited()) {
+                if (DEBUG) {
+                    logger.debug(String.format("writer visited %s, skip", move.toCommentedString()));
+                }
+                if (variation != null) {
+                    serializeGraph(os, variation);
+                }
+                return;
+            }
+            nextBoard.setVisited(true);
+            if (nextMove != null) {
+                serializeGraph(os, nextMove);
+            }
+            if (variation != null) {
                 serializeGraph(os, variation);
             }
-            return;
-        }
-        nextBoard.setVisited(true);
-        if(nextMove != null) {
-            serializeGraph(os, nextMove);
-        }
-        if(variation != null) {
-            serializeGraph(os, variation);
         }
     }
 
-    // not used
-    public PgnGraph(DataInputStream is, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
-        unserializeGraph(is, versionCode, progressObserver);
-    }
-
-    private void unserializeGraph(DataInputStream is, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
-        try {
-            int totalLen = is.available();
-            int oldVersionCode;
-            if (versionCode != (oldVersionCode = is.read())) {  // single byte
-                throw new Config.PGNException(String.format("Old serialization %d ignored", oldVersionCode));
-            }
-            int positionsSize = is.readInt();
-            Date start = new Date();
-            // remove defaults
-            moveLine.clear();
-            positions = new HashMap<>(positionsSize);
-            Board board = new Board(is);
-            logger.debug(String.format("reader board %s", board.toString()));
-            unserializeGraph(is, board, progressObserver, totalLen);
-
-            pgn = (PgnItem.Item) PgnItem.unserialize(is);
-            modified = is.read() == 1;
-            Date end = new Date();
-            printDuration("Pgn unserialized", start, end);
-        } catch (Exception e) {
-            throw new Config.PGNException(e);
+    public PgnGraph(DataInputStream is, int versionCode, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
+        if(!Config.USE_BIT_STREAMS) {
+            unserializeGraph(is, versionCode, progressObserver);
         }
     }
 
-    private Move unserializeGraph(DataInputStream is, Board previousBoard, PgnItem.ProgressObserver progressObserver, int totalLen) throws Config.PGNException {
-        try {
-            Move move = new Move(is, previousBoard);
-            if(progressObserver != null && totalLen > 0) {
-                int progress = (totalLen - is.available()) * 100 / totalLen;
-                progressObserver.setProgress(progress);
-            }
-            if(DEBUG & (totalLen - is.available()) == 186) {
-                logger.debug(String.format("reader %s, %d\n%s", move.toCommentedString(), (totalLen - is.available()), previousBoard.toString()));
-            }
-            if(positions.size() == 0) {
-                // set up rootMove
-                rootMove = move;
-                rootMove.packData = previousBoard.pack();
-                positions.put(new Pack(rootMove.packData), previousBoard);
-                moveLine.addLast(rootMove);
-            } else {
-                if (!this.addMove(move, previousBoard)) {
-                    if(move.hasVariation()) {
-                        move.variation = unserializeGraph(is, previousBoard, progressObserver, totalLen);
-                    }
-                    return move;
+    private void unserializeGraph(DataInputStream is, int versionCode, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
+        if(!Config.USE_BIT_STREAMS) {
+            try {
+                int totalLen = is.available();
+                int oldVersionCode;
+                if (versionCode != (oldVersionCode = is.read())) {  // single byte
+                    throw new Config.PGNException(String.format("Old serialization %d ignored", oldVersionCode));
                 }
+                int positionsSize = is.readInt();
+                Date start = new Date();
+                // remove defaults
+                moveLine.clear();
+                positions = new HashMap<>(positionsSize);
+                Board board = new Board(is);
+                logger.debug(String.format("reader board %s", board.toString()));
+                unserializeGraph(is, board, progressObserver, totalLen);
+
+                pgn = (CpFile.Item) CpFile.unserialize(is);
+                modified = is.read() == 1;
+                Date end = new Date();
+                printDuration("Pgn unserialized", start, end);
+            } catch (Exception e) {
+                throw new Config.PGNException(e);
             }
-            if(move.hasNextMove()) {
-                Board nextBoard = positions.get(new Pack(move.packData));
-                unserializeGraph(is, nextBoard, progressObserver, totalLen);
+        }
+    }
+
+    private Move unserializeGraph(DataInputStream is, Board previousBoard, CpFile.ProgressObserver progressObserver, int totalLen) throws Config.PGNException {
+        if(Config.USE_BIT_STREAMS) {
+            return null;
+        } else {
+            try {
+                Move move = new Move(is, previousBoard);
+                if (progressObserver != null && totalLen > 0) {
+                    int progress = (totalLen - is.available()) * 100 / totalLen;
+                    progressObserver.setProgress(progress);
+                }
+                if (DEBUG & (totalLen - is.available()) == 186) {
+                    logger.debug(String.format(Locale.getDefault(), "reader %s, %d\n%s", move.toCommentedString(), (totalLen - is.available()), previousBoard.toString()));
+                }
+                if (positions.size() == 0) {
+                    // set up rootMove
+                    rootMove = move;
+                    rootMove.packData = previousBoard.pack();
+                    positions.put(new Pack(rootMove.packData), previousBoard);
+                    moveLine.addLast(rootMove);
+                } else {
+                    if (!this.addMove(move, previousBoard)) {
+                        if (move.hasVariation()) {
+                            move.variation = unserializeGraph(is, previousBoard, progressObserver, totalLen);
+                        }
+                        return move;
+                    }
+                }
+                if (move.hasNextMove()) {
+                    Board nextBoard = positions.get(new Pack(move.packData));
+                    unserializeGraph(is, nextBoard, progressObserver, totalLen);
+                }
+                if (move.hasVariation()) {
+                    move.variation = unserializeGraph(is, previousBoard, progressObserver, totalLen);
+                }
+                logger.debug(String.format("reader %s complete", move.toCommentedString()));
+                move.cleanupSerializationFlags();
+                return move;
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
             }
-            if(move.hasVariation()) {
-                move.variation = unserializeGraph(is, previousBoard, progressObserver, totalLen);
-            }
-            logger.debug(String.format("reader %s complete", move.toCommentedString()));
-            move.cleanupSerializationFlags();
-            return move;
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
         }
     }
 
@@ -255,10 +257,10 @@ public class PgnGraph {
             Board board = getInitBoard();
             board.serialize(writer);
             // 1. serialize positions
-            logger.debug(String.format("writer board %d", writer.bitCount));
+            logger.debug(String.format(Locale.getDefault(), "writer board %d", writer.bitCount));
             serializeGraph(writer, rootMove);
 
-            // 2. serialize headers, modified
+            // 2. serialize tags, modified
             pgn.serialize(writer);
             if (modified) {
                 writer.write(1, 1);
@@ -277,21 +279,21 @@ public class PgnGraph {
             if (move == null) {
                 writer.write(0, 1);
                 if(DEBUG) {
-                    logger.debug(String.format("writer E %d", writer.bitCount));
+                    logger.debug(String.format(Locale.getDefault(), "writer E %d", writer.bitCount));
                 }
             } else {
                 writer.write(1, 1);
                 move.serialize(writer, false);
                 Board nextBoard = this.getBoard(move.packData);
                 if(DEBUG) {
-                    logger.debug(String.format("writer %s %d\n%s", move.toCommentedString(), writer.bitCount, nextBoard.toString()));
+                    logger.debug(String.format(Locale.getDefault(), "writer %s %d\n%s", move.toCommentedString(), writer.bitCount, nextBoard.toString()));
                 }
                 if(DEBUG_MOVE != null && DEBUG_MOVE.equals(move.toCommentedString())) {
                     System.out.println(String.format("writer %s\n%s", move.toCommentedString(), nextBoard.toString()));
                 }
                 if (nextBoard.wasVisited()) {
                     if(DEBUG) {
-                        logger.debug(String.format("writer visited %s %d, skip", move.toCommentedString(), writer.bitCount));
+                        logger.debug(String.format(Locale.getDefault(), "writer visited %s %d, skip", move.toCommentedString(), writer.bitCount));
                     }
                     serializeGraph(writer, move.getVariation());
                     return;
@@ -299,18 +301,20 @@ public class PgnGraph {
                 nextBoard.setVisited(true);
                 serializeGraph(writer, nextBoard.getMove());
                 serializeGraph(writer, move.getVariation());
-                logger.debug(String.format("writer %s complete %d", move.toCommentedString(), writer.bitCount));
+                if(DEBUG) {
+                    logger.debug(String.format(Locale.getDefault(), "writer %s complete %d", move.toCommentedString(), writer.bitCount));
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public PgnGraph(BitStream.Reader reader, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
+    public PgnGraph(BitStream.Reader reader, int versionCode, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
         unserializeGraph(reader, versionCode, progressObserver);
     }
 
-    private void unserializeGraph(final BitStream.Reader reader, int versionCode, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
+    private void unserializeGraph(final BitStream.Reader reader, int versionCode, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
         try {
             int oldVersionCode;
             if (versionCode != (oldVersionCode = reader.read(4))) {
@@ -322,10 +326,10 @@ public class PgnGraph {
             moveLine.clear();
             positions.clear();
             Board board = new Board(reader);
-            logger.debug(String.format("reader board %d", reader.bitCount));
+            logger.debug(String.format(Locale.getDefault(), "reader board %d", reader.bitCount));
             unserializeGraph(reader, board, progressObserver, totalLen);
 
-            pgn = (PgnItem.Item) PgnItem.unserialize(reader);
+            pgn = (CpFile.Item) CpFile.unserialize(reader);
             modified = reader.read(1) == 1;
             Date end = new Date();
             printDuration("Pgn unserialized", start, end);
@@ -334,11 +338,11 @@ public class PgnGraph {
         }
     }
 
-    private Move unserializeGraph(BitStream.Reader reader, Board previousBoard, PgnItem.ProgressObserver progressObserver, int totalLen) throws Config.PGNException {
+    private Move unserializeGraph(BitStream.Reader reader, Board previousBoard, CpFile.ProgressObserver progressObserver, int totalLen) throws Config.PGNException {
         try {
             if (reader.read(1) == 0) {
                 if(DEBUG) {
-                    logger.debug(String.format("reader E %d", reader.bitCount));
+                    logger.debug(String.format(Locale.getDefault(), "reader E %d", reader.bitCount));
                 }
                 return null;
             }
@@ -348,10 +352,10 @@ public class PgnGraph {
                 progressObserver.setProgress(progress);
             }
             if(DEBUG) {
-                logger.debug(String.format("reader %s %d\n%s", move.toCommentedString(), reader.bitCount, previousBoard.toString()));
+                logger.debug(String.format(Locale.getDefault(), "reader %s %d\n%s", move.toCommentedString(), reader.bitCount, previousBoard.toString()));
             }
             if(DEBUG_MOVE != null && DEBUG_MOVE.equals(move.toCommentedString())) {
-                System.out.println(String.format("reader %s %d", move.toCommentedString(), reader.bitCount));
+                System.out.println(String.format(Locale.getDefault(), "reader %s %d", move.toCommentedString(), reader.bitCount));
             }
             if(positions.size() == 0) {
                 // set up rootMove
@@ -368,7 +372,9 @@ public class PgnGraph {
             Board nextBoard = positions.get(new Pack(move.packData));
             unserializeGraph(reader, nextBoard, progressObserver, totalLen);
             move.variation = unserializeGraph(reader, previousBoard, progressObserver, totalLen);
-            logger.debug(String.format("reader %s complete %d", move.toCommentedString(), reader.bitCount));
+            if(DEBUG) {
+                logger.debug(String.format(Locale.getDefault(), "reader %s complete %d", move.toCommentedString(), reader.bitCount));
+            }
             return move;
         } catch (IOException e) {
             throw new Config.PGNException(e);
@@ -416,12 +422,27 @@ public class PgnGraph {
     }
 
     public String getTitle() {
-        return PgnItem.getTitle(pgn.getHeaders(), pgn.index);
+        return pgn.getTitle();
     }
 
-    public void setHeaders(List<Pair<String, String>> headers) {
-        pgn.setHeaders(headers);
-        modified = true;
+    public void setTags(List<Pair<String, String>> newTags) {
+        List<Pair<String, String>> tags = pgn.getTags();
+        if(!this.modified) {
+            boolean modified = tags.size() != newTags.size();
+            if (!modified) {
+                int i = -1;
+                for (Pair<String, String> tag : tags) {
+                    Pair<String, String> newTag = newTags.get(++i);
+                    if (!newTag.first.equals(tag.first)
+                            || !newTag.second.equals(tag.second)) {
+                        modified = true;
+                        break;
+                    }
+                }
+            }
+            this.modified = modified;
+        }
+        pgn.setTags(newTags);
     }
 
     public void toInit() {
@@ -438,7 +459,7 @@ public class PgnGraph {
         return positions.get(new Pack(getCurrentMove().packData));
     }
 
-    public Board getBoard(int[] packData) {
+    private Board getBoard(int[] packData) {
         return positions.get(new Pack(packData));
     }
 
@@ -460,6 +481,9 @@ public class PgnGraph {
     }
 
     public void setComment(String newComment) {
+        if (newComment == null) {
+            newComment = "";
+        }
         Move move = getCurrentMove();
 
         String oldComment = move.comment;
@@ -481,33 +505,51 @@ public class PgnGraph {
         }
     }
 
-    public PgnItem.Item getPgn() {
+    public CpFile.Item getPgn() {
         return pgn;
     }
 
     public boolean isDeletable() {
-        return !pgn.getParent().self.equals(PgnItem.getRoot());
+        return !pgn.getParent().isRoot();
     }
 
     // needed for serialization
-    public void setPgn(PgnItem.Item pgn) {
+    public void setPgn(CpFile.Item pgn) {
         this.pgn = pgn;
     }
 
-    public void save(boolean updateMoves, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
+    private void prepareToPgn() {
+        if (!this.getInitBoard().equals(new Board())) {
+            String fen = getInitBoard().toFEN();
+            pgn.setFen(fen);
+        }
+        pgn.setMoveText(this.toPgn());
+    }
+
+    public void save(boolean updateMoves, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
         if (pgn != null) {
             Date start = new Date();
             if (updateMoves) {
-                if (!this.getInitBoard().equals(new Board())) {
-                    String fen = getInitBoard().toFEN();
-                    pgn.setFen(fen);
-                }
-                pgn.setMoveText(this.toPgn());
+                prepareToPgn();
             }
             pgn.save(progressObserver);
             printDuration("Pgn saved", start, new Date());
             modified = false;
         }
+    }
+
+    @Override
+    public String toString() {
+        return toString(false);
+    }
+
+    public String toString(boolean onlyIfMoves) {
+        prepareToPgn();
+        String moveText = pgn.getMoveText();
+        if(onlyIfMoves && moveText.isEmpty()) {
+            return "";
+        }
+        return new String(pgn.tagsToString(true, true)) + "\n\n" + moveText + "\n";
     }
 
     public void toNext() {
@@ -570,7 +612,7 @@ public class PgnGraph {
         return true;    // not last move, null move is ok
     }
 
-    public void toEnd() {
+    void toEnd() {
         Board board = getBoard();
         if(board == null) {
             // quick and dirty
@@ -732,17 +774,15 @@ public class PgnGraph {
         }
         int fromX, fromY;
         if(newMove.getColorlessPiece() == Config.PAWN) {
-            int dy, lastY;
+            int dy;
             int hisPawn;
             fromX = newMove.getToX();
             if((newMove.moveFlags & Config.FLAGS_BLACK_MOVE) == 0) {
                 dy = 1;
-                lastY = Config.BOARD_SIZE - 1;
                 hisPawn = Config.BLACK_PAWN;
             } else {
                 dy = -1;
                 hisPawn = Config.WHITE_PAWN;
-                lastY = 0;
             }
 
             if(!newMove.isFromXSet()) {
@@ -790,7 +830,8 @@ public class PgnGraph {
         return false;
     }
 
-    public static String getMoveNum(Board board) {
+    // board after requested move!
+    private static String getMoveNum(Board board) {
         if(board == null) {
             return "";
         }
@@ -799,7 +840,7 @@ public class PgnGraph {
                 + ((plyNum & 1) == 1 ? "" : "... ");
     }
 
-    public String getNumberedMove(Move move) {
+    private String getNumberedMove(Move move) {
         if(moveLine.size() == 1) {
             return "";
         }
@@ -851,7 +892,7 @@ public class PgnGraph {
 
     // todo: simplify!
     // return true if the new position is added to positions
-    public boolean addMove(Move newMove, Board prevBoard) throws Config.PGNException {
+    private boolean addMove(Move newMove, Board prevBoard) throws Config.PGNException {
         Board board;
         if(prevBoard == null) {
             board = getBoard();
@@ -1030,6 +1071,10 @@ public class PgnGraph {
         }
     }
 
+    public boolean hasMoves() {
+        return positions.size() > 1;
+    }
+
     public String toPgn() {
         Date start = new Date();
         for(Map.Entry<Pack, Board> entry : positions.entrySet()) {
@@ -1048,7 +1093,7 @@ public class PgnGraph {
             res.append(pgn.substring(index, e)).append("\n");
             index = e;
         }
-        String resStr = new String(res);
+        String resStr = res + " *";
         if(DEBUG) {
             Date end = new Date();
             printDuration("toPgn", start, end);
@@ -1148,7 +1193,7 @@ public class PgnGraph {
         return count;
     }
 
-    public static String withIndent(String str, int offset) {
+    static String withIndent(String str, int offset) {
         if( offset == 0) {
             return str;
         }
@@ -1160,27 +1205,13 @@ public class PgnGraph {
         Board prevBoard;
         Move move;
         Board nextBoard;
-        boolean variantFirstMove = true;
-
         String pgnText;
 
         TraverseData() {
         }
-
-        TraverseData(Board prevBoard, Move move) {
-            this.prevBoard = prevBoard;
-            this.move = move;
-            this.nextBoard = PgnGraph.this.getBoard(move.packData);
-        }
-
-        TraverseData(TraverseData that) {
-            this.prevBoard = that.prevBoard;
-            this.move = that.move;
-            this.nextBoard = that.nextBoard;
-        }
     }
 
-    public boolean isRepetition(Move move) {
+    private boolean isRepetition(Move move) {
         if(moveLine.size() == 0) {
             return false;
         }
@@ -1205,21 +1236,21 @@ public class PgnGraph {
         return false;
     }
 
-    public void merge(final MergeData mergeData, PgnItem.ProgressObserver progressObserver) throws Config.PGNException {
-        final PgnItem.ProgressNotifier progressNotifier = new PgnItem.ProgressNotifier(progressObserver);
+    public void merge(final MergeData mergeData, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
+        final CpFile.ProgressNotifier progressNotifier = new CpFile.ProgressNotifier(progressObserver);
         final Move mergeMove = this.getCurrentMove();
         final int[] offset = {0};
         final int[] index = {0};
         mergeData.merged = 0;
-        final PgnItem.Pgn pgn = new PgnItem.Pgn(mergeData.pgnPath);
-        ((PgnItem.Dir)pgn.getParent()).walkThroughGrandChildren(pgn, new PgnItem.EntryHandler() {
+        final CpFile.Pgn pgn = new CpFile.Pgn(mergeData.pgnPath);
+        ((CpFile.Dir)pgn.getParent()).walkThroughGrandChildren(pgn, new CpFile.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader br) throws Config.PGNException {
+            public boolean handle(CpFile entry, BufferedReader br) {
                 entry.offset = offset[0];
                 index[0] = entry.getIndex();
                 int index1 = entry.getIndex() + 1;  // start and end 1-based
                 if(index1 >= mergeData.start) {
-                    if(merge(mergeMove, (PgnItem.Item)entry, mergeData)) {
+                    if(merge(mergeMove, (CpFile.Item)entry, mergeData)) {
                         ++mergeData.merged;
                     }
                 }
@@ -1227,19 +1258,27 @@ public class PgnGraph {
             }
 
             @Override
-            public boolean getMoveText(PgnItem entry) {
+            public boolean getMoveText(CpFile entry) {
                 int index1 = entry.getIndex() + 1;  // start and end 1-based
                 return index1 >= mergeData.start;
             }
 
             @Override
-            public void addOffset(int length, int totalLength) {
+            public boolean addOffset(int length, int totalLength) {
                 offset[0] += length;
+                boolean done;
                 if(mergeData.end == -1) {
-                    progressNotifier.setOffset(offset[0], pgn.getLength());
+                    done = progressNotifier.setOffset(offset[0], pgn.getLength());
                 } else {
-                    progressNotifier.setOffset(index[0], mergeData.end - mergeData.start + 1);
+                    done = progressNotifier.setOffset(index[0], mergeData.end - mergeData.start + 1);
                 }
+                return done;
+            }
+
+            @Override
+            public boolean skip(CpFile entry) {
+                int index1 = entry.getIndex() + 1;  // start and end 1-based
+                return index1 < mergeData.start;
             }
         });
     }
@@ -1256,14 +1295,18 @@ public class PgnGraph {
         }
 
         int[] counts = new int[3];
-        if(result.equals("1-0")) {
-            ++counts[0];
-        } else if(result.equals("0-1")) {
-            ++counts[1];
-        } else if(result.equals("1/2-1/2")) {
-            ++counts[2];
-        } else {
-            return;    // unknown result
+        switch (result) {
+            case "1-0":
+                ++counts[0];
+                break;
+            case "0-1":
+                ++counts[1];
+                break;
+            case "1/2-1/2":
+                ++counts[2];
+                break;
+            default:
+                return;    // unknown result
         }
 
         StringBuilder comment = new StringBuilder();
@@ -1302,7 +1345,7 @@ public class PgnGraph {
     }
 
     // merge by position, even if plyNum is different
-    private boolean merge(Move mergeMove, final PgnItem.Item item, final MergeData mergeData) {
+    private boolean merge(Move mergeMove, final CpFile.Item item, final MergeData mergeData) {
         final Pack mergePack = new Pack(mergeMove.packData);
         Board mergeBoard = PgnGraph.this.positions.get(mergePack);
         final int mergedPlyNum = mergeBoard.getPlyNum();
@@ -1409,38 +1452,38 @@ public class PgnGraph {
                             }
                             if (addComment && mergeData.annotate && commentLen < mergeData.maxAnnotationLen) {
                                 if(mergeData.withStatistics) {
-                                    modifyStatisticsComment(newMove, item.getHeader(Config.HEADER_Result));
+                                    modifyStatisticsComment(newMove, item.getTag(Config.TAG_Result));
                                 } else {
                                     String tag;
                                     if ((newMove.moveFlags & Config.FLAGS_BLACK_MOVE) == 0) {
-                                        tag = Config.HEADER_White;
+                                        tag = Config.TAG_White;
                                     } else {
-                                        tag = Config.HEADER_Black;
+                                        tag = Config.TAG_Black;
                                     }
                                     String comment = "";
                                     String sep;
 
-                                    String header = item.getHeader(tag);
-                                    if (header != null) {
-                                        String[] parts = header.split(",\\s*");
+                                    String tag1 = item.getTag(tag);
+                                    if (tag1 != null) {
+                                        String[] parts = tag1.split(",\\s*");
                                         comment = parts[0];
                                         if (parts.length == 1) {
                                             if (DEBUG) {
                                                 logger.debug("no last-name, first-name");
                                             }
-                                            parts = header.split("\\s+");
+                                            parts = tag.split("\\s+");
                                             comment = parts[parts.length - 1];
                                         }
                                     }
-                                    if (comment.isEmpty() || comment.equals(Config.HEADER_UNKNOWN_VALUE)) {
+                                    if (comment.isEmpty() || comment.equals(Config.TAG_UNKNOWN_VALUE)) {
                                         comment = "";
                                         sep = "";
                                     } else {
                                         sep = ", ";
                                     }
-                                    header = item.getHeader(Config.HEADER_Result);
-                                    if (header != null && !header.isEmpty() && !header.equals(Config.HEADER_UNKNOWN_VALUE)) {
-                                        comment += sep + header;
+                                    tag = item.getTag(Config.TAG_Result);
+                                    if (tag != null && !tag.isEmpty() && !tag.equals(Config.TAG_UNKNOWN_VALUE)) {
+                                        comment += sep + tag;
                                     }
                                     onComment(comment);
                                 }
@@ -1465,12 +1508,7 @@ public class PgnGraph {
                         }
                     }
                 }
-            }, new PgnItem.ProgressObserver() {
-                @Override
-                public void setProgress(int progress) {
-//                    logger.debug(String.format("\t offset=%s", progress));
-                }
-            });
+            }, (progress) -> false);
         } catch (Exception e) {
             logger.error(e.getMessage());
             parsingError = e.getMessage();
@@ -1479,12 +1517,12 @@ public class PgnGraph {
     }
 
     private static class CpMoveTextHandler implements PgnParser.MoveTextHandler {
-        protected PgnGraph pgnGraph;
-        protected Move newMove;
-        protected boolean startVariation;                     // flag for pgn parsing
-        protected LinkedList<Pair<Move, Move>> variations = new LinkedList<>(); // stack for pgn parsing
+        final PgnGraph pgnGraph;
+        Move newMove;
+        boolean startVariation;                     // flag for pgn parsing
+        final LinkedList<Pair<Move, Move>> variations = new LinkedList<>(); // stack for pgn parsing
 
-        public CpMoveTextHandler(PgnGraph pgnGraph) {
+        CpMoveTextHandler(PgnGraph pgnGraph) {
             this.pgnGraph = pgnGraph;
             newMove = pgnGraph.rootMove;     // to put initial comment
         }
@@ -1510,9 +1548,6 @@ public class PgnGraph {
             }
 
             Board board = pgnGraph.getBoard();
-            if(board == null) {
-                board = null;
-            }
             newMove = new Move(board.getFlags() & Config.FLAGS_BLACK_MOVE);
             Util.parseMove(newMove, moveText);
 
@@ -1554,15 +1589,15 @@ public class PgnGraph {
                 logger.debug(String.format("onVariantClose %s\n%s", newMove.toString(), board.toString()));
             }
             Pair<Move, Move> variationPair = variations.removeLast();
-            while(variationPair.second != pgnGraph.moveLine.removeLast());
+            while(variationPair.second != pgnGraph.moveLine.removeLast()) {}
             pgnGraph.moveLine.addLast(variationPair.first);
         }
     }
 
     public static class MergeData {
+        final int maxAnnotationLen = 1024;     // for future use, constant so far
+        final boolean withStatistics = true;   // for future use, constant so far
         public boolean annotate;
-        public int maxAnnotationLen = 1024;     // for future use, constant so far
-        public boolean withStatistics = true;   // for future use, constant so far
         public int start, end, merged;
         public String pgnPath;
         public int maxPlys;
@@ -1571,15 +1606,15 @@ public class PgnGraph {
             init(null);
         }
 
-        public MergeData(PgnItem target) {
+        public MergeData(CpFile target) {
             init(target);
         }
 
-        public MergeData(PgnItem.Item target) {
+        public MergeData(CpFile.Item target) {
             init(target.getParent());
         }
 
-        private void init(PgnItem target) {
+        private void init(CpFile target) {
             start = -1;
             end = -1;
             maxPlys = -1;
@@ -1592,7 +1627,7 @@ public class PgnGraph {
             if(pgnPath == null) {
                 return false;
             }
-            if (!PgnItem.isPgnOk(pgnPath)) {
+            if (!CpFile.isPgnOk(pgnPath)) {
                 return false;
             }
             return end == -1 || start <= end;

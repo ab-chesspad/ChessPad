@@ -1,0 +1,240 @@
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <style>img{max-width: 100%; width:auto; height: auto;}</style>
+    <style type = "text/css">
+        .pgn {
+            color: darkgreen; font-family: Arial; font-weight: bold;
+        }
+   </style>
+   <style>
+      table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse;
+      }
+   </style>
+  </head>
+  <body>
+
+  <p>
+The most advanced graphical PGN editor. Allows user to load, browse, modify, delete PGN files, possibly inside zip files.
+Supports nested variants, comments, glyphs.
+Here are the details about <a href="http://en.wikipedia.org/wiki/Portable_Game_Notation">PGN</a>
+and <a href="http://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation">FEN</a>.<br/>
+ChessPad creates a sample file <i>/sdcard/ChessPad/sample.pgn</i> so the user can get an idea of ChessPad features.<br/>
+<b>Note:</b> all modifications to this file will be lost after ChessPad is restarted. To preserve your changes save the game in another file.
+  </p>
+
+<h3>Main Screen.</h3>
+  <br/>
+  <center>
+  <img src="game-view.png">
+  </center>
+  <br/>
+  <p>
+To make a move first click on the piece on the board (the square will be highlighted with green frame) and then click on the square where you want to move to. 
+ChessPad does not allow illegal moves.
+  </p>
+  <p>
+Buttons <b>To next variation</b> and <b>To end / To next game / Faster animation</b> invoke animation, showing position after each move.
+  <br/>
+Button <b>Pause animation</b> stops animation at the current position.
+  <br/>
+Button <b>To start / To previous game / Slower animation</b>, depending on the game status:
+  <ul>
+    <li>Moves to the 1st move, when in the middle of the game;</li>
+    <li>Opens the previous game, if possible, when already at the beginning of the game;</li>
+    <li>Slows down animation, when in animation mode.</li>
+  </ul>
+Button <b>To end / To next game / Faster animation</b>, depending on the game status:
+  <ul>
+    <li>Moves to the last move in the current moveline, when in the middle of the game;</li>
+    <li>Opens the next game, if possible, when already at the last move;</li>
+    <li>Speed up animation, when in animation mode.</li>
+  </ul>
+  </p>
+  <p>
+Using Menu button, you can load another game, save your changes, append game to the existing PGN file or create a new PGN file containing the opened game.
+  <br/>
+Every pgn file can contain a number of games or puzzles.
+There are two ways to open them, with <b>Load</b> or <b>Puzzles</b> menu commands:
+  <table style="width:100%">
+    <tr>
+      <th>Load</th>
+      <th>Puzzles</th>
+    </tr>
+    <tr>
+      <td>Select individual game to open</td>
+      <td>Select the whole pgn file to open a random puzzle</td>
+    </tr>
+    <tr>
+      <td><b>To start...</b> button works as described above</td>
+      <td><b>To start...</b> button is disabled</td>
+    </tr>
+    <tr>
+      <td>Board position preserved</td>
+      <td>Board is flipped depending on the move turn</td>
+    </tr>
+    <tr>
+      <td><b>To end...</b> button works as described above</td>
+      <td><b>To end...</b> button opens next random puzzle in any pozition</td>
+    </tr>
+    <tr>
+      <td>Updated game can be optionally saved</td>
+      <td>Updated puzzle is saved automatically in <i>-upd</i> file next to the original</td>
+    </tr>
+  </table>
+There are a number of large chess puzzle collections on the Web, e.g. 
+<a href="https://drive.google.com/open?id=1ueVN7QRhcYKW4lHTjzUY2tp5NekKuC0f">mate in 2</a>
+contains more than 155,000 puzzles.
+<!--
+ and 
+<a href="https://github.com/xinyangz/chess-tactics-pgn/raw/master/tactics.pgn">this</a>
+is even larger, more than 191,000 puzzles.
+-->
+
+  <br/>
+When appending game to a PGN file the path format is:<br/><br/>
+…/dir1/dir2/save.pgn<br/><br/>
+or<br/><br/>
+…/dir1/zipped_pgn.zip/dir2/save1.pgn<br/><br/>
+<b>Note:</b>
+  <ul>
+    <li>zip file is considered as a special type of directory;</li>
+    <li>zip files cannot be nested;</li>
+    <li>zip file can contain multiple PGN files with directories;</li>
+    <li>ChessPad creates directories and zip files automatically, but to rename/copy/move/delete files and directories you will need one of File Managers
+        available on Google Play.</li>
+  </ul>
+  </p>
+  <p>
+By tapping the title line, you get to the screen where you can modify PGN tags.<br/>
+All tag values can be changed and the tags not included in STR can even be deleted. You can also add new tags using the last line:<br/>
+  <center>
+  <img src="tag-editor.png">
+  </center>
+  </p>
+  <p>
+Using the menu command <b>Setup</b>, you can switch to Setup screen. The initial position will be copied from Game screen:<br/>
+  <center>
+  <img src="setup-view.png">
+  </center>
+  <br/>
+To place a piece on the board, tap on it in the pool set, then tap on the board where you want to place it as many times as you want. 
+Fling a piece to remove it from the board.<br/>
+Setup can be finished and ChessPad returns to Game screen only if the position does not have errors, such as no King, more than one King, etc.<br/>
+To abandon Setup and return to Game screen use Menu <b>Cancel Setup</b>. The position will be lost in this case.
+  </p>
+  <h3>Merging variations.</h3>
+ChessPad merges variations when they lead to the same position. For example:<br/><br/>
+  <span class="pgn">
+1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}<br/><br/>
+  </span>
+Note that positions after 3.Nf3 {v1} and 3.Bc4{main} are the same. As a result ChessPad changes the pgn above to:<br/><br/>
+  <span class="pgn">
+1. e4 e5 2. Nf3 {main} (2. Bc4 {v1} Nc6 {v1} 3. Nf3 {v1} ) 2. ... Nc6 {main} 3. Bc4 {main} Nf6 $5 {main; v1} 4. c3 $7 {main; v1}<br/><br/>
+  </span>
+Some important implications:<br/>
+  <ul>
+    <li>If 4. c3 is deleted, it disappears from both main line and variation.</li>
+    <li>If 3. Bc4 {main} move is deleted, its following moves are not deleted, but instead moved to another variation, resulting:<br/>
+  <span class="pgn">
+1. e4 e5 2. Nf3 {main} (2. Bc4 {v1} Nc6 {v1} 3. Nf3 {v1} Nf6 $5 {main; v1} 4. c3 $7 {main; v1} ) 2. ... Nc6 {main}
+  </span>
+    </li>
+  </ul>
+
+<h3>Merging games.</h3>
+You can merge multiple pgn files into one thus creating an opening database. Navigate to the position from which you want to see the available variants, 
+e. g. the position that you see after:<br/>
+  <span class="pgn">
+1. e4 e6 2. d4 d5 3. e5
+  </span>
+  <br/>
+Click on Menu → Merge command. You will see the following dialog:<br/>
+  <center>
+  <img src="merge-dlg.png">
+  </center>
+  <br/>
+Select a valid pgn file and click OK button. ChessPad will search the specified file and if it finds a game with the same position, 
+it will either add it as a new variant or continue the existing move line until it finds the fork. Pgn file can be inside a zip file.<br/>
+Additional options:<br/>
+<b>Annotate</b> – when it is checked, ChessPad will include the game results to the merged variant as comment.<br/>
+<b>Max plys</b> - include a matching game only until the specified number of ply moves.<br>
+<b>Start</b> and <b>End</b> – pgn files can be quite large, include tens of thousands games like the files on this
+<a href="http://www.pgnmentor.com/files.html#openings">Web site</a>.
+Merging these files can take very long time and Android can even abort ChessPad while it is working on such file. 
+If this is the case, specify starting and ending game number to make each session short. 
+After the merge is done, you can continue merging the same or another pgn file. 
+If omitted, start and end mean the beginning and the end of pgn file accordingly. 
+Even with short sessions the resulting file can be quite large and when loaded, switching from ChessPad to another app and back can take rather long time. 
+For example, on Samsung S9, ChessPad  loads SicilianTaimanovMain-merged.pgn (created from 
+<a href="http://www.pgnmentor.com/openings/SicilianTaimanovMain.zip">Sicilian, Taimanov, Main Line</a>).
+by merging games after "1.e4 c5") in about 1 min. 
+ChessPad takes the same time to preserve its status, when user activates another application. 
+Considering that the merged file contains more than 1.7M positions and the status needs to be updated only when the file is changed, this is probably acceptable.
+
+<h3>Working with DGT eBoard.</h3>
+This option has been tested with an older serial port DGT eBoard and StarTech serial adapter ICUSBANDR232, on Samsung Alpha (V5.0, API 21), 
+Amazon Kindle 5 (API 22) and Samsung S9 (V8.0, API 26, V9.0, API 27). It is recommended to connect the adapter and the board first, 
+power on both, then connect the phone. When the adapter is attached to the phone for the first time, the user sees the message:<br/>
+  <center>
+  <img src="usb-consent.png">
+  </center>
+  <br/>
+Click on “Always open ...” and OK. Now when ChessPad is running and the board is attached, the user will see the additional menu option:<br/>
+<b>Start Dgt Board Mode</b><br/>
+If the board (adapter) gets disconnected, ChessPad automatically switches off DGT mode. But when the board gets reconnected, 
+it does not go to DGT mode. The user has to activate it via menu. 
+This is done because when the board is off, the position can change.<br/>
+When activated, ChessPad records the board positions and moves.<br/>
+ChessPad has two DGT modes, Setup/Mess and Game. Initially it is in Setup/Mess mode, where the players can set up any position 
+and ChessPad just shows it on its screen, such as:<br>
+  <center>
+  <img src="gdtboard-setup-view.png">
+  </center>
+  <br/>
+In this mode the screen is quite similar to the regular Setup mode except for the pieces are set not on the screen, but on the chess board.<br/>
+<b>Note:</b> squares a1 and h8 on DGT eBoard are physically different, so, unless the players setup the initial position 
+(that is recognized automatically), the user must use <b>Flip eBoard</b> button 
+(which is different from <b>Flip Board View</b> button that only flips the view) to specify the inverted chess board.
+ChessPad switches from Setup/Mess to Game mode when:
+  <ul>
+    <li>ChessPad recognizes the initial position. This starts a new game.</li>
+    <li>User clicks on <b>Setup OK</b> status message <b>when it does not display an error</b>. This also starts a new game.</li>
+    <li>ChessPad finds an existing position in the last game. Then the existing game is being continued.</li>
+    <li>ChessPad finds that the position on the board can be reached with a single legal move. The move gets recorded, the existing game is being continued.</li>
+  </ul>
+The last two situations can occur when players mess up the pieces and either restore the last position or set the new position 
+that is created after the move during which the mess up happened.<br/>
+In Game mode the screen looks like:<br/>
+  <center>
+  <img src="gdtboard-game-view.png">
+  </center>
+  <br/>
+In this mode the current move can be annotated the usual way.<br/>
+In case a move (or moves) was withdrawn, the new move (if different) starts a new variation in the game. 
+This can happen in a casual game or during chess study. 
+ChessPad does not make any judgments, it just records the positions and the legal moves. 
+When in DGT Board mode, ChessPad records the games until the user stops it explicitly. 
+Then it writes a new pgn file with all recorded games. 
+It increments Round tag and alternates White/Black tags automatically for every game. 
+The recorded games can be found on Android in ChessPad folder as rec-YYYY-MM-DD_hh-mm-ss.pgn files.<br/>
+Some issues with DGT Board were observed:
+  <ul>
+    <li>The connection is not recognized. Disconnect USB adapter from the phone and reconnect it. This is especially true with the older Android V5.0.</li>
+    <li>ChessPad screen does not show the current position on the board. We saw it only in Setup/Mess mode. Take off a piece and put it back.</li>
+  </ul>
+  <p>
+  <center>
+<b>ChessPad is free with no ads. Enjoy!</b>
+  </center>
+  </p>
+
+  <p>
+All problems can be reported to 
+<a href="mailto:ab.chesspad@gmail.com">Alexander Bootman</a>.
+  <br/>
+  </p>
+  </body>
+</html>

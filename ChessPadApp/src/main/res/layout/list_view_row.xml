@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        >
+    <TextView
+        android:id="@+id/view_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="2dp"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:textColor="#000000"
+        android:textSize="20sp"
+        android:visibility="gone"
+        android:background="#ffffff"
+        />
+
+    <LinearLayout
+        android:id="@+id/row_layout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:visibility="gone"
+        android:background="#ffffff"
+        >
+
+        <EditText
+            android:id="@+id/row_label"
+            android:layout_width="0dp"
+            android:layout_weight="3"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:maxLines="1"
+            android:inputType="textCapWords|textCapSentences"
+            android:scrollHorizontally="true"
+            android:textColor="#505050"
+            android:textSize="20sp"
+            android:importantForAutofill="no"
+            android:background="#ffff00"
+            android:hint="@string/hint_tag_label"
+            />
+
+        <EditText
+            android:id="@+id/row_value"
+            android:layout_width="0dp"
+            android:layout_weight="6"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="2sp"
+            android:layout_gravity="center_vertical"
+            android:maxLines="1"
+            android:inputType="textCapWords|textCapSentences"
+            android:scrollHorizontally="true"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+            android:textColor="#000000"
+            android:textSize="20sp"
+            android:importantForAutofill="no"
+            android:background="#00ffff"
+            android:hint="@string/hint_tag_value"
+            />
+
+        <Button android:id="@+id/row_action_button"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="20dp"
+            android:layout_gravity="center_vertical"
+            android:background="#ffffff"
+            />
+
+    </LinearLayout>
+</LinearLayout>

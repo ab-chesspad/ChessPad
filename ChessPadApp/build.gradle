@@ -6,13 +6,13 @@ idea.module {
 }
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 28
     buildToolsVersion '28.0.3'
     defaultConfig {
         applicationId "com.ab.droid.chesspad"
-        minSdkVersion 10
-        targetSdkVersion 26
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        minSdkVersion 16
+        targetSdkVersion 28
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
         release {
@@ -20,12 +20,29 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
-    productFlavors {
+
+//    externalNativeBuild {
+//        ndkBuild {
+//            path file('src/main/cpp/Android.mk')
+//        }
+//    }
+
+    lintOptions {
+        abortOnError false
     }
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_7
-        targetCompatibility JavaVersion.VERSION_1_7
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            manifest.srcFile 'src/main/AndroidManifest.xml'
+            java.srcDirs = ['src/main/java']
+            res.srcDirs = ['src/main/res']
+        }
+
     }
 }
 
@@ -37,12 +54,14 @@ dependencies {
     testImplementation 'org.powermock:powermock-core:1.7.0RC2'
     testImplementation 'org.powermock:powermock-module-junit4:1.7.0RC2'
     testImplementation 'org.powermock:powermock-api-mockito2:1.7.0RC2'
-    implementation 'com.android.support:appcompat-v7:24.2.0'
-    androidTestImplementation 'com.android.support.test:runner:0.4'
+//    implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.appcompat:appcompat:1.0.2'
+//    androidTestImplementation 'org.mockito:mockito-android:2.24.5'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     // Set this dependency to use JUnit 4 rules
-    androidTestImplementation 'com.android.support.test:rules:0.4'
+    androidTestImplementation 'androidx.test:rules:1.1.1'
     // Set this dependency to build and run Espresso tests
-    androidTestImplementation 'com.android.support.test.espresso:espresso-core:2.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.1.0'
     // Set this dependency to build and run UI Automator tests
     //    androidTestCompile 'com.android.support.test.uiautomator:uiautomator-v18:2.1.2'
 
@@ -53,3 +72,32 @@ dependencies {
 //    androidTestImplementation 'com.google.dexmaker:dexmaker:1.2'
 //    androidTestImplementation 'com.google.dexmaker:dexmaker-mockito:1.2'
 }
+
+//// Build the ECO database
+//task buildEco {
+//    def a = "buildSrc/src/main/data/eco.pgn"
+//    def b = "ChessPadApp/src/main/assets/eco.dat"
+//    chess.EcoBuilder.main2(a, b)
+//}
+//preBuild.dependsOn buildEco
+//
+//// Copy Stockfish executables to assets directory
+//task copyToAssets(type: Copy, dependsOn: 'externalNativeBuildRelease') {
+//    from('build/intermediates/ndkBuild/release/obj/local') {
+//        include '*/stockfish'
+//    }
+//    into 'src/main/assets'
+//}
+//tasks.withType(JavaCompile) {
+//    t -> t.dependsOn copyToAssets
+//}
+//
+//// Build internal opening book
+//task buildBook {
+//    def a = "buildSrc/src/main/data/internal_openings.txt"
+//    def b = "ChessPadApp/src/main/assets/internal_openings.bin"
+//    chess.Book.main2(a, b)
+//}
+//tasks.withType(JavaCompile) {
+//    t -> t.dependsOn buildBook
+//}

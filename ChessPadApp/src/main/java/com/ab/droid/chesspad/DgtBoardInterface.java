@@ -29,18 +29,17 @@ import java.io.IOException;
  */
 
 public class DgtBoardInterface extends DgtBoardIO {
-    public static boolean DEBUG = false;
+    private static final boolean DEBUG = false;
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
-    public final Object syncObject = new Object();
-    public static int REPEAT_COMMAND_AFTER_MSEC = 500;   // somehow commands are being missed
-//    public static int REPEAT_COMMAND_AFTER_MSEC = 0;
+    private final Object syncObject = new Object();
+    private static final int REPEAT_COMMAND_AFTER_MSEC = 500;   // somehow commands are being missed
 
-    private int baudRate = 9600; /*baud rate*/
-    private byte stopBit = 1; /*1:1stop bits, 2:2 stop bits*/
-    private byte dataBit = 8; /*8:8bit, 7: 7bit*/
-    private byte parity = 0;  /* 0: none, 1: odd, 2: even, 3: mark, 4: space*/
-    private byte flowControl = 0; /*0:none, 1: flow control(CTS,RTS)*/
+    private static final int baudRate = 9600; /*baud rate*/
+    private static final byte stopBit = 1; /*1:1stop bits, 2:2 stop bits*/
+    private static final byte dataBit = 8; /*8:8bit, 7: 7bit*/
+    private static final byte parity = 0;  /* 0: none, 1: odd, 2: even, 3: mark, 4: space*/
+    private static final byte flowControl = 0; /*0:none, 1: flow control(CTS,RTS)*/
 
     private static final String ManufacturerString = "mManufacturer=FTDI";
     private static final String ModelString1 = "mModel=FTDIUARTDemo";
@@ -51,12 +50,12 @@ public class DgtBoardInterface extends DgtBoardIO {
     private FileOutputStream outputStream;
 
     private final String ACTION_USB_PERMISSION = this.getClass().getPackage().getName() + "USB_PERMISSION";
-    private UsbManager usbManager;
-    private PendingIntent permissionIntent;
+    private final UsbManager usbManager;
+    private final PendingIntent permissionIntent;
     private ParcelFileDescriptor fileDescriptor;
     private boolean permissionRequestPending = false;
 
-    private StatusObserver statusObserver;
+    private final StatusObserver statusObserver;
 
     private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
         @Override

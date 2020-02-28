@@ -25,25 +25,29 @@ import java.util.List;
  */
 
 public class SetupView extends ChessPadView.CpView {
-    protected final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
+    final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
     private BoardView piecesView;
-    protected ChessPadView.CpToggleButton btnWhiteMove, btnBlackMove;
-    protected ChessPadView.CpToggleButton btnWhiteQueenCastle, btnWhiteKingCastle, btnBlackQueenCastle, btnBlackKingCastle;
+    ChessPadView.CpToggleButton btnWhiteMove;
+    ChessPadView.CpToggleButton btnBlackMove;
+    ChessPadView.CpToggleButton btnWhiteQueenCastle;
+    ChessPadView.CpToggleButton btnWhiteKingCastle;
+    ChessPadView.CpToggleButton btnBlackQueenCastle;
+    ChessPadView.CpToggleButton btnBlackKingCastle;
     ChessPadView.CpEditText enPassEditText, hmClockEditText, moveNumEditText;
 
     public SetupView(ChessPad chessPad) {
         super(chessPad);
     }
 
-    protected Board getBoard() {
+    Board getBoard() {
         return chessPad.setup.getBoard();
     }
 
-    protected Setup getSetup() {
+    Setup getSetup() {
         return chessPad.setup;
     }
 
-    protected BoardHolder getMainBoardHolder() {
+    BoardHolder getMainBoardHolder() {
         return new BoardHolder() {
             @Override
             public Board getBoard() {
@@ -51,17 +55,13 @@ public class SetupView extends ChessPadView.CpView {
             }
 
             @Override
+            public int getBoardViewSize() {
+                return Metrics.boardViewSize;
+            }
+
+            @Override
             public int[] getBGResources() {
                 return new int[]{R.drawable.bsquare, R.drawable.wsquare};
-            }
-
-            @Override
-            public void setReversed(boolean reversed) {
-            }
-
-            @Override
-            public boolean isReversed() {
-                return false;
             }
 
             @Override
@@ -75,35 +75,34 @@ public class SetupView extends ChessPadView.CpView {
             }
 
             @Override
-            public boolean onFling(Square clicked) {
+            public void onFling(Square clicked) {
                 Log.d(DEBUG_TAG, String.format("board onFling (%s)", clicked.toString()));
                 getSetup().getBoard().setPiece(clicked, Config.EMPTY);
                 invalidate();
-                return true;
             }
         };
     }
 
     @Override
     @SuppressLint("ClickableViewAccessibility")
-    public void draw() {
+    void draw() {
         int x, y;
 
         Log.d(DEBUG_TAG, "draw()");
         title = ChessPadView.drawTitleBar(chessPad, new TitleHolder() {
             @Override
-            public String getTitleText() {
-                return getSetup().getTitleText();
+            public int getLength() {
+                return Metrics.screenWidth;
             }
 
             @Override
             public void onTitleClick() {
-                chessPad.onButtonClick(ChessPad.Command.EditHeaders);
+                chessPad.onButtonClick(ChessPad.Command.EditTags);
             }
 
             @Override
-            public List<Pair<String, String>> getHeaders() {
-                return getSetup().getHeaders();
+            public List<Pair<String, String>> getTags() {
+                return getSetup().getTags();
             }
         });
 
@@ -121,19 +120,16 @@ public class SetupView extends ChessPadView.CpView {
         setupStatus = new TextView(chessPad);
         setupStatus.setBackgroundColor(Color.CYAN);
         setupStatus.setGravity(Gravity.START | Gravity.CENTER);
-        setupStatus.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
-                    try {
-                        chessPad.setPgnGraph(null);
-                    } catch (Config.PGNException e) {
-                        Log.e(DEBUG_TAG, "endSetup failed", e);
-                    }
+        setupStatus.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
+                try {
+                    chessPad.setPgnGraph(null);
+                } catch (Config.PGNException e) {
+                    Log.e(DEBUG_TAG, "endSetup failed", e);
                 }
-                // true if the event was handled and should not be given further down to other views.
-                return true;
             }
+            // true if the event was handled and should not be given further down to other views.
+            return true;
         });
 
         if (Metrics.isVertical) {
@@ -151,11 +147,19 @@ public class SetupView extends ChessPadView.CpView {
         // functionality:
         if(btnBlackMove != null) {
             // setup/setupmess mode
-            btnBlackMove.setFlagKeeper(new SetupFlagKeeper(Config.FLAGS_BLACK_MOVE));
+            btnBlackMove.setFlagKeeper(new SetupFlagKeeper(Config.FLAGS_BLACK_MOVE) {
+                @Override
+                public void setFlag ( boolean set){
+                    super.setFlag(set);
+                    setMoveNum(getMoveNum());
+                }
+            });
+
             btnWhiteMove.setFlagKeeper(new SetupFlagKeeper(Config.FLAGS_BLACK_MOVE) {
                 @Override
                 public void setFlag(boolean set) {
                     super.setFlag(!set);
+                    setMoveNum(getMoveNum());
                 }
 
                 @Override
@@ -168,13 +172,23 @@ public class SetupView extends ChessPadView.CpView {
             btnWhiteKingCastle.setFlagKeeper(new SetupFlagKeeper(Config.FLAGS_W_KING_OK));
             btnBlackQueenCastle.setFlagKeeper(new SetupFlagKeeper(Config.FLAGS_B_QUEEN_OK));
             btnBlackKingCastle.setFlagKeeper(new SetupFlagKeeper(Config.FLAGS_B_KING_OK));
+        }
+        setFields();
+        Log.d(DEBUG_TAG, "draw() done");
+        invalidate();
+    }
 
+    private void setFields() {
+        if(enPassEditText != null) {
             enPassEditText.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
             enPassEditText.setStringKeeper(new ChessPadView.StringKeeper() {
                 @Override
-                public void setValue(String str) {
-                    getSetup().setEnPass(str);
-                    invalidate();
+                public void setValue(String enPass) {
+                    String oldEnPass = getSetup().getEnPass();
+                    if (!oldEnPass.equals(enPass)) {
+                        getSetup().setEnPass(enPass);
+                        invalidate();
+                    }
                 }
 
                 @Override
@@ -182,13 +196,18 @@ public class SetupView extends ChessPadView.CpView {
                     return getSetup().getEnPass();
                 }
             });
+        }
 
+        if(hmClockEditText != null) {
             hmClockEditText.setStringKeeper(new ChessPadView.StringKeeper() {
                 @Override
                 public void setValue(String str) {
                     int hmClock = getNumericValue(str);
-                    getBoard().setReversiblePlyNum(hmClock);
-                    invalidate();
+                    int oldHm = getBoard().getReversiblePlyNum();
+                    if (oldHm != hmClock) {
+                        getBoard().setReversiblePlyNum(hmClock);
+                        invalidate();
+                    }
                 }
 
                 @Override
@@ -196,29 +215,46 @@ public class SetupView extends ChessPadView.CpView {
                     return "" + getBoard().getReversiblePlyNum();
                 }
             });
+        }
 
+        if(moveNumEditText != null) {
             moveNumEditText.setStringKeeper(new ChessPadView.StringKeeper() {
                 @Override
                 public void setValue(String str) {
-                    int moveNum = getNumericValue(str) * 2;
-                    if ((getBoard().getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
-                        ++moveNum;
+                    int moveNum = getNumericValue(str);
+                    if (moveNum <= 0) {
+                        moveNum = 1;
                     }
-                    getBoard().setPlyNum(moveNum);
-                    invalidate();
+                    int oldMoveNum = getMoveNum();
+                    if (oldMoveNum != moveNum) {
+                        setMoveNum(moveNum);
+                        invalidate();
+                    }
                 }
 
                 @Override
                 public String getValue() {
-                    return "" + getBoard().getPlyNum() / 2;
+                    return "" + getMoveNum();
                 }
             });
         }
-        Log.d(DEBUG_TAG, "draw() done");
-        invalidate();
     }
 
-    protected void drawSetupVerticalLayout(RelativeLayout relativeLayoutSetup) {
+    private int getMoveNum() {
+        return getBoard().getPlyNum() / 2 + 1;
+    }
+
+    private void setMoveNum(int moveNum) {
+        Board board = getBoard();
+        // this is the next move number!
+        int plyNum = 2 * (moveNum - 1);
+        if ((board.getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
+            ++plyNum;
+        }
+        board.setPlyNum(plyNum);
+    }
+
+    void drawSetupVerticalLayout(RelativeLayout relativeLayoutSetup) {
         int x, y;
 
         int toggleButtonSize = Metrics.squareSize;
@@ -283,7 +319,7 @@ public class SetupView extends ChessPadView.CpView {
         ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
     }
 
-    protected void drawSetupHorizonlalLayout(RelativeLayout relativeLayoutSetup) {
+    void drawSetupHorizonlalLayout(RelativeLayout relativeLayoutSetup) {
         int x, y;
 
         int toggleButtonSize = Metrics.squareSize;
@@ -348,17 +384,13 @@ public class SetupView extends ChessPadView.CpView {
             }
 
             @Override
+            public int getBoardViewSize() {
+                return Metrics.boardViewSize;
+            }
+
+            @Override
             public int[] getBGResources() {
                 return new int[] {R.drawable.btn_disabled};
-            }
-
-            @Override
-            public void setReversed(boolean reversed) {
-            }
-
-            @Override
-            public boolean isReversed() {
-                return false;
             }
 
             @Override
@@ -371,16 +403,15 @@ public class SetupView extends ChessPadView.CpView {
             }
 
             @Override
-            public boolean onFling(Square clicked) {
+            public void onFling(Square clicked) {
                 Log.d(DEBUG_TAG, String.format("pieces onFling (%s)", clicked.toString()));
-                return true;
             }
         });
     }
 
     private boolean alreadyThere = false;   // quick and dirty
     @Override
-    public void invalidate() {
+    void invalidate() {
         if(alreadyThere) {
             return;
         }
@@ -393,7 +424,7 @@ public class SetupView extends ChessPadView.CpView {
         alreadyThere = false;
     }
 
-    public static void invalidateViewGroup(ViewGroup viewGroup) {
+    private static void invalidateViewGroup(ViewGroup viewGroup) {
         for(int i = 0; i < viewGroup.getChildCount(); ++i) {
             View child = viewGroup.getChildAt(i);
             if(child instanceof  ViewGroup) {
@@ -405,9 +436,9 @@ public class SetupView extends ChessPadView.CpView {
     }
 
     class SetupFlagKeeper implements ChessPadView.FlagKeeper {
-        int flag;
+        final int flag;
 
-        public SetupFlagKeeper(int flag) {
+        SetupFlagKeeper(int flag) {
             this.flag = flag;
         }
 

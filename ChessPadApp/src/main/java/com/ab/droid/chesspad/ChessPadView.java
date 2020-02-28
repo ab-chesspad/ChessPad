@@ -7,8 +7,6 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
-import android.support.v7.widget.AppCompatEditText;
-import android.support.v7.widget.AppCompatImageButton;
 import android.text.Editable;
 import android.text.InputType;
 import android.text.TextWatcher;
@@ -23,10 +21,10 @@ import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import com.ab.pgn.BitStream;
-import com.ab.pgn.Config;
+import androidx.appcompat.widget.AppCompatEditText;
+import androidx.appcompat.widget.AppCompatImageButton;
 
-import java.io.IOException;
+import com.ab.pgn.Config;
 
 /**
  * full ChessPad screen
@@ -36,13 +34,12 @@ public class ChessPadView extends View implements ProgressBarHolder {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private final ChessPad chessPad;
-    RelativeLayout relativeLayoutMain;
-    protected CpProgressBar cpProgressBar;
+    private final RelativeLayout relativeLayoutMain;
+    private CpProgressBar cpProgressBar;
 
     private CpView cpView;
-    static Bitmap checkBitmap = null;
+    private static Bitmap checkBitmap = null;
 
-     private BoardHolder mainBoardHolder;
     private TextView title;
     private BoardView boardView;
 
@@ -66,12 +63,24 @@ public class ChessPadView extends View implements ProgressBarHolder {
         relativeLayoutMain.removeAllViews();
         recalcSizes();
 
-        if (chessPad.getMode() == ChessPad.Mode.Game) {
-            cpView = new GameView(chessPad);
-        } else if (chessPad.getMode() == ChessPad.Mode.Setup) {
-            cpView = new SetupView(chessPad);
-        } else if (chessPad.getMode() == ChessPad.Mode.DgtGame) {
-            cpView = new DgtBoardView(chessPad);
+        switch (chessPad.getMode()) {
+            case Game:
+            case Puzzle:
+                cpView = new GameView(chessPad);
+                break;
+
+            case Setup:
+                cpView = new SetupView(chessPad);
+                break;
+
+            case DgtGame:
+                cpView = new DgtBoardView(chessPad);
+                break;
+
+            case FicsConnection:
+                cpView = new FicsPadView(chessPad);
+                break;
+
         }
         cpView.draw();
         boolean showProgressBar = false;
@@ -130,6 +139,13 @@ public class ChessPadView extends View implements ProgressBarHolder {
         dummy.setText(R.string.label_halfmove_clock);
         dummy.measure(0, 0);
         Metrics.halfMoveClockLabelWidth = dummy.getMeasuredWidth();
+
+        dummy = new TextView(chessPad);
+        dummy.setSingleLine();
+        dummy.setTextSize(16);
+        dummy.setText("0:00:00 ");
+        dummy.measure(0, 0);
+        Metrics.timeWidth = dummy.getMeasuredWidth();
 
         if (Metrics.isVertical) {
             // Setup screen based on board filling the whole screen width
@@ -201,22 +217,20 @@ public class ChessPadView extends View implements ProgressBarHolder {
         title.setSingleLine();
         title.setBackgroundColor(Color.GREEN);
         title.setTextColor(Color.BLACK);
-        title.setText(titleHolder.getTitleText());
-        title.setOnTouchListener(new OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
+        title.setOnTouchListener((v, event) -> {
+            if(titleHolder != null && event.getAction() == MotionEvent.ACTION_UP) {
                 titleHolder.onTitleClick();
-                return true;
             }
+            return true;
         });
         title.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        addTextView(chessPad.getMainRelativeLayout(), title, 0, 0, Metrics.screenWidth - Metrics.buttonSize - Metrics.xSpacing, Metrics.titleHeight);
-        addImageButton(chessPad, chessPad.getMainRelativeLayout(), ChessPad.Command.Menu, Metrics.screenWidth - Metrics.buttonSize, 0, Metrics.buttonSize, Metrics.titleHeight, R.drawable.ic_menu);
+        addTextView(chessPad.getMainRelativeLayout(), title, Metrics.buttonSize + Metrics.xSpacing, 0, titleHolder.getLength() - Metrics.buttonSize - Metrics.xSpacing, Metrics.titleHeight);
+        addImageButton(chessPad, chessPad.getMainRelativeLayout(), ChessPad.Command.Menu, 0, 0, Metrics.buttonSize, Metrics.titleHeight, R.drawable.menu);
         return title;
     }
 
     static BoardView drawBoardView(Context context, RelativeLayout relativeLayout, int x, int y, BoardHolder boardHolder) {
-        BoardView boardView = new BoardView(context, Metrics.boardViewSize / 8, boardHolder);
+        BoardView boardView = new BoardView(context, boardHolder);
         addView(relativeLayout, boardView, x, y);
         return boardView;
     }
@@ -242,16 +256,13 @@ public class ChessPadView extends View implements ProgressBarHolder {
         CpImageButton btn = new CpImageButton(chessPad, resource);
         btn.setId(command.getValue());
         addView(relativeLayout, btn, x, y, width, height);
-        btn.setOnClickListener(new OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                chessPad.onButtonClick(ChessPad.Command.command(v.getId()));
-            }
+        btn.setOnClickListener((v) -> {
+            chessPad.onButtonClick(ChessPad.Command.command(v.getId()));
         });
         return btn;
     }
 
-    static void addView(RelativeLayout relativeLayout, View view, int x, int y) {
+    private static void addView(RelativeLayout relativeLayout, View view, int x, int y) {
         addView(relativeLayout, view, x, y, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
@@ -274,7 +285,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
 
     // how to redraw after keyboard dismissal?
     // remove?
-    public static void createLabel(Context context, RelativeLayout relativeLayout, int x, int y, int w1, int h, int rscLabel) {
+    private static void createLabel(Context context, RelativeLayout relativeLayout, int x, int y, int w1, int h, int rscLabel) {
         TextView label = new TextView(context);
         label.setBackgroundColor(Color.GRAY);
         label.setTextColor(Color.BLACK);
@@ -285,12 +296,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
     }
 
     public static CpEditText createLabeledEditText(Context context, RelativeLayout relativeLayout, int x, int y, int labelWidth, int valueWidth, int h, int rscLabel) {
-        return createLabeledEditText(context, relativeLayout, x, y, labelWidth, valueWidth, h, rscLabel, null);
-    }
-
-    public static CpEditText createLabeledEditText(Context context, RelativeLayout relativeLayout, int x, int y, int labelWidth, int valueWidth, int h, int rscLabel, StringKeeper stringKeeper) {
         createLabel(context, relativeLayout, x, y, labelWidth, h, rscLabel);
-
         CpEditText editText = new CpEditText(context);
         editText.setBackgroundColor(Color.GREEN);
         editText.setTextColor(Color.RED);
@@ -299,9 +305,6 @@ public class ChessPadView extends View implements ProgressBarHolder {
         editText.setSingleLine();
         editText.setInputType(InputType.TYPE_CLASS_NUMBER);
         addTextView(relativeLayout, editText, x + labelWidth + 2 * Metrics.xSpacing, y, valueWidth, h);
-        if(stringKeeper != null) {
-            editText.setStringKeeper(stringKeeper);
-        }
         return editText;
     }
 
@@ -343,21 +346,10 @@ public class ChessPadView extends View implements ProgressBarHolder {
             this.stringKeeper = stringKeeper;
             this.setText(stringKeeper.getValue());
         }
-
-/*
-        @Override
-        public boolean onKeyPreIme(int keyCode, KeyEvent event) {
-            if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
-                ChessPadView.this.redraw();
-//                return true;  // So it is not propagated.
-            }
-            return super.dispatchKeyEvent(event);
-        }
-*/
     }
 
     public static class CpImageButton extends AppCompatImageButton {
-        public CpImageButton(Context context, int resource) {
+        CpImageButton(Context context, int resource) {
             super(context);
             setBackgroundResource(R.drawable.btn_background);
             if (resource != -1) {
@@ -369,12 +361,12 @@ public class ChessPadView extends View implements ProgressBarHolder {
         }
     }
 
-    public static class CpProgressBar {
+    static class CpProgressBar {
         private boolean isVisible;
-        private ProgressBar progressBar;
-        private TextView progressText;
+        private final ProgressBar progressBar;
+        private final TextView progressText;
 
-        public CpProgressBar(Context context, RelativeLayout relativeLayout) {
+        CpProgressBar(Context context, RelativeLayout relativeLayout) {
             int x, y, h, w;
             w = Metrics.boardViewSize;
             x = (Metrics.screenWidth - w) / 2;
@@ -399,11 +391,11 @@ public class ChessPadView extends View implements ProgressBarHolder {
             isVisible = false;
         }
 
-        public boolean isVisible() {
+        boolean isVisible() {
             return this.isVisible;
         }
 
-        public void show(boolean bShow) {
+        void show(boolean bShow) {
             if (progressBar == null) {
                 return;
             }
@@ -417,48 +409,9 @@ public class ChessPadView extends View implements ProgressBarHolder {
             }
         }
 
-        public void update(int progress) {
+        void update(int progress) {
             progressBar.setProgress(progress);
             progressText.setText(String.format("%s%%", progress));
-        }
-    }
-
-    public static class StringWrapper {
-        private String value;
-        private ChangeObserver changeObserver;
-
-        public StringWrapper(String value, ChangeObserver changeObserver) {
-            this.value = value;
-            this.changeObserver = changeObserver;
-        }
-
-        public String getValue() {
-            return value;
-        }
-
-        public String getNumericValue() {
-            if (value == null || value.isEmpty()) {
-                return "0";
-            }
-            return getValue();
-        }
-
-        public void setValue(String value) {
-            if (this.value == null || !this.value.equals(value)) {
-                this.value = value;
-                if (changeObserver != null) {
-                    changeObserver.onValueChanged(this.value);
-                }
-            }
-        }
-
-        public void serialize(BitStream.Writer writer) throws IOException {
-            writer.writeString(value);
-        }
-
-        public StringWrapper(BitStream.Reader reader, ChangeObserver changeObserver) throws IOException {
-            value = reader.readString();
-            this.changeObserver = changeObserver;
         }
     }
 
@@ -469,7 +422,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
     public abstract static class StringKeeper {
         public void setValue(String str) {}
         public String getValue() { return null; }
-        public int getNumericValue(String value) {
+        int getNumericValue(String value) {
             int res = 0;
             if(value != null && !value.isEmpty()) {
                 try {
@@ -491,23 +444,15 @@ public class ChessPadView extends View implements ProgressBarHolder {
         private FlagKeeper flagKeeper;
 
         public CpToggleButton(ChessPad chessPad, RelativeLayout rl, int size, int x, int y, int rscNormal) {
-            this(chessPad, rl, size, x, y, rscNormal, null);
-        }
-
-        public CpToggleButton(ChessPad chessPad, RelativeLayout rl, int size, int x, int y, int rscNormal, FlagKeeper flagKeeper) {
             super(chessPad, rscNormal);
-            this.flagKeeper = flagKeeper;
             RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(size, size);
             lp.setMargins(x, y, 0, 0);
             rl.addView(this, lp);
-            setOnClickListener(new OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    if(CpToggleButton.this.flagKeeper != null) {
-                        CpToggleButton.this.flagKeeper.setFlag(!CpToggleButton.this.flagKeeper.getFlag());
-                    }
-                    CpToggleButton.this.invalidate();
+            setOnClickListener((v) -> {
+                if(CpToggleButton.this.flagKeeper != null) {
+                    CpToggleButton.this.flagKeeper.setFlag(!CpToggleButton.this.flagKeeper.getFlag());
                 }
+                CpToggleButton.this.invalidate();
             });
         }
 
@@ -525,25 +470,32 @@ public class ChessPadView extends View implements ProgressBarHolder {
     }
 
     static abstract class CpView {
-        protected final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
-        protected final ChessPad chessPad;
-        protected final RelativeLayout relativeLayoutMain;
+        final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
+        final ChessPad chessPad;
+        final RelativeLayout relativeLayoutMain;
 
-        protected TextView title;
-        protected TextView setupStatus;
+        TextView title;
+        TextView setupStatus;
 
-        protected BoardView boardView;
-        protected int selectedPiece = -1;
+        BoardHolder boardHolder;
+        BoardView boardView;
+        int selectedPiece = -1;
 
-        public CpView(ChessPad chessPad) {
+        CpView(ChessPad chessPad) {
+            this(chessPad, chessPad);
+        }
+
+        CpView(ChessPad chessPad, BoardHolder boardHolder) {
             this.chessPad = chessPad;
+            this.boardHolder = boardHolder;
             this.relativeLayoutMain = chessPad.getMainRelativeLayout();
         }
 
-        public void draw() {
+        void draw() {
+            Log.d(DEBUG_TAG, String.format("draw %s", Thread.currentThread().getName()));
         }
 
-        protected void setStatus(int errNum) {
+        void setStatus(int errNum) {
             if(setupStatus != null) {
                 setupStatus.setText(chessPad.getSetupErr(errNum));
                 if (errNum == 0) {
@@ -556,7 +508,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
             }
         }
 
-        public void invalidate() {
+        void invalidate() {
             chessPad.chessPadView.invalidate();
         }
     }

@@ -6,38 +6,38 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
-import android.widget.ImageButton;
+import android.widget.Button;
 import android.widget.TextView;
 
 import java.util.List;
 
-public abstract class CPArrayAdapter extends ArrayAdapter {
+abstract class CPArrayAdapter extends ArrayAdapter {
     private List<?> values;
     private int layoutResource;
-    protected LayoutInflater layoutInflater;
-    protected int selectedIndex;
+    private LayoutInflater layoutInflater;
+    int selectedIndex;
 
     protected abstract void setRowViewHolder(RowViewHolder rowViewHolder, final int position);
     protected abstract void onConvertViewClick(int position);
 
-    public CPArrayAdapter() {
-        super(ChessPad.getContext(), R.layout.list_view);
+    CPArrayAdapter() {
+        super(ChessPad.getContext(), R.layout.list_view_row);
         init(null, -1);
     }
 
-    public CPArrayAdapter(List<?> values, int selectedIndex) {
-        super(ChessPad.getContext(), R.layout.list_view);
+    CPArrayAdapter(List<?> values, int selectedIndex) {
+        super(ChessPad.getContext(), R.layout.list_view_row);
         init(values, selectedIndex);
     }
 
-    protected void init(List<?> values, int initSelection) {
+    void init(List<?> values, int initSelection) {
         this.values = values;
         this.selectedIndex = initSelection;
-        layoutResource = R.layout.list_view;
+        layoutResource = R.layout.list_view_row;
         layoutInflater = LayoutInflater.from(ChessPad.getContext());
     }
 
-    protected List<?> getValues() {
+    List<?> getValues() {
         return values;
     }
 
@@ -57,15 +57,13 @@ public abstract class CPArrayAdapter extends ArrayAdapter {
         rowViewHolder.convertView = convertView;
         rowViewHolder.index = position;
 
-        convertView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_UP) {
-                    onConvertViewClick(position);
-                }
-                // true if the event was handled and should not be given further down to other views.
-                return true;
+        convertView.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                v.performClick();
+                onConvertViewClick(position);
             }
+            // true if the event was handled and should not be given further down to other views.
+            return true;
         });
         setRowViewHolder(rowViewHolder, position);
         if (position == selectedIndex) {
@@ -76,7 +74,7 @@ public abstract class CPArrayAdapter extends ArrayAdapter {
         return convertView;
     }
 
-    public int getSelectedIndex() {
+    int getSelectedIndex() {
         return selectedIndex;
     }
 
@@ -88,7 +86,7 @@ public abstract class CPArrayAdapter extends ArrayAdapter {
     public int getCount() {
         List<?> values = getValues();
         if(values == null) {
-            return 0;       // happens in PgnItemListAdapter
+            return 0;       // happens in PgnFileListAdapter
         }
         return getValues().size();
     }
@@ -102,11 +100,11 @@ public abstract class CPArrayAdapter extends ArrayAdapter {
         return item;
     }
 
-    protected class RowViewHolder {
+    class RowViewHolder {
         int index;
         TextView labelView;
         TextView valueView;
-        ImageButton actionButton;
+        Button actionButton;
         View convertView;
 
         @Override

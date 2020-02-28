@@ -10,33 +10,37 @@ import java.util.List;
  */
 
 public class Setup {
-    final static PgnLogger logger = PgnLogger.getLogger(PgnGraph.class);
+    private final PgnLogger logger = PgnLogger.getLogger(PgnGraph.class);
 
     private int errNum;
     private Board board;
-    private List<Pair<String, String>> headers = new LinkedList<>();
+    private List<Pair<String, String>> tags;
+    private String enPass = "";
 
     public Setup(PgnGraph pgnGraph) {
         this.board = pgnGraph.getBoard().clone();
         this.board.setMove(null);
+        this.tags = pgnGraph.getPgn().getTags();
+        int index = ((CpFile.Pgn)pgnGraph.getPgn().getParent()).getTagIndex(Config.TAG_Round);
         int round = 1;
         try {
-            round = Integer.valueOf(pgnGraph.getPgn().getHeader(Config.HEADER_Round));
+            round = Integer.valueOf(this.tags.get(index).second);
         } catch (Exception e) {
             // ignore
         }
-        this.headers = PgnItem.cloneHeaders(pgnGraph.getPgn().getHeaders(), Config.HEADER_Round);
-        this.headers.add(new Pair<>(Config.HEADER_Round, "" + round));
+        this.tags.set(index, new Pair<>(Config.TAG_Round, "" + round));
+        setEnPass();
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         serializeSetupBoard(writer);
-        PgnItem.serialize(writer, headers);
+        CpFile.serializeTagList(writer, tags);
     }
 
     public Setup(BitStream.Reader reader) throws Config.PGNException {
         this.board = unserializeSetupBoard(reader);
-        this.headers = PgnItem.unserializeHeaders(reader);
+        this.tags = CpFile.unserializeTagList(reader);
+        setEnPass();
     }
 
     private void serializeSetupBoard(BitStream.Writer writer) throws Config.PGNException {
@@ -100,12 +104,12 @@ public class Setup {
         validate();
     }
 
-    public List<Pair<String, String>> getHeaders() {
-        return headers;
+    public List<Pair<String, String>> getTags() {
+        return tags;
     }
 
     public String getTitleText() {
-        return PgnItem.getTitle(headers, -1);
+        return CpFile.getTitle(tags);
     }
 
     public PgnGraph toPgnGraph() throws Config.PGNException {
@@ -115,7 +119,7 @@ public class Setup {
             return new PgnGraph();
         }
         PgnGraph pgnGraph = new PgnGraph(board);
-        pgnGraph.getPgn().setHeaders(headers);
+        pgnGraph.getPgn().setTags(tags);
         Board initBoard = pgnGraph.getInitBoard();
         if(!initBoard.equals(new Board())) {
             pgnGraph.getPgn().setFen(initBoard.toFEN());
@@ -123,8 +127,8 @@ public class Setup {
         return pgnGraph;
     }
 
-    public void setHeaders(List<Pair<String, String>> headers) {
-        this.headers = headers;
+    public void setTags(List<Pair<String, String>> tags) {
+        this.tags = tags;
     }
 
     public int getFlag(int flag) {
@@ -148,22 +152,31 @@ public class Setup {
         return errNum;
     }
 
+    private void setEnPass() {
+        Square sq = this.board.getEnpassant();
+        if (sq.getX() == -1) {
+            this.enPass = "";
+        } else {
+            this.enPass = sq.toString();
+        }
+    }
+
     public void setEnPass(String enPass) {
-        if(enPass != null && !enPass.isEmpty()) {
-            Square sq = new Square(enPass);
+        this.enPass = enPass;
+        Square sq = new Square();
+        if(enPass != null && enPass.length() == 2) {
+            sq = new Square(enPass);
+        }
+        if (sq.getX() == -1) {
+            board.clearFlags(Config.FLAGS_ENPASSANT_OK);
+        } else {
             board.setEnpassant(sq);
             board.raiseFlags(Config.FLAGS_ENPASSANT_OK);
-        } else {
-            board.clearFlags(Config.FLAGS_ENPASSANT_OK);
         }
     }
 
     public String getEnPass() {
-        Square sq = board.getEnpassant();
-        if(sq.getX() == -1) {
-            return "";
-        }
-        return sq.toString();
+        return enPass;
     }
 
 }

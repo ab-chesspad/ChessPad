@@ -1,14 +1,9 @@
 <resources>
-    <string name="dummy_button">Dummy Button</string>
-    <string name="dummy_content">DUMMY\nCONTENT</string>
-
     <string name="app_name">ChessPad</string>
-	<string name="about">\u00A0ChessPad %s\n PGN editor\n ab.chesspad@gmail.com\n\nFull info including source code:\nhttps://github.com/ab-chesspad/ChessPad
-	</string>
 
     <string name="err_empty_new_tag_name">Missing tag name</string>
     <string name="err_tag_name_exists">Tag already exists</string>
-    <string name="toast_err_file">Could not save the specified file, check if the name is valid</string>
+    <string name="err_moves_ignored">moves can be invalid</string>
 
     <string name="alert_pgn_path_label">Full Path to Pgn File:</string>
     <string name="alert_merge_start_label">Start:</string>
@@ -16,15 +11,10 @@
     <string name="alert_annotate_label">Annotate</string>
     <string name="alert_merge_max_plys_label">Max plys:</string>
 
-    <string name="alert_no_writable_dir">Android directory %s is not writable, check ChessPad permissions</string>
-
-    <string name="alert_msg_wait">Please wait...</string>
-
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
-    <string name="done">Done</string>
 
     <string name="msg_save">Do you want to save your changes to the opened game?</string>
     <string name="msg_del_move">Do you want to delete this and the following moves?</string>
@@ -35,6 +25,7 @@
     <string name="msg_merge_count">Merged %d game(s)</string>
 
     <string name="menu_load">Load</string>
+    <string name="menu_puzzle">Open Puzzles</string>
     <string name="menu_merge">Merge</string>
     <string name="menu_setup">Setup</string>
     <string name="menu_save">Save</string>
@@ -45,6 +36,10 @@
     <string name="menu_stop_dgt_game">Stop Dgt Board Mode</string>
     <string name="menu_connect_to_fics">Connect to FICS</string>
     <string name="menu_close_fics_connection">Close FICS connection</string>
+    <string name="menu_fics_mate">Mate Puzzle</string>
+    <string name="menu_tactics">Tactics</string>
+    <string name="menu_study">Study</string>
+    <string name="menu_endgame">Endgame</string>
     <string name="menu_about">About</string>
 
     <string name="label_en_pass">En passant: </string>
@@ -52,24 +47,53 @@
     <string name="label_move_num">Move number: </string>
 
     <string name="crash_cannot_save">Cannot write file. \nTry to select different directory.</string>
-    <string name="crash_cannot_delete">Cannot delete pgn</string>
     <string name="crash_cannot_load">Cannot load pgn</string>
-    <string name="crash_cannot_restore">Cannot restore pgn</string>
     <string name="crash_cannot_list">Cannot list items</string>
 
-    <string name="label_header_action_button">Action Button</string>
-    <string name="label_lookup_button">Lookup Button</string>
     <string name="hint_file_name">File Name</string>
-    <string name="hint_header_label">NewTag</string>
-    <string name="hint_header_value">New Value</string>
+    <string name="hint_tag_label">New Tag</string>
+    <string name="hint_tag_value">New Value</string>
+    <string name="hint_merge_start"> </string>
+    <string name="hint_merge_end"> </string>
+    <string name="hint_max_plys"> </string>
+
+    <string name="lookup_button_description">Lookup for folder/file</string>
 
     <string name="dgt_status_game">Recording...</string>
 
     <!--FICS resources:-->
+    <string name="msg_connection_lost">Connection lost, try to reconnect</string>
+    <string name="msg_connecting">Connecting, please wait...</string>
     <string name="hint_username">username</string>
     <string name="hint_password">password</string>
     <string name="login_as_guest">Login as guest</string>
     <string name="login">Login</string>
+    <string name="hint_from_server">Messages from FICS</string>
+    <string name="hint_send_to_fics">Send to FICS</string>
+
+    <string-array name="puzzlebot_options">
+        <item>Any</item>
+        <item>In 1 Move</item>
+        <item>In 2 Moves</item>
+        <item>In 3 Moves</item>
+        <item>In 4 and More Moves</item>
+    </string-array>
+
+    <string-array name="endgamebot_options">
+        <item>kpk - K, P vs. K</item>
+        <item>kbnk - K, B, N vs. K</item>
+        <item>kbbk - K, B, B vs. K</item>
+        <item>kqk - K, Q vs. K</item>
+        <item>krpkr - K, R, P vs. K, R</item>
+        <item>krk - K, R vs. K</item>
+        <item>kqkr - K, Q vs. K, R</item>
+        <item>kppkp - K, P, P vs. K, P</item>
+        <item>kpkp - K, P vs. K, P</item>
+        <item>kqpkq - K, Q, P vs. K, Q</item>
+        <item>knnkp - K, N, N vs. K, P</item>
+        <item>kppkpp - K, P, P vs. K, P, P</item>
+        <item>kqqkqr - K, Q, Q vs. K, Q, R</item>
+    </string-array>
 
     <string-array name="setup_errs">
         <item>0 Setup OK</item>
@@ -85,7 +109,7 @@
         <item>10 Row for black pawn!</item>
         <item>11 En passant when half-move clock >0!</item>
         <item>12 Other king checked</item>
-        <item>13 Invalid castling</item>
+        <item>13 Invalid castling options</item>
         <item>14 Invalid en passant</item>
         <item>15 Too many white pieces</item>
         <item>16 Too many black pieces</item>

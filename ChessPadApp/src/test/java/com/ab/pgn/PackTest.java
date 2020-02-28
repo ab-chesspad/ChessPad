@@ -3,6 +3,8 @@ package com.ab.pgn;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,14 +63,14 @@ public class PackTest extends BaseTest {
             Board clone = Board.unpack(pack.getPackData());
             Pack clonePack = new Pack(clone.pack());
             Assert.assertEquals(fen, clone.toFEN());
-            Assert.assertTrue(pack.equals(clonePack));
+            Assert.assertEquals(pack, clonePack);
             Board fromMap = positions.get(clonePack);
             Assert.assertEquals(board, fromMap);
         }
     }
 
     @Test
-    public void testEquality() throws Config.PGNException {
+    public void testEquality() {
         Pack p1 = new Pack(new int[] {0x20CD8F, 0xE1A71018, 0x6F040F0C, 0x73DCD70F, 0x7BF9BE6F, 0x12D});
         Pack p2 = new Pack(new int[] {0x20CD8F, 0xE1A71018, 0x6F040F04, 0x73DCD70F, 0x7BF9BE6F, 0x12D});
         Pack p3 = new Pack(new int[] {0x20CD8F, 0xE1A71018, 0x6F040F08, 0x73DCD70F, 0x7BF9BE6F, 0x12D});
@@ -122,4 +124,19 @@ public class PackTest extends BaseTest {
         expectedEx.expectMessage("Invalid position to pack:");
         int[] pack = invalid.pack();
     }
+
+    @Test
+    public void testUtil() throws IOException {
+        final String TEST_FILE_NAME = "xx.cpbmp";
+        int[] values = {1, 0x0ff, 0x07ee, 0xab0000, 0xabcdef, 0xffffff00};
+        for(int v : values) {
+            FileOutputStream fos = new FileOutputStream(TEST_TMP_ROOT + TEST_FILE_NAME);
+            Util.writeInt(fos, v);
+            fos.close();
+            FileInputStream fis = new FileInputStream(TEST_TMP_ROOT + TEST_FILE_NAME);
+            int val = Util.readInt(fis);
+            Assert.assertEquals(String.format("written 0x%04x != read 0x%04x", v, val), v, val);
+        }
+    }
+
 }

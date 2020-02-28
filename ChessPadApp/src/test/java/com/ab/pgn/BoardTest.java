@@ -29,7 +29,7 @@ import static org.mockito.Mockito.spy;
 @PrepareForTest({Board.class, BitStream.Reader.class, ByteArrayInputStream.class})
 public class BoardTest extends BaseTest {
     @Rule
-    public ExpectedException expectedEx = ExpectedException.none();
+    public final ExpectedException expectedEx = ExpectedException.none();
 
     @Test
     public void testBoard() {
@@ -54,9 +54,12 @@ public class BoardTest extends BaseTest {
                 Assert.assertEquals(Config.EMPTY, board.getPiece(i, j));
             }
         }
+//        assertNotEquals(board, new Board());  bug in junit?
         Assert.assertFalse(board.equals(new Board()));
         String fen = "rnbqkbnr/pppppppp/8/q/8/8/PPPPPPPP/RNBQKBNR w - - 0 1";
         Board invalid = new Board(fen);
+//        assertNotEquals(board, invalid);  bug in junit?
+//        assertNotEquals(invalid, board);  bug in junit?
         Assert.assertFalse(board.equals(invalid));
         Assert.assertFalse(invalid.equals(board));
     }
@@ -162,7 +165,7 @@ public class BoardTest extends BaseTest {
     }
 
     @Test(expected = Config.PGNException.class)
-    public void testPackException() throws IOException, Config.PGNException {
+    public void testPackException() throws Config.PGNException, IOException {
         BitStream.Writer writer = spy(new BitStream.Writer());
         doThrow(IOException.class).when(writer).write(anyInt(), anyInt());
         Board board = new Board();
@@ -171,7 +174,7 @@ public class BoardTest extends BaseTest {
     }
 
     @Test(expected = Config.PGNException.class)
-    public void testSerializeException() throws IOException, Config.PGNException {
+    public void testSerializeException() throws Config.PGNException, IOException {
         BitStream.Writer writer = spy(new BitStream.Writer());
         doThrow(IOException.class).when(writer).write(anyInt(), eq(Board.BOARD_COUNTS_PACK_LENGTH));
         Board board = new Board();

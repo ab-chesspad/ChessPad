@@ -9,8 +9,8 @@ import java.util.List;
  * Created by abootman on 11/27/16.
  */
 
-public interface TitleHolder {
-    String getTitleText();
+interface TitleHolder {
+    int getLength();
     void onTitleClick();
-    List<Pair<String, String>> getHeaders();
+    List<Pair<String, String>> getTags();
 }

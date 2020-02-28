@@ -9,7 +9,6 @@ import org.junit.rules.ExpectedException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,20 +25,21 @@ import java.util.regex.Pattern;
  * Created by Alexander Bootman on 8/7/16.
  */
 public class BaseTest {
-    public static boolean DEBUG = false;
-    public static int FLAGS_PROMOTION = 0x010000;
-    public static int FLAGS_ENPASSANT = 0x020000;
+    static final boolean DEBUG = false;
+    static final boolean USE_BIT_STREAMS = Config.USE_BIT_STREAMS;
+    static final int FLAGS_PROMOTION = 0x010000;
+    static final int FLAGS_ENPASSANT = 0x020000;
 
-    protected static String prefix = "";
+    static String prefix = "";
     static {
         // in IntelliJ working dir is <project>, in AndroidStudio is is <project>/app
         File testFile = new File("xyz");
-        if(testFile.getAbsoluteFile().getParent().endsWith("/app")) {
+        if(testFile.getAbsoluteFile().getParent().endsWith("/ChessPadApp")) {
             prefix = "../";
         }
     }
-    public static final String TEST_ROOT = prefix + "etc/test/";
-    public static final String TEST_TMP_ROOT = prefix + "etc/test_tmp/";
+    static final String TEST_ROOT = prefix + "etc/test/";
+    static final String TEST_TMP_ROOT = prefix + "etc/test_tmp/";
 
     /*
     public static String LOG_FILE_NAME = null;
@@ -47,18 +47,18 @@ public class BaseTest {
     public static String LOG_FILE_NAME = prefix + "log/cp.log";
     //*/
 
-    public static final String MY_HEADER = "Final";
-    public static final int ERR = -1;
-    public static final int TEST_SERIALIZATION_VERSION = 1;
+    static final String MY_TAG = "Final";
+    static final int ERR = -1;
+    static final int TEST_SERIALIZATION_VERSION = 1;
 
     final PgnLogger logger = PgnLogger.getLogger(this.getClass(), true);
 
     @Rule
-    public ExpectedException expectedEx = ExpectedException.none();
+    public final ExpectedException expectedEx = ExpectedException.none();
 
     @BeforeClass
-    public static void init() throws FileNotFoundException {
-        PgnItem.setRoot(new File(TEST_ROOT));
+    public static void init() {
+        CpFile.setRoot(new File(TEST_ROOT));
         File tmpTest = new File(TEST_TMP_ROOT);
         deleteDirectory(tmpTest);
         tmpTest.mkdirs();
@@ -67,19 +67,19 @@ public class BaseTest {
     }
 
     @After
-    public void restore() throws FileNotFoundException {
-        PgnItem.setRoot(new File(TEST_ROOT));
+    public void restore() {
+        CpFile.setRoot(new File(TEST_ROOT));
     }
 
-    public static boolean deleteDirectory(File directory) {
+    private static boolean deleteDirectory(File directory) {
         if (directory.exists()) {
             File[] files = directory.listFiles();
             if (null != files) {
-                for (int i = 0; i < files.length; i++) {
-                    if (files[i].isDirectory()) {
-                        deleteDirectory(files[i]);
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        deleteDirectory(file);
                     } else {
-                        files[i].delete();
+                        file.delete();
                     }
                 }
             }
@@ -87,7 +87,7 @@ public class BaseTest {
         return (directory.delete());
     }
 
-    public void copyDirectory(File sourceLocation, File targetLocation)
+    void copyDirectory(File sourceLocation, File targetLocation)
             throws IOException {
         if (sourceLocation.isDirectory()) {
             if (!targetLocation.exists()) {
@@ -112,7 +112,7 @@ public class BaseTest {
         }
     }
 
-    public boolean areEqual(Move m1, Move m2) {
+    boolean areEqual(Move m1, Move m2) {
         if(m1 == null && m2 == null) {
             return true;
         } else if(m1 == null || m2 == null) {
@@ -138,18 +138,15 @@ public class BaseTest {
         if(m1.getPiece() != m2.getPiece()) {
             return false;
         }
-        if(!areEqual(m1.variation, m2.variation)) {
-            return false;
-        }
-        return true;
+        return areEqual(m1.variation, m2.variation);
     }
 
-    public String finalFen2Header(String fen) {
-        return String.format("[%s \"%s\"]\n", MY_HEADER, fen);
+    String finalFen2Tag(String fen) {
+        return String.format("[%s \"%s\"]\n", MY_TAG, fen);
     }
 
-    public boolean areEqual(PgnGraph g1, PgnGraph g2) {
-        // ignore headers
+    boolean areEqual(PgnGraph g1, PgnGraph g2) {
+        // ignore tags
         if(g2.isModified() != g1.isModified()) {
             return false;
         }
@@ -172,7 +169,7 @@ public class BaseTest {
         return areEqual(g1, g1.rootMove, g2, g2.rootMove);
     }
 
-    public boolean areEqual(PgnGraph g1, Move _m1, PgnGraph g2, Move _m2) {
+    private boolean areEqual(PgnGraph g1, Move _m1, PgnGraph g2, Move _m2) {
         Move m1 = _m1, m2 = _m2;
         while(m1 != null && m2 != null) {
             if(!areEqual(m1, m2)) {
@@ -180,9 +177,6 @@ public class BaseTest {
             }
             Board b1 = g1.getBoard(m1);
             Board b2 = g2.getBoard(m2);
-            if(b2 == null) {
-                b2 = null;
-            }
             if(!b2.equals(b1)) {
                 return false;
             }
@@ -206,7 +200,7 @@ public class BaseTest {
         return m1 == m2;    // both nulls
     }
 
-    public String invert(String move) {
+    String invert(String move) {
         if(move.startsWith(Config.PGN_K_CASTLE_ALT) || move.startsWith(Config.PGN_Q_CASTLE_ALT)) {
             return move;
         }
@@ -243,7 +237,7 @@ public class BaseTest {
         return trg;
     }
 
-    public Board invert(Board src) {
+    Board invert(Board src) {
         Board trg = new Board();
         trg.toEmpty();
         for(int y = 0; y < Config.BOARD_SIZE; ++y) {
@@ -283,77 +277,85 @@ public class BaseTest {
         return res;
     }
 
-    public List<PgnGraph> parse2PgnGraphs(String pgn) throws Config.PGNException {
+    List<PgnGraph> parse2PgnGraphs(String pgn) throws Config.PGNException {
         List<PgnGraph> res = new LinkedList<>();
         BufferedReader br = new BufferedReader(new StringReader(pgn));
-        final List<PgnItem> items = new LinkedList<>();
-        PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
+        final List<CpFile> items = new LinkedList<>();
+        CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
+            public boolean handle(CpFile entry, BufferedReader bufferedReader) {
                 items.add(entry);
                 return true;
             }
 
             @Override
-            public boolean getMoveText(PgnItem entry) {
+            public boolean getMoveText(CpFile entry) {
                 return true;
             }
 
             @Override
-            public void addOffset(int length, int totalLength) {
+            public boolean addOffset(int length, int totalLength) {
+                return false;
+            }
 
+            @Override
+            public boolean skip(CpFile entry) {
+                return false;
             }
         });
 
-        for (PgnItem item : items) {
+        for (CpFile item : items) {
             logger.debug(item.toString());
-            res.add(new PgnGraph((PgnItem.Item) item, null));
+            res.add(new PgnGraph((CpFile.Item) item, null));
         }
         return res;
     }
 
-    private PgnItem.Item pgnFromFen(String fen) throws Config.PGNException {
+    private CpFile.Item pgnFromFen(String fen) throws Config.PGNException {
         String pgn = String.format("[FEN \"%s\"]", fen);
         BufferedReader br = new BufferedReader(new StringReader(pgn));
-        final List<PgnItem> items = new LinkedList<>();
-        PgnItem.parsePgnItems(null, br, new PgnItem.EntryHandler() {
+        final List<CpFile> items = new LinkedList<>();
+        CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
             @Override
-            public boolean handle(PgnItem entry, BufferedReader bufferedReader) throws Config.PGNException {
+            public boolean handle(CpFile entry, BufferedReader bufferedReader) {
                 items.add(entry);
                 return true;
             }
 
             @Override
-            public boolean getMoveText(PgnItem entry) {
+            public boolean getMoveText(CpFile entry) {
                 return true;
             }
 
             @Override
-            public void addOffset(int length, int totalLength) {
+            public boolean addOffset(int length, int totalLength) {
+                return false;
+            }
 
+            @Override
+            public boolean skip(CpFile entry) {
+                return false;
             }
         });
         Assert.assertEquals(items.size(), 1);
-        PgnItem.Item item = (PgnItem.Item) items.get(0);
-        return item;
+        return (CpFile.Item) items.get(0);
     }
 
-    private void testMove(PgnItem.Item item, String moveText, int resultFlags) throws Config.PGNException {
-        int expectedFlags = resultFlags;
+    private void testMove(CpFile.Item item, String moveText, int resultFlags) throws Config.PGNException {
         item.setMoveText("");
         PgnGraph pgnGraph = new PgnGraph(item, null);
         Board initBoard = pgnGraph.getInitBoard();
         Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
         Util.parseMove(move, moveText);
         boolean res = pgnGraph.validateUserMove(move);
-        if(expectedFlags == ERR) {
+        if(resultFlags == ERR) {
             Assert.assertFalse(String.format("%s must be error\n%s", moveText, initBoard.toString()), res);
         } else {
             Assert.assertTrue(String.format("%s must be ok\n%s", moveText, initBoard.toString()), res);
             pgnGraph.addMove(move);
 
             int moveFlags = move.moveFlags & Config.MOVE_FLAGS;
-            int expectedMoveFlags = expectedFlags & Config.MOVE_FLAGS;
+            int expectedMoveFlags = resultFlags & Config.MOVE_FLAGS;
             if((expectedMoveFlags & Config.FLAGS_Y_AMBIG) == 0) {
                 moveFlags &= ~Config.FLAGS_Y_AMBIG; // kludgy hack for Util.parseMove
             }
@@ -365,7 +367,7 @@ public class BaseTest {
                     moveFlags, expectedMoveFlags);
             Board board = pgnGraph.getBoard();
             int positionFlags = board.getFlags() & Config.POSITION_FLAGS;
-            int expectedPositionFlags = (expectedFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
+            int expectedPositionFlags = (resultFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
             Assert.assertEquals(String.format("%s\n%s\nposition flags 0x%04x != 0x%04x", moveText, board.toString(), positionFlags, expectedPositionFlags),
                     positionFlags, expectedPositionFlags);
         }
@@ -378,7 +380,7 @@ public class BaseTest {
      * @param moves array of moves with expected result
      * @throws Config.PGNException
      */
-    public void testUserMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
+    void testUserMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
         Board initBoard = new Board(fen);
         Assert.assertEquals(String.format("%s != %s", fen, initBoard.toFEN()), fen, initBoard.toFEN());
 
@@ -400,27 +402,27 @@ public class BaseTest {
     }
 
     void testUserMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
-        int expectedFlags = resultFlags;
         Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
         try {
             Util.parseMove(move, moveText);
         } catch (Config.PGNException e) {
-            if(expectedFlags == ERR) {
+            if(resultFlags == ERR) {
                 return;
             }
-            Assert.assertTrue(String.format("%s must be ok, %s", moveText, e.getMessage()), false);
+            Assert.fail(String.format("%s must be ok, %s", moveText, e.getMessage()));
         }
         PgnGraph pgnGraph = new PgnGraph(initBoard);
         boolean res = pgnGraph.validateUserMove(move);
-        if(expectedFlags == ERR) {
+        if(resultFlags == ERR) {
             Assert.assertFalse(String.format("%s must be error\n%s", moveText, initBoard.toString()), res);
         } else {
             Assert.assertTrue(String.format("%s must be ok\n%s", moveText, initBoard.toString()), res);
             pgnGraph.addUserMove(move);
+            logger.debug(pgnGraph.toPgn());
 
             Board board = pgnGraph.getBoard();
             int moveFlags = move.moveFlags & Config.MOVE_FLAGS;
-            int expectedMoveFlags = expectedFlags & Config.MOVE_FLAGS;
+            int expectedMoveFlags = resultFlags & Config.MOVE_FLAGS;
             if((expectedMoveFlags & Config.FLAGS_Y_AMBIG) == 0) {
                 moveFlags &= ~Config.FLAGS_Y_AMBIG; // kludgy hack for Util.parseMove
             }
@@ -431,13 +433,13 @@ public class BaseTest {
             Assert.assertEquals(String.format("%s\n%s\nmove flags 0x%04x != 0x%04x", moveText, board.toString(), moveFlags, expectedMoveFlags),
                     moveFlags, expectedMoveFlags);
             int positionFlags = board.getFlags() & Config.POSITION_FLAGS;
-            int expectedPositionFlags = (expectedFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
+            int expectedPositionFlags = (resultFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
             Assert.assertEquals(String.format("%s\n%s\nposition flags 0x%04x != 0x%04x", moveText, board.toString(), positionFlags, expectedPositionFlags),
                     positionFlags, expectedPositionFlags);
-            if((expectedFlags & FLAGS_PROMOTION) != 0) {
+            if((resultFlags & FLAGS_PROMOTION) != 0) {
                 Assert.assertTrue(String.format("%s must be promotion", moveText), move.isPromotion());
             }
-            if((expectedFlags & FLAGS_ENPASSANT) != 0) {
+            if((resultFlags & FLAGS_ENPASSANT) != 0) {
                 Assert.assertTrue(String.format("%s must be en passant", moveText), initBoard.isEnPassant(move));
             }
 
@@ -454,7 +456,7 @@ public class BaseTest {
      * @param moves array of moves with expected result
      * @throws IOException
      */
-    public void testPgnMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
+    void testPgnMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
         Board initBoard = new Board(fen);
         Assert.assertEquals(String.format("%s != %s", fen, initBoard.toFEN()), fen, initBoard.toFEN());
 
@@ -475,22 +477,21 @@ public class BaseTest {
         }
     }
 
-    void testPgnMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
-        int expectedFlags = resultFlags;
+    private void testPgnMove(Board initBoard, String moveText, int resultFlags) throws Config.PGNException {
         Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
         PgnGraph pgnGraph = new PgnGraph(initBoard);
 
         try {
             Util.parseMove(move, moveText);
         } catch (Config.PGNException e) {
-            if(expectedFlags == ERR) {
+            if(resultFlags == ERR) {
                 return;
             }
-            Assert.assertTrue(String.format("%s must be ok, %s", moveText, e.getMessage()), false);
+            Assert.fail(String.format("%s must be ok, %s", moveText, e.getMessage()));
         }
 
         boolean res = pgnGraph.validatePgnMove(move);
-        if(expectedFlags == ERR) {
+        if(resultFlags == ERR) {
             Assert.assertFalse(String.format("%s validatePgnMove must be error\n%s", moveText, initBoard.toString()), res);
         } else {
             Assert.assertTrue(String.format("%s validatePgnMove must be ok\n%s", moveText, initBoard.toString()), res);
@@ -499,31 +500,31 @@ public class BaseTest {
             Board board = pgnGraph.getBoard();
 
             int moveFlags = move.moveFlags & Config.MOVE_FLAGS;
-            int expectedMoveFlags = expectedFlags & Config.MOVE_FLAGS;
+            int expectedMoveFlags = resultFlags & Config.MOVE_FLAGS;
             Assert.assertEquals(String.format("%s\n%s\nmove flags 0x%04x != 0x%04x", moveText, initBoard.toString(), moveFlags, expectedMoveFlags),
                     moveFlags, expectedMoveFlags);
             int positionFlags = board.getFlags() & Config.POSITION_FLAGS;
-            int expectedPositionFlags = (expectedFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
+            int expectedPositionFlags = (resultFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
             Assert.assertEquals(String.format("%s\n%s\nposition flags 0x%04x != 0x%04x", moveText, initBoard.toString(), positionFlags, expectedPositionFlags),
                     positionFlags, expectedPositionFlags);
-            if((expectedFlags & FLAGS_PROMOTION) != 0) {
+            if((resultFlags & FLAGS_PROMOTION) != 0) {
                 Assert.assertTrue(String.format("%s must be promotion", moveText), move.isPromotion());
             }
-            if((expectedFlags & FLAGS_ENPASSANT) != 0) {
+            if((resultFlags & FLAGS_ENPASSANT) != 0) {
                 Assert.assertTrue(String.format("%s must be en passant", moveText), initBoard.isEnPassant(move));
             }
         }
     }
 
     public void _testMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
-        PgnItem.Item item = pgnFromFen(fen);
+        CpFile.Item item = pgnFromFen(fen);
         PgnGraph pgnGraph = new PgnGraph(item, null);
         Board initBoard = pgnGraph.getInitBoard();
         Assert.assertEquals(String.format("%s != %s", fen, initBoard.toFEN()), fen, initBoard.toFEN());
 
         Board invertedInitBoard = invert(initBoard);
         String invertedFen = invertedInitBoard.toFEN();
-        PgnItem.Item invertedItem = pgnFromFen(invertedFen);
+        CpFile.Item invertedItem = pgnFromFen(invertedFen);
         Assert.assertEquals(String.format("%s != %s", invertedFen, invertedInitBoard.toFEN()), invertedFen, invertedInitBoard.toFEN());
         PgnGraph invertedPgnGraph = new PgnGraph(invertedItem, null);
         invertedInitBoard = invertedPgnGraph.getInitBoard();

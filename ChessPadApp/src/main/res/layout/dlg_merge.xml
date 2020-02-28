@@ -9,7 +9,7 @@
       android:orientation="vertical"
     >
 
-    <TextView
+    <TextView android:id="@+id/append_path_title"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
@@ -32,13 +32,16 @@
             android:layout_marginTop="-5dp"
             android:gravity="center"
             android:inputType="textMultiLine"
+            android:importantForAutofill="no"
+            android:hint="@string/hint_file_name"
             />
 
         <ImageButton android:id="@+id/lookup_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:src="@android:drawable/ic_menu_search"
+            android:src="@drawable/lookup"
+            android:contentDescription="@string/lookup_button_description"
             />
 
     </LinearLayout>
@@ -73,6 +76,8 @@
                 android:layout_marginLeft="-10dp"
                 android:layout_marginTop="-5dp"
                 android:inputType="numberDecimal"
+                android:importantForAutofill="no"
+                android:hint="@string/hint_merge_start"
                 />
 
             <TextView
@@ -92,6 +97,8 @@
                 android:layout_marginLeft="-10dp"
                 android:layout_marginTop="-5dp"
                 android:inputType="numberDecimal"
+                android:importantForAutofill="no"
+                android:hint="@string/hint_merge_end"
                 />
         </LinearLayout>
 
@@ -119,6 +126,8 @@
                 android:layout_marginLeft="-10dp"
                 android:layout_marginTop="-5dp"
                 android:inputType="numberDecimal"
+                android:importantForAutofill="no"
+                android:hint="@string/hint_max_plys"
                 />
 
             <TextView
@@ -145,10 +154,29 @@
         android:visibility="gone"
         />
 
-    <Button android:id="@+id/ok_button"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/ok"
-        />
+    <LinearLayout android:id="@+id/end_dialog_buttons_pane"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal"
+        >
+
+        <Button
+            android:id="@+id/btn_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/cancel"
+            />
+
+        <Button
+            android:id="@+id/btn_done"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/ok"
+            />
+
+    </LinearLayout>
 
 </LinearLayout>

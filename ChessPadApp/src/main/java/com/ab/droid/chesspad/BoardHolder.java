@@ -10,9 +10,8 @@ import com.ab.pgn.Square;
 
 public interface BoardHolder {
     Board getBoard();
+    int getBoardViewSize();
     boolean onSquareClick(Square clicked);
-    boolean onFling(Square clicked);
+    void onFling(Square clicked);
     int[] getBGResources();
-    void setReversed(boolean reversed);
-    boolean isReversed();
 }
