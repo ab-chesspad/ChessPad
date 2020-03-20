@@ -100,7 +100,7 @@ abstract class CPArrayAdapter extends ArrayAdapter {
         return item;
     }
 
-    class RowViewHolder {
+    static class RowViewHolder {
         int index;
         TextView labelView;
         TextView valueView;

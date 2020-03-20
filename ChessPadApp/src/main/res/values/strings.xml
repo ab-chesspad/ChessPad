@@ -41,6 +41,8 @@
     <string name="menu_study">Study</string>
     <string name="menu_endgame">Endgame</string>
     <string name="menu_about">About</string>
+    <string name="menu_analysis">Analysis</string>
+    <string name="menu_stop_analysis">Stop Analysis</string>
 
     <string name="label_en_pass">En passant: </string>
     <string name="label_halfmove_clock">Halfmove clock: </string>
@@ -58,7 +60,6 @@
     <string name="hint_max_plys"> </string>
 
     <string name="lookup_button_description">Lookup for folder/file</string>
-
     <string name="dgt_status_game">Recording...</string>
 
     <!--FICS resources:-->

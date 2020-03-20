@@ -30,6 +30,7 @@
                     <excludes>
                         <exclude>etc</exclude>
                         <exclude>ChessPadApp/src/main/java/com/ab/droid/chesspad/*.java</exclude>
+                        <exclude>ChessPadApp/src/main/java/com/ab/droid/engine/**/*.java</exclude>
                     </excludes>
                     <source>${sourceJavaVersion}</source>
                     <target>${targetJavaVersion}</target>

@@ -15,6 +15,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.StringReader;
 import java.util.LinkedList;
@@ -539,8 +540,6 @@ public class PgnGraphTest extends BaseTest {
                 pack = new Pack(m.packData);  // init board
             }
             graph.rootMove.packData = graph.moveLine.getLast().packData;
-//            String s = graph.toPgn();
-//            Assert.assertEquals(0, graph.getNumberOfMissingVertices());
             mergedGraphs[i] = graph;
         }
         for(int i = 1; i < mergedGraphs.length; ++i) {
@@ -762,5 +761,49 @@ public class PgnGraphTest extends BaseTest {
         logger.debug(String.format("white, %s", move.comment));
         PgnGraph.modifyStatisticsComment(move, "1/2-1/2");
         logger.debug(String.format("draw, %s", move.comment));
+    }
+
+    @Test
+//    @Ignore("todo: move this code to buildSrc and use com.ab.pgn package")
+    public void runBookBuilder() throws Config.PGNException {
+        final String DATA_DIR = "../../ChessPadApp/src/main/book/";
+        final String ecoFileName = DATA_DIR + "eco.pgn";
+        final String internalBookFileName = TEST_ROOT + DATA_DIR + "internal_openings.txt";
+        final String outputFileName = TEST_ROOT + "../../ChessPadApp/src/main/assets/book/combined.book";
+
+        Book.Builder.build(ecoFileName, internalBookFileName, outputFileName);
+    }
+
+    // can run only after runBookBuilder()
+    @Test
+//    @Ignore("lond test")
+    public void testBook() throws Config.PGNException, IOException {
+        String fileName = TEST_ROOT + "/../../ChessPadApp/src/main/assets/book/combined.book";
+        File f = new File(fileName);
+        long length = f.length();
+        InputStream is = new FileInputStream(f);
+        Book book = new Book(is, length);
+
+        String[] moveLines = {
+                "e4 c5 Nc3 Nc6 f4",
+                "Nc3 Nf6 Nb1 Ng8 Nc3 c5 f4 Nc6 e4",
+        };
+
+        for(int i = 0; i < moveLines.length; ++i) {
+            String moveLine = moveLines[i];
+            PgnGraph graph = new PgnGraph();
+            graph.parseMoves(moveLine, null);
+            Board board = graph.getBoard();
+            List<Move> moves = book.getMoves(board);
+            System.out.print(board.toString());
+            if(moves == null) {
+                System.out.println("no book moves");
+            } else {
+                for (Move m : moves) {
+                    System.out.printf("\t%s\n", m.toCommentedString());
+                }
+            }
+            System.out.println();
+        }
     }
 }

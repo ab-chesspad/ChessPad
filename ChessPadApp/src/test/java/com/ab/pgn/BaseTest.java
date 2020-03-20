@@ -515,31 +515,4 @@ public class BaseTest {
             }
         }
     }
-
-    public void _testMoves(String fen, Pair<String, Integer>[] moves) throws Config.PGNException {
-        CpFile.Item item = pgnFromFen(fen);
-        PgnGraph pgnGraph = new PgnGraph(item, null);
-        Board initBoard = pgnGraph.getInitBoard();
-        Assert.assertEquals(String.format("%s != %s", fen, initBoard.toFEN()), fen, initBoard.toFEN());
-
-        Board invertedInitBoard = invert(initBoard);
-        String invertedFen = invertedInitBoard.toFEN();
-        CpFile.Item invertedItem = pgnFromFen(invertedFen);
-        Assert.assertEquals(String.format("%s != %s", invertedFen, invertedInitBoard.toFEN()), invertedFen, invertedInitBoard.toFEN());
-        PgnGraph invertedPgnGraph = new PgnGraph(invertedItem, null);
-        invertedInitBoard = invertedPgnGraph.getInitBoard();
-        Assert.assertEquals(String.format("%s != %s", invertedFen, invertedInitBoard.toFEN()), invertedFen, invertedInitBoard.toFEN());
-
-        for (Pair<String, Integer> entry : moves) {
-            testMove(item, entry.first, entry.second);
-
-            // test inverted board:
-            String invertedMove = invert(entry.first);
-            int invertedExpectedFlags = entry.second;
-            if (entry.second != ERR) {
-                invertedExpectedFlags = invertBoardFlags(entry.second);
-            }
-            testMove(invertedItem, invertedMove, invertedExpectedFlags);
-        }
-    }
 }

@@ -4,6 +4,8 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/ChessPad.iml" filepath="$PROJECT_DIR$/ChessPad.iml" group="ChessPad" />
       <module fileurl="file://$PROJECT_DIR$/ChessPadApp/ChessPadApp.iml" filepath="$PROJECT_DIR$/ChessPadApp/ChessPadApp.iml" group="ChessPad/ChessPadApp" />
+      <module fileurl="file://$PROJECT_DIR$/cli/cli.iml" filepath="$PROJECT_DIR$/cli/cli.iml" />
+      <module fileurl="file://$PROJECT_DIR$/pgn/pgn.iml" filepath="$PROJECT_DIR$/pgn/pgn.iml" />
     </modules>
   </component>
 </project>

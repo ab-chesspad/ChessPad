@@ -7,6 +7,7 @@ import android.text.InputType;
 import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
@@ -23,7 +24,7 @@ import java.util.Locale;
 
 class GameView extends ChessPadView.CpView {
 
-    private TextView glyph, move;
+    private TextView glyph, move, analysis;
     private ChessPadView.CpEditText comment;
     boolean navigationEnabled = true;
 
@@ -146,6 +147,12 @@ class GameView extends ChessPadView.CpView {
             }
         });
 
+        analysis = new TextView(chessPad);
+        analysis.setFocusable(false);
+//        move.setSingleLine();
+        analysis.setBackgroundColor(Color.CYAN);
+        analysis.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+
         int _paneWidth;
         if (Metrics.isVertical) {
             x = 0;  // xSpacing;a
@@ -176,15 +183,23 @@ class GameView extends ChessPadView.CpView {
                 Metrics.paneWidth - Metrics.buttonSize, y, Metrics.buttonSize, Metrics.titleHeight, R.drawable.delete);
 
         y += Metrics.titleHeight + Metrics.ySpacing;
-        int h = Metrics.screenHeight - y;
+//        int h = Metrics.screenHeight - y;
+        int h = Metrics.paneHeight - y;
         ChessPadView.addTextView(relativeLayoutGame, comment, x, y, Metrics.paneWidth, h);
+        int ah;
         if (Metrics.isVertical) {
+            analysis.setSingleLine(true);
+            ah = Metrics.titleHeight;
             Metrics.cpScreenWidth = Metrics.screenWidth;
             Metrics.cpScreenHeight = y + h;
         } else {
+            analysis.setSingleLine(false);
+            ah = 2 * Metrics.titleHeight;
             Metrics.cpScreenWidth = Metrics.screenWidth;
             Metrics.cpScreenHeight = y + h;
         }
+        y = Metrics.paneHeight - ah;
+        ChessPadView.addTextView(relativeLayoutGame, analysis, x, Metrics.paneHeight - ah, Metrics.paneWidth, ah);
         setButtonEnabled(ChessPad.Command.Stop.getValue(), false);
     }
 
@@ -198,6 +213,7 @@ class GameView extends ChessPadView.CpView {
         } else {
             boardView.setSelected(chessPad.selectedSquare);
         }
+        boardView.setHints(chessPad.getHints());
 
         move.setText(chessPad.getPgnGraph().getNumberedMove());
         int g = chessPad.getPgnGraph().getGlyph();
@@ -207,6 +223,13 @@ class GameView extends ChessPadView.CpView {
             glyph.setText(String.format(Locale.getDefault(), "%s%d", Config.PGN_GLYPH, g));
         }
         comment.setText(chessPad.getPgnGraph().getComment());
+        if(chessPad.doAnalysis) {
+            analysis.setVisibility(View.VISIBLE);
+            analysis.setText(chessPad.getAnalysisMessage());
+        } else {
+            analysis.setVisibility(View.GONE);
+        }
+
         if (navigationEnabled) {
             if (chessPad.isFirstMove()) {
                 imageButtons[ChessPad.Command.Start.getValue()].setImageResource(R.drawable.prev_game);

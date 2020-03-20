@@ -21,11 +21,11 @@ android {
         }
     }
 
-//    externalNativeBuild {
-//        ndkBuild {
-//            path file('src/main/cpp/Android.mk')
-//        }
-//    }
+    externalNativeBuild {
+        ndkBuild {
+            path file('src/main/cpp/Android.mk')
+        }
+    }
 
     lintOptions {
         abortOnError false
@@ -73,31 +73,25 @@ dependencies {
 //    androidTestImplementation 'com.google.dexmaker:dexmaker-mockito:1.2'
 }
 
-//// Build the ECO database
-//task buildEco {
+// Copy Stockfish executables to assets directory
+task copyToAssets(type: Copy, dependsOn: 'externalNativeBuildRelease') {
+    from('build/intermediates/ndkBuild/release/obj/local') {
+        include '*/stockfish'
+    }
+    into 'src/main/assets'
+}
+tasks.withType(JavaCompile) {
+    t -> t.dependsOn copyToAssets
+}
+
+// Build combined opening book
+// should be here, but it seems that buildSrc cannot use the main code
+//task buildOpeningBook {
 //    def a = "buildSrc/src/main/data/eco.pgn"
-//    def b = "ChessPadApp/src/main/assets/eco.dat"
-//    chess.EcoBuilder.main2(a, b)
-//}
-//preBuild.dependsOn buildEco
-//
-//// Copy Stockfish executables to assets directory
-//task copyToAssets(type: Copy, dependsOn: 'externalNativeBuildRelease') {
-//    from('build/intermediates/ndkBuild/release/obj/local') {
-//        include '*/stockfish'
-//    }
-//    into 'src/main/assets'
+//    def i = "buildSrc/src/main/data/internal_openings.txt"
+//    def r = "ChessPadApp/src/main/assets/book/combined.book"
+//    BookBuilder.build(a, i, r)
 //}
 //tasks.withType(JavaCompile) {
-//    t -> t.dependsOn copyToAssets
-//}
-//
-//// Build internal opening book
-//task buildBook {
-//    def a = "buildSrc/src/main/data/internal_openings.txt"
-//    def b = "ChessPadApp/src/main/assets/internal_openings.bin"
-//    chess.Book.main2(a, b)
-//}
-//tasks.withType(JavaCompile) {
-//    t -> t.dependsOn buildBook
+//    t -> t.dependsOn buildOpeningBook
 //}

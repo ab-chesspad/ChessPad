@@ -1,5 +1,6 @@
 package com.ab.pgn;
 
+import java.util.Locale;
 import java.util.StringTokenizer;
 
 /**
@@ -28,7 +29,7 @@ class PgnParser {
             while (st.hasMoreTokens()) {
                 token = st.nextToken(DELIMITERS).trim();
                 if(DEBUG) {
-                    System.out.println(String.format("%d: \"%s\"", offset, token));
+                    System.out.println(String.format(Locale.US, "%d: \"%s\"", offset, token));
                 }
                 offset += token.length() + 1;   // approximate
                 progressNotifier.setOffset(offset, moveText.length());

@@ -234,9 +234,6 @@ public class Popups {
             case DeleteYesNo:
                 if (chessPad.isFirstMove()) {
                     dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_game), R.drawable.exclamation, Popups.DialogButton.YesNo);
-                } else if (chessPad.getPgnGraph().isEnd()) {
-                    chessPad.getPgnGraph().delCurrentMove();
-                    chessPad.chessPadView.invalidate();
                 } else {
                     dlgMessage(Popups.DialogType.DeleteYesNo, getResources().getString(R.string.msg_del_move), 0, Popups.DialogButton.YesNo);
                 }
@@ -419,6 +416,7 @@ public class Popups {
                 dismissDlg();
                 Move variation = (Move) selectedValue;
                 chessPad.getPgnGraph().toVariation(variation);
+                chessPad.notifyUci();
                 break;
 
             case DeleteYesNo:
@@ -1290,9 +1288,9 @@ public class Popups {
                     try {
                         cpFileList = parentItem.getChildrenNames((progress) -> {
                             if(progress < 0) {
-                                // on OOM additional diagnostics require more memory and crashes
+                                // on OOM additional diagnostics require more memory and crash
 //                                String message = "ERROR, list truncated to " + (-progress);
-                                chessPad.reportError(Config.MSG_OOM, "Operation aborted");
+                                chessPad.sendMessage(Config.MSG_OOM, "Operation aborted");
                                 return true;
                             }
                             if(DEBUG) {

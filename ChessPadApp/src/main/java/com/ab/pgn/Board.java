@@ -641,14 +641,14 @@ public class Board {
     public int validateSetup(boolean correct) {
         int y, x;
         int[][] count = {
-                // w, b, max, init
-                {0, 0, 16, 16}, // total
-                {0, 0, 1, 1},  // k
-                {0, 0, 9, 1},  // q
-                {0, 0, 10, 2}, // b
-                {0, 0, 10, 2}, // n
-                {0, 0, 10, 2}, // r
-                {0, 0, 8, 8},  // p
+            // w, b, max, init
+            {0, 0, 16, 16}, // total
+            {0, 0, 1, 1},  // k
+            {0, 0, 9, 1},  // q
+            {0, 0, 10, 2}, // b
+            {0, 0, 10, 2}, // n
+            {0, 0, 10, 2}, // r
+            {0, 0, 8, 8},  // p
         };
 
         Square[] king = new Square[2];

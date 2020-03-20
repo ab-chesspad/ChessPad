@@ -23,8 +23,10 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.pm.PackageInfoCompat;
 
+import com.ab.droid.engine.stockfish.StockFishEngine;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Board;
+import com.ab.pgn.Book;
 import com.ab.pgn.Config;
 import com.ab.pgn.CpEventObserver;
 import com.ab.pgn.CpFile;
@@ -38,6 +40,8 @@ import com.ab.pgn.dgtboard.DgtBoardPad;
 import com.ab.pgn.fics.FicsPad;
 import com.ab.pgn.fics.chat.InboundMessage;
 
+import org.petero.droidfish.engine.UCIEngine;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -48,6 +52,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -62,7 +67,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     private static final boolean DEBUG_DGT_BOARD = false;
 
     private static final boolean NEW_FEATURE_FICS = false;     // fics software is buggy and seems not too popular
-    public static boolean USE_BIT_STREAMS = Config.USE_BIT_STREAMS;
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private static final String
@@ -73,9 +77,12 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         PUZZLE_INFO_EXT = ".info",
         PUZZLE_UPDATE_FILENAMEPUZZLE_UPDATE_FILENAME = "-upd" + CpFile.EXT_PGN,
         PUZZLE_TAG = "Puzzle",
+        BOOK_ASSET_NAME = "book/combined.book",
         str_dummy = null;
 
     private static final int
+        MAX_ENGINE_HINTS = 2,       // todo: prefs
+        MAX_BOOK_HINTS = 5,         // todo: prefs
         MIN_PUZZLE_TEXT_LENGTH = 40,    // or slightly less? [FEN "8/8/8/8/K7/8/8/7k w - - 0 1"]
         int_dummy = 0;
 
@@ -154,6 +161,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
     private enum MenuCommand {
         Load,
+        Analysis,
         Puzzle,
         Merge,
         Save,
@@ -213,6 +221,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     transient private String intentFileName = null;
     transient private boolean isDestroying = false;
     private static String defaultDirectory;
+    transient private UCIEngine uciEngine;
+    transient private UCIEngine.IncomingInfoMessage uciengineInfoMessage;
+    boolean doAnalysis;
+    transient private Book openingBook;
 
     private static ChessPad instance;
     public static ChessPad getInstance() {
@@ -296,6 +308,61 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         if(NEW_FEATURE_FICS) {
             // problem with androidx.appcompat:appcompat:1.0.2
             dingPlayer = MediaPlayer.create(this, R.raw.ding);
+        }
+
+        try (InputStream is = this.getAssets().open(BOOK_ASSET_NAME)) {
+            int length = is.available();
+            openingBook = new Book(is, length);
+        } catch (IOException | Config.PGNException e) {
+            e.printStackTrace();
+            Toast.makeText(ChessPad.this, e.getMessage() + "\n" + "Opening book failed to open", Toast.LENGTH_LONG).show();
+        }
+
+        final File engineWorkDir = new File("");
+        uciEngine = new StockFishEngine(this, new UCIEngine.EngineWatcher() {
+            @Override
+            public String getEngineWorkDirectory() {
+                return engineWorkDir.getAbsolutePath();
+            }
+
+            @Override
+            public String getCurrentFen() {
+                if(openingBook.getMoves(getBoard()) == null) {
+                    return getPgnGraph().getBoard().toFEN();
+                }
+                return null;
+            }
+
+            @Override
+            public void engineOk() {
+                uciEngine.setOption("Hash", 64);
+                // do we need this?
+//        uciEngine.setOption("SyzygyPath", "/storage/emulated/0/DroidFish/rtb");
+//        uciEngine.setOption("SyzygyPath", "/storage/emulated/0/DroidFish/rtb");
+            }
+
+            @Override
+            public void acceptAnalysis(UCIEngine.IncomingInfoMessage uciengineInfoMessage) {
+                Log.d(DEBUG_TAG, uciengineInfoMessage.toString());
+                if (ChessPad.this.uciengineInfoMessage != null &&
+                        uciengineInfoMessage.getMoves() != null &&
+                        ChessPad.this.uciengineInfoMessage.getMoves() != null &&
+                        ChessPad.this.uciengineInfoMessage.getMoves().startsWith(uciengineInfoMessage.getMoves())) {
+                    return;
+                }
+                ChessPad.this.uciengineInfoMessage = uciengineInfoMessage;
+                sendMessage(Config.MSG_REFRESH_SCREEN, null);
+            }
+
+            @Override
+            public void reportError(String message) {
+                Log.e(DEBUG_TAG, message);
+            }
+        });
+        try {
+            uciEngine.launch();
+        } catch (IOException e) {
+            Log.e(DEBUG_TAG, e.getMessage(), e);
         }
     }
 
@@ -394,6 +461,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 }
             }
         }
+        uciEngine.doAnalysis(doAnalysis);
         if(intentFileName == null) {
             chessPadView.invalidate();
         }
@@ -414,9 +482,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     protected void onStop() {
         super.onStop();
         Log.d(DEBUG_TAG, "onStop()");
-        if(merging) {
+        if (merging) {
             return;     // skip serialization
         }
+        uciEngine.doAnalysis(false);    // no BG analysis
         serializeUI();
         serializePgnGraph();
     }
@@ -426,6 +495,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     @Override
     protected void onDestroy() {
         Log.d(DEBUG_TAG, "onDestroy()");
+        uciEngine.shutDown();
         isDestroying = true;
         popups.dismissDlg();
         dgtBoardInterface.close();
@@ -480,7 +550,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                    pausing, stopping and destroying an activity.
                    The user interface has moved to the background.
                 */
-
                 break;
 
             case ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE:
@@ -574,6 +643,13 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             enabled = false;
         }
         menuItems.add(new MenuItem(MenuCommand.Load, getResources().getString(R.string.menu_load), enabled));
+        if(mode == Mode.Game) {
+            if(doAnalysis) {
+                menuItems.add(new MenuItem(MenuCommand.Analysis, getResources().getString(R.string.menu_stop_analysis), enabled));
+            } else {
+                menuItems.add(new MenuItem(MenuCommand.Analysis, getResources().getString(R.string.menu_analysis), enabled));
+            }
+        }
         menuItems.add(new MenuItem(MenuCommand.Puzzle, getResources().getString(R.string.menu_puzzle), enabled));
         boolean enableMerge = enabled && mode == Mode.Game && pgnGraph.getInitBoard().equals(new Board());
         menuItems.add(new MenuItem(MenuCommand.Merge, getResources().getString(R.string.menu_merge), enableMerge));
@@ -725,6 +801,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         } catch (IOException|Config.PGNException e) {
             Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
         }
+        notifyUci();
         chessPadView.invalidate();
         unserializing = false;
         chessPadView.enableCommentEdit(true);
@@ -746,16 +823,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 writer.write(1, 1);
                 nextPgnFile.serialize(writer);
             }
-            if (flipped) {
-                writer.write(1, 1);
-            } else {
-                writer.write(0, 1);
-            }
-            if (oldFlipped) {
-                writer.write(1, 1);
-            } else {
-                writer.write(0, 1);
-            }
+            writer.write(flipped ? 1 : 0, 1);
+            writer.write(oldFlipped ? 1 : 0, 1);
             if (selectedSquare == null) {
                 writer.write(0, 1);
             } else {
@@ -769,6 +838,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             } else {
                 writer.write(0, 1);
             }
+            writer.write(doAnalysis ? 1 : 0, 1);
             ficsSettings.serialize(writer);
             popups.serialize(writer);
         } catch (Config.PGNException | IOException e) {
@@ -806,6 +876,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                     ficsPad = new FicsPad(reader, versionCode);
                     ficsCommand = reader.readString();
                 }
+                doAnalysis = reader.read(1) == 1;
                 ficsSettings.unserialize(reader);
                 popups.unserialize(reader);
                 if(selectedSquare != null) {
@@ -854,6 +925,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                         toNextGame(currentItem.getParent(), currentItem.getIndex() - 1);
                     } else {
                         pgnGraph.toInit();
+                        notifyUci();
                         chessPadView.invalidate();
                     }
                 } else if(animationHandler != null) {
@@ -867,6 +939,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 if (!isUiFrozen()) {
                     selectedSquare = null;
                     pgnGraph.toPrev();
+                    notifyUci();
                     chessPadView.invalidate();
                 }
                 break;
@@ -875,6 +948,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 if (!isUiFrozen()) {
                     selectedSquare = null;
                     pgnGraph.toPrevVar();
+                    notifyUci();
                     chessPadView.invalidate();
                 }
                 break;
@@ -885,6 +959,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                     List<Move> variations = pgnGraph.getVariations();
                     if (variations == null) {
                         pgnGraph.toNext();
+                        notifyUci();
                         chessPadView.invalidate();
                     } else {
                         Log.d(DEBUG_TAG, "variation");
@@ -907,6 +982,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                             @Override
                             public boolean handle() {
                                 pgnGraph.toNext();
+                                notifyUci();
                                 chessPadView.invalidate();
                                 return !pgnGraph.isEnd() && pgnGraph.getVariations() == null;
                             }
@@ -947,6 +1023,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                                 @Override
                                 public boolean handle() {
                                     pgnGraph.toNext();
+                                    notifyUci();
                                     chessPadView.invalidate();
                                     return !pgnGraph.isEnd();
                                 }
@@ -1004,7 +1081,13 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
             case Delete:
                 if (!isUiFrozen()) {
-                    popups.launchDialog(Popups.DialogType.DeleteYesNo);
+                    if(getPgnGraph().isEnd()) {
+                        getPgnGraph().delCurrentMove();
+                        notifyUci();
+                        chessPadView.invalidate();
+                    } else {
+                        popups.launchDialog(Popups.DialogType.DeleteYesNo);
+                    }
                 }
                 break;
 
@@ -1031,21 +1114,19 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 pgnGraph = new PgnGraph(new Board());
                 pgngraphModified = true;
                 currentPath = currentPath.getParent();
+                notifyUci();
                 chessPadView.invalidate();
             });
         } else {
             pgnGraph.delCurrentMove();
+            notifyUci();
             chessPadView.invalidate();
         }
     }
 
     public void completePromotion(Move promotionMove) {
         getPgnGraph().validateUserMove(promotionMove);  // validate check
-        try {
-            getPgnGraph().addUserMove(promotionMove);
-        } catch (Config.PGNException e) {
-            Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-        }
+        addMove(promotionMove);
         if(mode == Mode.FicsConnection) {
             ficsPad.send(promotionMove.toString());
         }
@@ -1132,6 +1213,15 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 popups.launchDialog(Popups.DialogType.Load);
                 break;
 
+            case Analysis:
+                if(doAnalysis) {
+                    uciengineInfoMessage = null;
+                }
+                doAnalysis = !doAnalysis;
+                uciEngine.doAnalysis(doAnalysis);
+                notifyUci();
+                break;
+
             case Puzzle:
                 popups.launchDialog(Popups.DialogType.Puzzle);
                 break;
@@ -1156,6 +1246,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 } catch (Config.PGNException e) {
                     Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
                 }
+                notifyUci();
                 break;
 
             case Merge:
@@ -1214,6 +1305,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     private void switchToSetup() {
         setup = new Setup(pgnGraph);
         mode = Mode.Setup;
+        stopAnalysis();
         chessPadView.redraw();
     }
 
@@ -1374,10 +1466,100 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 }
                 nextPgnFile = null;
                 selectedSquare = null;
+                uciengineInfoMessage = null;
                 popups.promotionMove = null;
                 cancelSetup();
             }
         }
+        if(mode == Mode.Game) {
+            notifyUci();
+        } else {
+            stopAnalysis();
+        }
+    }
+
+    void notifyUci() {
+        Log.d(DEBUG_TAG, String.format("notifyUci() %s", getPgnGraph().getBoard().toFEN()));
+        uciEngine.abortCurrentAnalisys();
+        if(doAnalysis) {
+            UCIEngine.IncomingInfoMessage msg = fromBook();
+            if (msg == null) {
+                uciEngine.resumeAnalisys();
+            } else {
+                uciengineInfoMessage = msg;
+            }
+        }
+    }
+
+    private UCIEngine.IncomingInfoMessage fromBook() {
+        List<Move> bookMoves;
+        if ((bookMoves = openingBook.getMoves(getBoard())) == null) {
+            return null;
+        }
+
+        UCIEngine.IncomingInfoMessage infoMessage = new UCIEngine.IncomingInfoMessage();
+        if (pgnGraph.moveLine.size() > 1) {
+            // find current opening name:
+            Move prevMove = pgnGraph.moveLine.get(pgnGraph.moveLine.size() - 2);
+            Board prevBoard = openingBook.getBoard(prevMove);
+            Move lastMove = pgnGraph.getCurrentMove();
+            Move bookMove = prevBoard.getMove();
+            while (bookMove != null) {
+                if (lastMove.isSameAs(bookMove)) {
+                    break;
+                }
+                bookMove = bookMove.variation;
+            }
+            if (bookMove != null) {     // sanity check
+                infoMessage.info = openingBook.getComment(bookMove.comment);
+            }
+        }
+        if (infoMessage.info == null) {
+            infoMessage.info = "";
+        }
+
+        Collections.shuffle(bookMoves);
+        StringBuilder sb = new StringBuilder();
+        String sep = "";
+        for (Move move : bookMoves) {
+            sb.append(sep).append(move.getFrom().toString()).append(move.getTo().toString());
+            sep = " ";
+        }
+        infoMessage.moves = new String(sb);
+        return infoMessage;
+    }
+
+    private void stopAnalysis() {
+        doAnalysis = false;
+        uciEngine.doAnalysis(doAnalysis);
+        uciengineInfoMessage = null;
+    }
+
+    public String getAnalysisMessage()  {
+        if (uciengineInfoMessage == null) {
+            return "";
+        }
+        return uciengineInfoMessage.toString();
+    }
+
+    public String getHints()  {
+        if (uciengineInfoMessage == null || uciengineInfoMessage.getMoves() == null) {
+            return null;
+        }
+        String[] tokens = uciengineInfoMessage.getMoves().split("\\s+");
+
+        int totalHints = MAX_ENGINE_HINTS;
+        if (uciengineInfoMessage.info != null) {
+            totalHints = MAX_BOOK_HINTS;
+        }
+        StringBuilder sb = new StringBuilder();
+        String sep = "";
+        i = 0;
+        do {
+            sb.append(sep).append(tokens[i++]);
+            sep = " ";
+        } while( i < tokens.length && i < totalHints);
+        return new String(sb);
     }
 
     void setPuzzles() {
@@ -1395,7 +1577,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         return totalPuzzles;
     }
 
-    void toNextGame(final CpFile pgn, final int nextIndex) {
+    private void toNextGame(final CpFile pgn, final int nextIndex) {
         CpFile.Item item = new CpFile.Item(pgn);
         item.setIndex(nextIndex);
 
@@ -1507,7 +1689,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     public void mergePgnGraph(final Popups.MergeData mergeData, final CPPostExecutor cpPostExecutor) {
         merging = true;
         chessPadView.enableCommentEdit(false);
-        final CpFile.Pgn _pgn = new CpFile.Pgn(mergeData.pgnPath);
         new CPAsyncTask(chessPadView, new CPExecutor() {
             @Override
             public void onPostExecute() throws Config.PGNException {
@@ -1548,7 +1729,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         }).execute();
     }
 
-    void reportError(int msgId, String message) {
+    void sendMessage(int msgId, String message) {
         Message msg = bgMessageHandler.obtainMessage();
         msg.arg1 = msgId;
         msg.obj = message;
@@ -1658,11 +1839,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                     popups.promotionMove = newMove;
                     popups.launchDialog(Popups.DialogType.Promotion);
                 } else {
-                    try {
-                        pgnGraph.addUserMove(newMove);
-                    } catch (Config.PGNException e) {
-                        Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                    }
+                    addMove(newMove);
                     if((newMove.moveFlags & Config.FLAGS_CHECKMATE) == 0) {
                         if ((newMove.moveFlags & Config.FLAGS_REPETITION) != 0) {
                             Toast.makeText(this, R.string.msg_3_fold_repetition, Toast.LENGTH_LONG).show();
@@ -1686,6 +1863,15 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         }
         chessPadView.invalidate();
         return true;
+    }
+
+    private void addMove(Move newMove) {
+        try {
+            pgnGraph.addUserMove(newMove);
+            notifyUci();
+        } catch (Config.PGNException e) {
+            Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
+        }
     }
 
     @Override
@@ -1794,36 +1980,37 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         @Override
         public void handleMessage(Message msg) {
             ChessPad activity = mActivity.get();
-            if (activity != null) {
-                int msgId = msg.arg1;
-                Log.d(activity.DEBUG_TAG, String.format("message 0x%s", Integer.toHexString(msgId)));
-                if(msgId == Config.MSG_OOM) {
-                    Toast.makeText(activity, msg.obj.toString(), Toast.LENGTH_LONG).show();
+            if (activity == null) {
+                return;
+            }
+            int msgId = msg.arg1;
+            Log.d(activity.DEBUG_TAG, String.format("message 0x%s", Integer.toHexString(msgId)));
+            if(msgId == Config.MSG_OOM) {
+                Toast.makeText(activity, msg.obj.toString(), Toast.LENGTH_LONG).show();
+            }
+            if(msgId == Config.MSG_DGT_BOARD_SETUP_MESS || msgId == Config.MSG_DGT_BOARD_GAME) {
+                activity.chessPadView.redraw();
+            } else if( msgId <= Config.MSG_DGT_BOARD_LAST ) {
+                activity.chessPadView.invalidate();
+            } else if( msgId == InboundMessage.MessageType.Ready.getValue() ) {
+                activity.chessPadView.redraw();
+                activity.launchFicsMenu();
+            } else if( msgId == InboundMessage.MessageType.Closed.getValue() ) {
+                if (activity.mode == Mode.FicsConnection) {
+                    activity.closeFicsConnection();
+                    Toast.makeText(activity, R.string.msg_connection_lost, Toast.LENGTH_LONG).show();
                 }
-                if(msgId == Config.MSG_DGT_BOARD_SETUP_MESS || msgId == Config.MSG_DGT_BOARD_GAME) {
-                    activity.chessPadView.redraw();
-                } else if( msgId <= Config.MSG_DGT_BOARD_LAST ) {
-                    activity.chessPadView.invalidate();
-                } else if( msgId == InboundMessage.MessageType.Ready.getValue() ) {
-                    activity.chessPadView.redraw();
-                    activity.launchFicsMenu();
-                } else if( msgId == InboundMessage.MessageType.Closed.getValue() ) {
-                    if (activity.mode == Mode.FicsConnection) {
-                        activity.closeFicsConnection();
-                        Toast.makeText(activity, R.string.msg_connection_lost, Toast.LENGTH_LONG).show();
-                    }
-                } else if( msgId == InboundMessage.MessageType.G1Game.getValue() ) {
-                    activity.flipped = (activity.ficsPad.getPgnGraph().getInitBoard().getFlags() & Config.FLAGS_BLACK_MOVE) != 0;
-                    if(activity.ficsPad.heMoved()) {
-                        activity.dingPlayer.start();
-                    }
-                    activity.chessPadView.invalidate();
-                } else if( msgId <= InboundMessage.MessageType.Info.getValue() ) {
-                    // todo for fics
-                    activity.chessPadView.invalidate();
-                } else {
-                    activity.chessPadView.invalidate();
+            } else if( msgId == InboundMessage.MessageType.G1Game.getValue() ) {
+                activity.flipped = (activity.ficsPad.getPgnGraph().getInitBoard().getFlags() & Config.FLAGS_BLACK_MOVE) != 0;
+                if(activity.ficsPad.heMoved()) {
+                    activity.dingPlayer.start();
                 }
+                activity.chessPadView.invalidate();
+            } else if( msgId <= InboundMessage.MessageType.Info.getValue() ) {
+                // todo for fics
+                activity.chessPadView.invalidate();
+            } else {
+                activity.chessPadView.invalidate();
             }
         }
     }

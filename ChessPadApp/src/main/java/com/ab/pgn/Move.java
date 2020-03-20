@@ -49,7 +49,7 @@ public class Move {
     public String comment;
     public Move variation;
 
-    transient public int[] packData;            // board after the move
+    transient int[] packData;            // board after the move
 
     public Move(Board board, Square from, Square to) {
         this.moveFlags = board.getFlags();
@@ -333,7 +333,7 @@ public class Move {
     }
 
     // cannot do full check with flags because it is called in PgnGraph.addMove
-    boolean isSameAs(Move that) {
+    public boolean isSameAs(Move that) {
         if(that == null) {
             return false;
         }

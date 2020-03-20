@@ -56,9 +56,10 @@ public class PgnGraph {
     private void init(Board initBoard, CpFile.Item pgn) throws Config.PGNException {
         initBoard.setMove(null);
         if(pgn == null) {
-            pgn = new CpFile.Item("dummy");
+            this.pgn = new CpFile.Item("dummy");
+        } else {
+            this.pgn = pgn;
         }
-        this.pgn = pgn;
         modified = false;
         rootMove.packData = initBoard.pack();
         positions.put(new Pack(rootMove.packData), initBoard);
@@ -75,11 +76,10 @@ public class PgnGraph {
             initBoard = new Board(fen);
             parsingErrorNum = initBoard.validateSetup();
         }
-
         init(initBoard, item);
         if (PARSE_MOVES_ANYWAY || parsingErrorNum == 0) {
             try {
-                PgnParser.parseMoves(item.getMoveText(), new CpMoveTextHandler(this), progressObserver);
+                parseMoves(item.getMoveText(), progressObserver);
             } catch (Exception e) {
                 logger.error(e.getMessage());
                 parsingError = e.getMessage();
@@ -88,6 +88,10 @@ public class PgnGraph {
         Date end = new Date();
         printDuration("Pgn loaded", start, end);
         modified = false;
+    }
+
+    public void parseMoves(String moves, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
+        PgnParser.parseMoves(moves, new CpMoveTextHandler(this), progressObserver);
     }
 
     private void printDuration(String msg, Date start, Date end) {
@@ -1201,10 +1205,9 @@ public class PgnGraph {
         return String.format("%s%s", sOffset, str);
     }
 
-    private class TraverseData {
+    private static class TraverseData {
         Board prevBoard;
         Move move;
-        Board nextBoard;
         String pgnText;
 
         TraverseData() {
@@ -1350,13 +1353,14 @@ public class PgnGraph {
         Board mergeBoard = PgnGraph.this.positions.get(mergePack);
         final int mergedPlyNum = mergeBoard.getPlyNum();
         final boolean[] merged = {false};
+        final MergeState initialMergeState = mergeData.onNewItem(item);
         try {
             final PgnGraph mergeCandidate = new PgnGraph();
             PgnParser.parseMoves(item.getMoveText(), new CpMoveTextHandler(mergeCandidate) {
                 int skipVariantLevel = 0;
                 Move newMove;
                 boolean addComment = false;
-                MergeState mergeState = MergeState.Search;
+                MergeState mergeState = initialMergeState;
 
                 @Override
                 public void onComment(String value) {
@@ -1394,7 +1398,6 @@ public class PgnGraph {
                     }
 
                     Pack pack;
-
                     switch (mergeState) {
                         case Search:
                             pack = new Pack(currentMove.packData);
@@ -1438,8 +1441,13 @@ public class PgnGraph {
                                 return skipVariantLevel > 0;
                             }
                             newMove = currentMove.clone();
-                            if(prevBoard.getMove() != null) {
-                                addComment = true;
+                            String commonComment = mergeData.getCommonComment();
+                            if(commonComment != null) {
+                                newMove.comment = commonComment;
+                            } else {
+                                if (prevBoard.getMove() != null) {
+                                    addComment = true;
+                                }
                             }
                             PgnGraph.this.addMove(newMove, prevBoard);
                             if(DEBUG && testPack.equals(new Pack(newMove.packData))) {
@@ -1595,8 +1603,8 @@ public class PgnGraph {
     }
 
     public static class MergeData {
-        final int maxAnnotationLen = 1024;     // for future use, constant so far
-        final boolean withStatistics = true;   // for future use, constant so far
+        final int maxAnnotationLen = 1024;      // for future use, constant so far
+        final boolean withStatistics = true;    // for future use, constant so far
         public boolean annotate;
         public int start, end, merged;
         public String pgnPath;
@@ -1621,6 +1629,15 @@ public class PgnGraph {
             if(target != null) {
                 pgnPath = target.getAbsolutePath();
             }
+        }
+
+        // return initial MergeState
+        public MergeState onNewItem(CpFile.Item item) {
+            return MergeState.Search;
+        }
+
+        public String getCommonComment() {
+            return null;
         }
 
         public boolean isMergeSetupOk() {

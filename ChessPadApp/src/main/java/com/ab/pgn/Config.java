@@ -94,7 +94,8 @@ public class Config {
 
         MSG_DGT_BOARD_LAST = 0x13,      // DGT_VERSION
 
-        MSG_OOM = MSG_DGT_BOARD_LAST + 1,
+        MSG_REFRESH_SCREEN = MSG_DGT_BOARD_LAST + 1,
+        MSG_OOM = MSG_REFRESH_SCREEN + 1,
 
         MSG_FICS_FIRST = MSG_OOM + 1,
 
@@ -133,6 +134,7 @@ public class Config {
         TAG_FEN = "FEN",
 
         TAG_UNKNOWN_VALUE = "?",
+        BOOK_COMMENT_STRING_TAG = "~",      // hopefully this char does not occur in opening books
 
         CP_DATE_FORMAT = "yyyy-MM-dd",
 

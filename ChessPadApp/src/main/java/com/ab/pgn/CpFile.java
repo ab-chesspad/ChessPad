@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -769,7 +770,7 @@ public abstract class CpFile implements Comparable<CpFile> {
         return parent;
     }
 
-    public void setParent(CpFile parent) {
+    void setParent(CpFile parent) {
         this.parent = parent;
         String name = getName();
         this.absPath = concat(parent.getAbsolutePath(), name);
@@ -911,7 +912,7 @@ public abstract class CpFile implements Comparable<CpFile> {
         return file.lastModified();
     }
 
-    public void copy(CpFile trg) {
+    void copy(CpFile trg) {
         trg.parent = parent;
         trg.absPath = absPath;
         trg.length = length;
@@ -976,9 +977,7 @@ public abstract class CpFile implements Comparable<CpFile> {
             } else {
                 tagArray = new String[Config.STR.size()];
             }
-            for(int i = 0; i < tagArray.length; ++i) {
-                tagArray[i] = Config.TAG_UNKNOWN_VALUE;
-            }
+            Arrays.fill(tagArray, Config.TAG_UNKNOWN_VALUE);
         }
 
         @Override
@@ -1158,10 +1157,7 @@ public abstract class CpFile implements Comparable<CpFile> {
 
         public void setTags(List<Pair<String, String>> tags) {
             // remove old values
-            for(int i = 0; i < tagArray.length; ++i) {
-                tagArray[i] = Config.TAG_UNKNOWN_VALUE;
-            }
-
+            Arrays.fill(tagArray, Config.TAG_UNKNOWN_VALUE);
             for(Pair<String, String> tag : tags) {
                 setTag(tag.first, tag.second);
             }

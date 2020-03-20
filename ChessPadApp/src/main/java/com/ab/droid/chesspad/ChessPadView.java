@@ -40,9 +40,6 @@ public class ChessPadView extends View implements ProgressBarHolder {
     private CpView cpView;
     private static Bitmap checkBitmap = null;
 
-    private TextView title;
-    private BoardView boardView;
-
     public ChessPadView(ChessPad chessPad) {
         super(chessPad);
         this.chessPad = chessPad;
