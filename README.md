@@ -1,4 +1,4 @@
 # ChessPad
 PGN editor for Android
 
-The manual can be found in doc/ directory
+The full description can be found in ChessPadApp/src/main/assets/about/ directory
