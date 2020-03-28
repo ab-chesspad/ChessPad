@@ -604,6 +604,10 @@ public class PgnGraph {
         Move nextMove = rootMove;
         for(Move move : moveLine) {
             Board board = getBoard(move);
+            if (board == null) {
+                // how can this happen?
+                return false;
+            }
             Move m = board.getMove();
             if(m == null) {
                 return false;   // last move, null move is not ok
@@ -1023,7 +1027,7 @@ public class PgnGraph {
 
     // delete last in moveLine, it can be a variation
     public void delCurrentMove() {
-        if(moveLine.size() <= 1) {
+        if (moveLine.size() <= 1) {
             return;     // exception? rootMove cannot be deleted
         }
         Move move2Del = moveLine.removeLast();
@@ -1037,11 +1041,14 @@ public class PgnGraph {
             while (!move2Del.isSameAs(m)) {
                 pm = m;
                 m = m.variation;
+                if (m == null) {
+                    return;     // exception? how can this happen?
+                }
             }
             pm.variation = m.variation;
         }
 
-        move2Del.setVariation(null);    // do not delete its variaipons
+        move2Del.setVariation(null);    // do not delete its variations
         delPositionsAfter(move2Del);
         modified = true;
     }
