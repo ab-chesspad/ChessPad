@@ -32,7 +32,7 @@
  */
 extern "C"
 JNIEXPORT jboolean JNICALL
-Java_org_petero_droidfish_engine_UCIEngine_chmod(JNIEnv *env, jclass clazz, jstring exe_path, jint mod) {
+Java_com_ab_droid_engine_stockfish_StockFishEngine_chmod(JNIEnv *env, jclass clazz, jstring exe_path, jint mod) {
     const char *exePath = env->GetStringUTFChars(exe_path, NULL);
     if (!exePath)
         return (jboolean) false;
@@ -48,6 +48,6 @@ Java_org_petero_droidfish_engine_UCIEngine_chmod(JNIEnv *env, jclass clazz, jstr
  */
 extern "C"
 JNIEXPORT void JNICALL
-Java_org_petero_droidfish_engine_UCIEngine_reNice(JNIEnv *env, jclass clazz, jint pid, jint prio) {
+Java_com_ab_droid_engine_stockfish_StockFishEngine_reNice(JNIEnv *env, jclass clazz, jint pid, jint prio) {
     setpriority(PRIO_PROCESS, static_cast<id_t>(pid), prio);
 }

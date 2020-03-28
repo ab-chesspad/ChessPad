@@ -114,7 +114,7 @@ public class Popups {
 
     DialogType dialogType = DialogType.None;
     private String dialogMsg = null;
-    private List<Pair<String, String>> editTags;
+    List<Pair<String, String>> editTags;
     private PgnFileListAdapter pgnFileListAdapter;
     private PgnFileListAdapter mergePgnFileListAdapter;     // I need it here to refer it from within its creation. Any more graceful way to do it?
 
@@ -228,7 +228,7 @@ public class Popups {
             case Append:
             case Merge:
             case Puzzle:
-                dlgMergeOrAppend(dialogType);
+                dlgSelectPgn(dialogType);
                 break;
 
             case DeleteYesNo:
@@ -355,6 +355,7 @@ public class Popups {
                 // the dialog gets canceled and this method executes.
                 Log.d(DEBUG_TAG, "dialog cancelled");
                 dismissDlg();
+                editTags = null;
             });
         }
     }
@@ -377,6 +378,7 @@ public class Popups {
                     try {
                         chessPad.getPgnGraph().setModified(false);
                         dismissDlg();
+                        editTags = null;
                         chessPad.setPgnGraph(null);
                         return;
                     } catch (Config.PGNException e) {
@@ -490,6 +492,7 @@ public class Popups {
                 break;
 
             case Append:
+                chessPad.mode = ChessPad.Mode.Game;
                 final CpFile.Pgn pgn = new CpFile.Pgn(selectedValue.toString());
                 chessPad.getPgnGraph().getPgn().setParent(pgn);
                 chessPad.getPgnGraph().getPgn().setIndex(-1);
@@ -548,7 +551,6 @@ public class Popups {
             }
         }
         this.dialogType = DialogType.None;
-        editTags = null;
     }
 
     private void dlgMessage(final DialogType dialogType, String msg, int icon, DialogButton button) {
@@ -632,7 +634,7 @@ public class Popups {
         builder.setView(webView);
         builder.setTitle(title);
         Dialog dialog = builder.create();
-        webView.loadUrl("file:///android_asset/chesspad-about.html");
+        webView.loadUrl("file:///android_asset/about/chesspad.html");
         dialog.show();
         currentAlertDialog = dialog;
     }
@@ -672,7 +674,10 @@ public class Popups {
         ListView listView = dialog.findViewById(R.id.list_view);
         listView.setAdapter(new TagListAdapter(editTags));
 
-        dialog.findViewById(R.id.btn_cancel).setOnClickListener((view) -> dismissDlg());
+        dialog.findViewById(R.id.btn_cancel).setOnClickListener((view) -> {
+            dismissDlg();
+            editTags = null;
+        });
         dialog.findViewById(R.id.btn_done).setOnClickListener((view) -> returnFromDialog(dialogType, null, DialogInterface.BUTTON_POSITIVE));
 
         dialog.show();
@@ -825,20 +830,24 @@ public class Popups {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private void dlgMergeOrAppend(final DialogType dialogType) {
+    private void dlgSelectPgn(final DialogType dialogType) {
         if (currentAlertDialog != null) {
             return;
         }
         final Dialog dialog = new Dialog(chessPad);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
         dialog.setContentView(R.layout.dlg_merge);
-        dialog.findViewById(R.id.btn_cancel).setOnClickListener((view) -> dismissDlg());
+        dialog.findViewById(R.id.btn_cancel).setOnClickListener((view) -> {
+            dismissDlg();
+            editTags = null;
+        });
         final Button btnOk = dialog.findViewById(R.id.btn_done);
         final TextView filePathTextView = dialog.findViewById(R.id.file_name);
         final ListView fileListView = dialog.findViewById(R.id.file_list);
 
         MergeData _mergeData;
 
+        fileListShown = false;
         if(dialogType == DialogType.Puzzle) {
             adjustSize(dialog, .9, .9);
             _mergeData = new MergeData();

@@ -60,10 +60,10 @@ public abstract class UCIEngine {
         ERROR_START_ENGINE = "Failed to start engine",
         dummy_string = null;
 
-    private static final int ANALYSIS_SKILL_LEVEL = 20;
+    protected static final int ANALYSIS_SKILL_LEVEL = 20;
 
     /** Engine state. */
-    private enum State {
+    protected enum State {
         READ_OPTIONS,  // "uci" command sent, waiting for "option" and "uciok" response.
         WAIT_READY,    // "isready" sent, waiting for "readyok".
         IDLE,          // engine not searching.
@@ -74,25 +74,15 @@ public abstract class UCIEngine {
 
     private final Object lock = new Object();
 
+    protected Process engineProc;
+    protected State state = State.DEAD;
     private EngineWatcher engineWatcher;
-    private Process engineProc;
     private Thread stdInThread;
     private Thread stdErrThread;
     private boolean processAlive;
     private boolean startedOk;
-    private State state = State.DEAD;
     private boolean isBlackMove;
     private boolean doAnalysis;
-
-    static {
-        System.loadLibrary("nativeutil");
-    }
-
-    /** Change the priority of a process. */
-    public static native void reNice(int pid, int prio);
-
-    /** Executes chmod on exePath. */
-    public static native boolean chmod(String exePath, int mod);
 
     public UCIEngine(EngineWatcher engineWatcher) {
         this.engineWatcher = engineWatcher;
@@ -122,7 +112,6 @@ public abstract class UCIEngine {
         synchronized (lock) {
             engineProc = pb.start();
         }
-        _reNice();
 
         // Start a thread to read stdin
         stdInThread = new Thread(() -> {
@@ -214,7 +203,7 @@ public abstract class UCIEngine {
         }
     }
 
-    private void setState(State state) {
+    protected void setState(State state) {
         this.state = state;
         System.out.println(String.format("setState %s", state.toString()));
     }
@@ -263,19 +252,8 @@ public abstract class UCIEngine {
         writeCommand(String.format(Locale.US, "setoption name %s value %s", name, value));
     }
 
-    /** Try to lower the engine process priority. */
-    private void _reNice() {
-        try {
-            java.lang.reflect.Field f = engineProc.getClass().getDeclaredField("pid");
-            f.setAccessible(true);
-            int pid = f.getInt(engineProc);
-            reNice(pid, 10);
-        } catch (Throwable ignore) {
-        }
-    }
-
     /** Write a command to the engine. \n is added automatically. */
-    private void writeCommand(String command) {
+    protected void writeCommand(String command) {
         if(DEBUG) {
             System.out.println(String.format("UI -> Engine: %s, state=%s", command, state.toString()));
         }
@@ -304,7 +282,7 @@ public abstract class UCIEngine {
         }
     }
 
-    private void sendPosition() {
+    protected void sendPosition() {
         String fen = engineWatcher.getCurrentFen();
         if (fen == null) {
             return;
@@ -406,14 +384,14 @@ public abstract class UCIEngine {
     public static class IncomingInfoMessage {
         int depth;
         boolean toMate;
-        int score;
+        public int score;
         boolean isBlackMove, upperBound, lowerBound;
         public String info;     // for moves from book
         public String moves;
 
         public IncomingInfoMessage() {}
 
-        public IncomingInfoMessage(boolean isMate) {
+        IncomingInfoMessage(boolean isMate) {
             toMate = isMate;
         }
 

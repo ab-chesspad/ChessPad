@@ -4,6 +4,7 @@
     <string name="err_empty_new_tag_name">Missing tag name</string>
     <string name="err_tag_name_exists">Tag already exists</string>
     <string name="err_moves_ignored">moves can be invalid</string>
+    <string name="err_not_solution">This is not a solution</string>
 
     <string name="alert_pgn_path_label">Full Path to Pgn File:</string>
     <string name="alert_merge_start_label">Start:</string>
@@ -23,6 +24,8 @@
     <string name="msg_50_reversible_moves">50 consecutive reversible moves</string>
     <string name="msg_stalemate">stalemate</string>
     <string name="msg_merge_count">Merged %d game(s)</string>
+    <string name="msg_puzzle_statistics">opened %s\nsolved %s, %.2f%%</string>
+    <string name="msg_puzzle_success">Success!</string>
 
     <string name="menu_load">Load</string>
     <string name="menu_puzzle">Open Puzzles</string>

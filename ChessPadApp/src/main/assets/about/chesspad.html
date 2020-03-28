@@ -21,6 +21,10 @@ The most advanced graphical PGN editor. Allows user to load, browse, modify, del
 Supports nested variants, comments, glyphs.
 Here are the details about <a href="http://en.wikipedia.org/wiki/Portable_Game_Notation">PGN</a>
 and <a href="http://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation">FEN</a>.<br/>
+
+Menu command <b>Analysis</b> activates Stockfish 11 and ChessPad shows its results as hints.
+
+<br/>
 ChessPad creates a sample file <i>/sdcard/ChessPad/sample.pgn</i> so the user can get an idea of ChessPad features.<br/>
 <b>Note:</b> all modifications to this file will be lost after ChessPad is restarted. To preserve your changes save the game in another file.
   </p>
@@ -50,13 +54,11 @@ Button <b>To end / To next game / Faster animation</b>, depending on the game st
   <ul>
     <li>Moves to the last move in the current moveline, when in the middle of the game;</li>
     <li>Opens the next game, if possible, when already at the last move;</li>
-    <li>Speed up animation, when in animation mode.</li>
+    <li>Speeds up animation, when in animation mode.</li>
   </ul>
   </p>
   <p>
-Using Menu button, you can load another game, save your changes, append game to the existing PGN file or create a new PGN file containing the opened game.
-  <br/>
-Every pgn file can contain a number of games or puzzles.
+Every pgn file can contain a number of games.
 There are two ways to open them, with <b>Load</b> or <b>Puzzles</b> menu commands:
   <table style="width:100%">
     <tr>
@@ -68,29 +70,34 @@ There are two ways to open them, with <b>Load</b> or <b>Puzzles</b> menu command
       <td>Select the whole pgn file to open a random puzzle</td>
     </tr>
     <tr>
-      <td><b>To start...</b> button works as described above</td>
-      <td><b>To start...</b> button is disabled</td>
+      <td><b>To start</b> button works as described above</td>
+      <td><b>To start</b> button is disabled</td>
     </tr>
     <tr>
       <td>Board position preserved</td>
       <td>Board is flipped depending on the move turn</td>
     </tr>
     <tr>
-      <td><b>To end...</b> button works as described above</td>
-      <td><b>To end...</b> button opens next random puzzle in any pozition</td>
+      <td><b>To end</b> button works as described above</td>
+      <td><b>To end</b> button opens next random puzzle in any pozition</td>
     </tr>
     <tr>
       <td>Updated game can be optionally saved</td>
-      <td>Updated puzzle is saved automatically in <i>-upd</i> file next to the original</td>
+      <td>Unless the puzzle is appended to another PGN file, all changes will be lost.</td>
     </tr>
   </table>
+In <b>Puzzles</b> mode any attempt to move the position forward or go to another puzzle prematurely
+is considered as failure.
+  <br/>
 There are a number of large chess puzzle collections on the Web, e.g. 
-<a href="https://drive.google.com/open?id=1ueVN7QRhcYKW4lHTjzUY2tp5NekKuC0f">mate in 2</a>
-contains more than 155,000 puzzles.
+  <a href="https://drive.google.com/open?id=1ueVN7QRhcYKW4lHTjzUY2tp5NekKuC0f">mate in 2</a>
+contains more than 155,000 puzzles or
+<a href="https://raw.githubusercontent.com/ab-chesspad/ChessPad/master/etc/m8n2-4.zip">more than 1000 compiled puzzles</a>.<br/>
+
 <!--
- and 
-<a href="https://github.com/xinyangz/chess-tactics-pgn/raw/master/tactics.pgn">this</a>
-is even larger, more than 191,000 puzzles.
+  or
+  <a href="https://github.com/ab-chesspad/ChessPad/raw/master/etc/tactics-clean.zip">this one</a>
+- more than 100,000 puzzles though many are trivial.
 -->
 
   <br/>
@@ -115,7 +122,7 @@ All tag values can be changed and the tags not included in STR can even be delet
   </center>
   </p>
   <p>
-Using the menu command <b>Setup</b>, you can switch to Setup screen. The initial position will be copied from Game screen:<br/>
+Using the menu command <b>Setup</b>, you can switch to Setup screen. The position and tags will be copied from Game screen:<br/>
   <center>
   <img src="setup-view.png">
   </center>
@@ -126,7 +133,7 @@ Setup can be finished and ChessPad returns to Game screen only if the position d
 To abandon Setup and return to Game screen use Menu <b>Cancel Setup</b>. The position will be lost in this case.
   </p>
   <h3>Merging variations.</h3>
-ChessPad merges variations when they lead to the same position. For example:<br/><br/>
+ChessPad automatically merges variations when they lead to the same position. For example:<br/><br/>
   <span class="pgn">
 1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}<br/><br/>
   </span>

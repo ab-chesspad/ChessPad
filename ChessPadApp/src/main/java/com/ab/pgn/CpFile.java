@@ -1436,28 +1436,30 @@ public abstract class CpFile implements Comparable<CpFile> {
                 if (name.startsWith("."))
                     return false;
                 CpFile entry;
-                BufferedReader br = null;
                 if (file.isDirectory()) {
                     entry = new Dir(Dir.this, name);
                 } else if (CpFile.isPgnOk(name)) {
                     entry = new Pgn(Dir.this, name);
-                    try {
-                        br = new BufferedReader(new FileReader(entry.absPath), Config.MY_BUF_SIZE);
-                    } catch (FileNotFoundException e) {
-                        logger.debug(entry.absPath, e);
-                    }
                 } else if (CpFile.isZipOk(name)) {
                     entry = new Zip(Dir.this, name);
                 } else {
                     return false;
                 }
                 entry.index = ++index[0];
-                try {
-                    handler.handle(entry, br);
-                } catch (Config.PGNException e) {
-                    logger.debug(entry.absPath, e);
-                    return false;
+
+            try {
+                if (entry instanceof Pgn) {
+                    try (BufferedReader br = new BufferedReader(new FileReader(entry.absPath), Config.MY_BUF_SIZE)) {
+                        handler.handle(entry, br);
+                    } catch (IOException e) {
+                        logger.debug(entry.absPath, e);
+                    }
+                } else {
+                    handler.handle(entry, null);
                 }
+            } catch (Config.PGNException e) {
+                logger.debug(entry.absPath, e);
+            }
                 return false;    // drop it, save space
             });
         }

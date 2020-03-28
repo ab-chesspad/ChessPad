@@ -96,8 +96,10 @@ public class Config {
 
         MSG_REFRESH_SCREEN = MSG_DGT_BOARD_LAST + 1,
         MSG_OOM = MSG_REFRESH_SCREEN + 1,
+        MSG_PUZZLE_ADVANCE = MSG_OOM + 1,
+        MSG_PUZZLE_TAKE_BACK = MSG_PUZZLE_ADVANCE + 1,
 
-        MSG_FICS_FIRST = MSG_OOM + 1,
+        MSG_FICS_FIRST = MSG_PUZZLE_TAKE_BACK + 1,
 
         dummy_byte = 0;
 

@@ -43,11 +43,28 @@ public class StockFishEngine extends UCIEngine {
         STOCK_FISH_CRC_EXT = ".crc",
         str_dummy = null;
 
+    static {
+        System.loadLibrary("nativeutil");
+    }
+
+    /** Change the priority of a process. */
+    public static native void reNice(int pid, int prio);
+
+    /** Executes chmod on exePath. */
+    public static native boolean chmod(String exePath, int mod);
+
+
     private final Context context;
 
-    public StockFishEngine(Context context, EngineWatcher engineWatcher) {
+    public StockFishEngine(Context context, EngineWatcher engineWatcher) throws IOException {
         super(engineWatcher);
         this.context = context;
+    }
+
+    @Override
+    public void launch() throws IOException {
+        super.launch();
+        reNice();
     }
 
     @Override
@@ -84,7 +101,7 @@ public class StockFishEngine extends UCIEngine {
                 os.write(buf, 0, len);
             }
         }
-        UCIEngine.chmod(exePath.getAbsolutePath(), 0744);
+        chmod(exePath.getAbsolutePath(), 0744);
         writeCheckSum(crcFile, newCSum);
         return exePath.getAbsolutePath();
     }
@@ -142,4 +159,17 @@ public class StockFishEngine extends UCIEngine {
         }
         return abi + "/stockfish";
     }
+
+    /** Try to lower the engine process priority. */
+    private void reNice() {
+        try {
+            java.lang.reflect.Field f = engineProc.getClass().getDeclaredField("pid");
+            f.setAccessible(true);
+            int pid = f.getInt(engineProc);
+            reNice(pid, 10);
+        } catch (Throwable ignore) {
+        }
+    }
+
+
 }
