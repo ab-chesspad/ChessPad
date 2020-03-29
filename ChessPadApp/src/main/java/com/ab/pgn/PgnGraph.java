@@ -600,7 +600,7 @@ public class PgnGraph {
         if((getCurrentMove().moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             return false;   // two null moves are not allowed
         }
-
+/* it looks that in all other situations null move is ok
         Move nextMove = rootMove;
         for(Move move : moveLine) {
             Board board = getBoard(move);
@@ -617,6 +617,7 @@ public class PgnGraph {
             }
             nextMove = m;
         }
+//*/
         return true;    // not last move, null move is ok
     }
 
