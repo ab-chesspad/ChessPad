@@ -53,7 +53,7 @@ public class PgnGraph {
         init(initBoard, null);
     }
 
-    private void init(Board initBoard, CpFile.Item pgn) throws Config.PGNException {
+    protected void init(Board initBoard, CpFile.Item pgn) throws Config.PGNException {
         initBoard.setMove(null);
         if(pgn == null) {
             this.pgn = new CpFile.Item("dummy");
@@ -600,14 +600,10 @@ public class PgnGraph {
         if((getCurrentMove().moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             return false;   // two null moves are not allowed
         }
-/* it looks that in all other situations null move is ok
+
         Move nextMove = rootMove;
         for(Move move : moveLine) {
             Board board = getBoard(move);
-            if (board == null) {
-                // how can this happen?
-                return false;
-            }
             Move m = board.getMove();
             if(m == null) {
                 return false;   // last move, null move is not ok
@@ -617,7 +613,6 @@ public class PgnGraph {
             }
             nextMove = m;
         }
-//*/
         return true;    // not last move, null move is ok
     }
 
@@ -1028,7 +1023,7 @@ public class PgnGraph {
 
     // delete last in moveLine, it can be a variation
     public void delCurrentMove() {
-        if (moveLine.size() <= 1) {
+        if(moveLine.size() <= 1) {
             return;     // exception? rootMove cannot be deleted
         }
         Move move2Del = moveLine.removeLast();
@@ -1042,14 +1037,11 @@ public class PgnGraph {
             while (!move2Del.isSameAs(m)) {
                 pm = m;
                 m = m.variation;
-                if (m == null) {
-                    return;     // exception? how can this happen?
-                }
             }
             pm.variation = m.variation;
         }
 
-        move2Del.setVariation(null);    // do not delete its variations
+        move2Del.setVariation(null);    // do not delete its variaipons
         delPositionsAfter(move2Del);
         modified = true;
     }

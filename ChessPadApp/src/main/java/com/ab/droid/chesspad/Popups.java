@@ -62,6 +62,8 @@ public class Popups {
         Merge(++j),
         Tags(++j),
         SaveModified(++j),
+        LichessLogin(++j),
+
         FicsLogin(++j),
         SelectPuzzlebotOptions(++j),
         SelectEndgamebotOptions(++j),
@@ -239,10 +241,6 @@ public class Popups {
                 }
                 break;
 
-            case FicsLogin:
-                ficsLogin();
-                break;
-
             case Glyphs:
                 launchDialog(dialogType, new TextArrayAdapter(glyphs, chessPad.getPgnGraph().getGlyph()));
                 break;
@@ -310,24 +308,6 @@ public class Popups {
                 });
                 break;
 
-            case SelectPuzzlebotOptions:
-                launchDialog(dialogType, new TextArrayAdapter(puzzlebotOptions, 0) {
-                    @Override
-                    protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
-                        super.setRowViewHolder(rowViewHolder, position);
-                    }
-                });
-                break;
-
-            case SelectEndgamebotOptions:
-                launchDialog(dialogType, new EndgameOptionsAdapter(endgamebotOptions) {
-                    @Override
-                    protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
-                        super.setRowViewHolder(rowViewHolder, position);
-                    }
-                });
-                break;
-
             case SaveModified:
                 dlgMessage(Popups.DialogType.SaveModified, getResources().getString(R.string.msg_save), R.drawable.exclamation, Popups.DialogButton.YesNoCancel);
                 break;
@@ -344,6 +324,32 @@ public class Popups {
                         rowViewHolder.valueView.setText(((Move)getValues().get(position)).toCommentedString());
                     }
                 });       // 1st one is main line
+                break;
+
+            case LichessLogin:
+                lichessLogin();
+                break;
+
+            case FicsLogin:
+                ficsLogin();
+                break;
+
+            case SelectPuzzlebotOptions:
+                launchDialog(dialogType, new TextArrayAdapter(puzzlebotOptions, 0) {
+                    @Override
+                    protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
+                        super.setRowViewHolder(rowViewHolder, position);
+                    }
+                });
+                break;
+
+            case SelectEndgamebotOptions:
+                launchDialog(dialogType, new EndgameOptionsAdapter(endgamebotOptions) {
+                    @Override
+                    protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
+                        super.setRowViewHolder(rowViewHolder, position);
+                    }
+                });
                 break;
 
         }
@@ -1055,6 +1061,30 @@ public class Popups {
         currentAlertDialog.show();
     }
 
+    private void lichessLogin() {
+        if (currentAlertDialog != null) {
+            return;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(ChessPad.getContext());
+        LayoutInflater inflater = ChessPad.getInstance().getLayoutInflater();
+        View view = inflater.inflate(R.layout.lichess_login, null);
+        final EditText usernameEditText = view.findViewById(R.id.username);
+        final EditText passwordEditText = view.findViewById(R.id.password);
+
+        builder.setView(view)
+                .setPositiveButton(R.string.login, (dialog, id) -> {
+                    dismissDlg();
+                    chessPad.lichessLogin(usernameEditText.getText().toString(), passwordEditText.getText().toString());
+                })
+                .setNegativeButton(R.string.cancel, (dialogInterface, id) -> dismissDlg());
+
+        currentAlertDialog = builder.create();
+
+        usernameEditText.setText(chessPad.getLichessSettings().getUsername());
+        passwordEditText.setText(chessPad.getLichessSettings().getUsername());
+        currentAlertDialog.show();
+    }
+
     private PgnFileListAdapter getPgnFileListAdapter(CpFile parentItem, int initSelection) {
         if(pgnFileListAdapter == null || pgnFileListAdapter.isChanged(parentItem)
                    || pgnFileListAdapter.getCount() == 0) {  // kludgy way to fix storage permission change problem
@@ -1314,6 +1344,7 @@ public class Popups {
                         Log.d(DEBUG_TAG, String.format("getChildrenNames list %d items long, thread %s", cpFileList.size(), Thread.currentThread().getName()));
                     } catch (Config.PGNException e) {
                         Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
+                        cpFileList = new ArrayList<>();     // fix crash report from 4/11/2020 21:45
                     }
                 }
             }).execute();

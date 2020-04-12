@@ -40,6 +40,7 @@ import com.ab.pgn.Util;
 import com.ab.pgn.dgtboard.DgtBoardPad;
 import com.ab.pgn.fics.FicsPad;
 import com.ab.pgn.fics.chat.InboundMessage;
+import com.ab.pgn.lichess.LichessPad;
 
 import org.petero.droidfish.engine.UCIEngine;
 
@@ -69,6 +70,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     private static final boolean DEBUG_DGT_BOARD = false;
     private static final boolean SAVE_UPDATED_PUZZLES = false;
 
+    private static final boolean NEW_FEATURE_LICHESS = false;  // Lichess code is not fully tested, need to fix crash report from 4/11/2020 21:45
     private static final boolean NEW_FEATURE_FICS = false;     // fics software is buggy and seems not too popular
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
@@ -110,6 +112,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         Merge(++i),
         EditTags(++i),
         FlipBoard(++i),
+
         Send2Fics(++i),
         ;
 
@@ -140,6 +143,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         Puzzle(++j),
         Setup(++j),
         DgtGame(++j),
+        LichessPuzzle(++j),
+
         FicsConnection(++j),
         ;
 
@@ -176,6 +181,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         About,
         StartDgtGame,
         StopDgtGame,
+        LichessPuzzle,
+        LichessLogin,
+        LichessLogout,
+
         ConnectToFics,
         CloseFicsConnection,
         FicsMate,
@@ -216,6 +225,9 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
     FicsPad ficsPad;
     private final FicsPad.FicsSettings ficsSettings = new FicsPad.FicsSettings();
+    LichessPad lichessPad;
+    LichessPad.LichessSettings lichessSettings = new LichessPad.LichessSettings();
+
     transient private AlertDialog msgPopup;
     private String ficsCommand;
     private MediaPlayer dingPlayer;
@@ -371,6 +383,39 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             Log.e(DEBUG_TAG, e.getMessage(), e);
         }
         Log.d(DEBUG_TAG, "engine launched");
+        try {
+            lichessPad = new LichessPad(new LichessPad.LichessMessageConsumer() {
+                @Override
+                public void consume(LichessPad.LichessMessage message) {
+                    if (message instanceof LichessPad.LichessMessageLoginOk) {
+                        sendMessage("Login OK");
+                    } else if (message instanceof LichessPad.LichessMessagePuzzle) {
+                        try {
+                            setPgnGraph(null);
+                        } catch (Config.PGNException e) {
+                            Log.e(DEBUG_TAG, e.getLocalizedMessage());
+                            e.printStackTrace();
+                        }
+                    } else {
+                        // todo:
+                    }
+                }
+
+                @Override
+                public void error(Exception e) {
+                    sendMessage(e.getLocalizedMessage());
+                }
+
+                private void sendMessage(String message) {
+                    Message msg = bgMessageHandler.obtainMessage();
+                    msg.arg1 = Config.MSG_NOTIFICATION;
+                    msg.obj = message;
+                    bgMessageHandler.sendMessage(msg);
+                }
+            });
+        } catch (Config.PGNException e) {
+            Log.e(DEBUG_TAG, e.getMessage(), e);
+        }
     }
 
     // called after onStop()
@@ -661,7 +706,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         boolean enableMerge = enabled && mode == Mode.Game && pgnGraph.getInitBoard().equals(new Board());
         menuItems.add(new MenuItem(MenuCommand.Merge, getResources().getString(R.string.menu_merge), enableMerge));
         menuItems.add(new MenuItem(MenuCommand.Save, getResources().getString(R.string.menu_save), enabled && isSaveable()));
-        menuItems.add(new MenuItem(MenuCommand.Append, getResources().getString(R.string.menu_append), enabled && (mode == Mode.Game || mode == Mode.Puzzle)));
+        menuItems.add(new MenuItem(MenuCommand.Append, getResources().getString(R.string.menu_append),
+                enabled && (mode == Mode.Game || mode == Mode.Puzzle || mode == Mode.Game.LichessPuzzle)));
         if (mode == Mode.Game) {
             menuItems.add(new MenuItem(MenuCommand.AnyMove, getResources().getString(R.string.menu_any_move), pgnGraph.isNullMoveValid()));
             menuItems.add(new MenuItem(MenuCommand.Setup, getResources().getString(R.string.menu_setup), true));
@@ -670,11 +716,18 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         } else if (mode == Mode.Setup) {
             menuItems.add(new MenuItem(MenuCommand.CancelSetup, getResources().getString(R.string.menu_cancel_setup), true));
         }
-        if(NEW_FEATURE_FICS) {
+        if (NEW_FEATURE_LICHESS) {
             menuItems.add(new MenuItem(MenuCommand.ConnectToFics, getResources().getString(R.string.menu_connect_to_fics), enabled));
         }
-
-        if(dgtBoardAccessible) {
+        if (NEW_FEATURE_LICHESS) {
+            menuItems.add(new MenuItem(MenuCommand.LichessPuzzle, getResources().getString(R.string.menu_lichess_puzzle), enabled));
+            if (lichessPad.isUserLoggedIn()) {
+                menuItems.add(new MenuItem(MenuCommand.LichessLogout, getResources().getString(R.string.menu_lichess_logout), enabled));
+            } else {
+                menuItems.add(new MenuItem(MenuCommand.LichessLogin, getResources().getString(R.string.menu_lichess_login), enabled));
+            }
+        }
+        if (dgtBoardAccessible) {
             if (mode == Mode.DgtGame) {
                 menuItems.add(new MenuItem(MenuCommand.StopDgtGame, getResources().getString(R.string.menu_stop_dgt_game), true));
             } else {
@@ -845,8 +898,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             } else {
                 writer.write(0, 1);
             }
-            writer.write(doAnalysis ? 1 : 0, 1);
             ficsSettings.serialize(writer);
+            lichessPad.serialize(writer);
+            lichessSettings.serialize(writer);
+            writer.write(doAnalysis ? 1 : 0, 1);
             writer.write(savePuzzle ? 1 : 0, 1);
             puzzleData.serialize(writer);
             popups.serialize(writer);
@@ -885,8 +940,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                     ficsPad = new FicsPad(reader, versionCode);
                     ficsCommand = reader.readString();
                 }
-                doAnalysis = reader.read(1) == 1;
                 ficsSettings.unserialize(reader);
+                lichessPad.unserialize(reader);
+                lichessSettings.unserialize(reader);
+                doAnalysis = reader.read(1) == 1;
                 savePuzzle = reader.read(1) == 1;
                 puzzleData.unserialize(reader);
                 popups.unserialize(reader);
@@ -1276,6 +1333,19 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 stopDgtMode();
                 break;
 
+            case LichessLogin:
+                popups.launchDialog(Popups.DialogType.LichessLogin);
+                break;
+
+            case LichessPuzzle:
+                mode = Mode.LichessPuzzle;
+                try {
+                    lichessPad.loadPuzzle();
+                } catch (Config.PGNException e) {
+                    Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
+                }
+                break;
+
             case ConnectToFics:
                 try {
                     nextMode = Mode.FicsConnection;
@@ -1360,6 +1430,21 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         chessPadView.redraw();
     }
 
+    void lichessLogin(String username, String password) {
+        Log.d(DEBUG_TAG, "lichessLogin()");
+        lichessSettings.setUsername(username);
+        lichessSettings.setPassword(password);
+        try {
+            lichessPad.login(lichessSettings);
+        } catch (Config.PGNException e) {
+            Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
+        }
+    }
+
+    LichessPad.LichessSettings getLichessSettings() {
+        return lichessSettings;
+    }
+
     public FicsPad.FicsSettings getFicsSettings() {
         return ficsSettings;
     }
@@ -1433,7 +1518,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     // after SaveModified?, savePgnGraph, (null)
     // after SaveModified, negative, (null)
     // after load, new item
-    public void setPgnGraph(CpFile.Item item ) throws Config.PGNException {
+    public void setPgnGraph(CpFile.Item item) throws Config.PGNException {
         if (savePuzzle) {
             Log.d(DEBUG_TAG, String.format(Locale.US, "save puzzleData for %s", pgnGraph.getPgn().getAbsolutePath()));
             if (pgnGraph.isModified()) {
@@ -1463,6 +1548,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             if (item == null) {
                 if (mode == Mode.Game || mode == Mode.Puzzle) {
                     item = nextPgnFile;
+                } else if (mode == Mode.LichessPuzzle) {
+                    item = lichessPad.getPuzzle();
                 }
             }
 
@@ -1743,6 +1830,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     public PgnGraph getPgnGraph() {
         PgnGraph pgnGraph;
         switch(mode) {
+            case LichessPuzzle:
+                // todo:
             case Game:
             case Setup:
             case Puzzle:
@@ -1978,7 +2067,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             }
             int msgId = msg.arg1;
             Log.d(activity.DEBUG_TAG, String.format("message 0x%s", Integer.toHexString(msgId)));
-            if(msgId == Config.MSG_OOM) {
+            if(msgId == Config.MSG_OOM || msgId == Config.MSG_NOTIFICATION) {
                 Toast.makeText(activity, msg.obj.toString(), Toast.LENGTH_LONG).show();
             } else if (msgId == Config.MSG_PUZZLE_ADVANCE) {
                 try {

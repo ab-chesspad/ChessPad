@@ -99,7 +99,8 @@ public class Config {
         MSG_PUZZLE_ADVANCE = MSG_OOM + 1,
         MSG_PUZZLE_TAKE_BACK = MSG_PUZZLE_ADVANCE + 1,
 
-        MSG_FICS_FIRST = MSG_PUZZLE_TAKE_BACK + 1,
+        MSG_NOTIFICATION = MSG_PUZZLE_TAKE_BACK + 1,
+        MSG_FICS_FIRST = MSG_NOTIFICATION + 1,
 
         dummy_byte = 0;
 

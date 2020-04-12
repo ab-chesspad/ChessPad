@@ -37,15 +37,19 @@
     <string name="menu_cancel_setup">Cancel Setup</string>
     <string name="menu_start_dgt_game">Start Dgt Board Mode</string>
     <string name="menu_stop_dgt_game">Stop Dgt Board Mode</string>
+    <string name="menu_about">About</string>
+    <string name="menu_analysis">Analysis</string>
+    <string name="menu_stop_analysis">Stop Analysis</string>
+    <string name="menu_lichess_puzzle">Lichess Puzzles</string>
+    <string name="menu_lichess_login">Lichess Login</string>
+    <string name="menu_lichess_logout">Lichess Logout</string>
+
     <string name="menu_connect_to_fics">Connect to FICS</string>
     <string name="menu_close_fics_connection">Close FICS connection</string>
     <string name="menu_fics_mate">Mate Puzzle</string>
     <string name="menu_tactics">Tactics</string>
     <string name="menu_study">Study</string>
     <string name="menu_endgame">Endgame</string>
-    <string name="menu_about">About</string>
-    <string name="menu_analysis">Analysis</string>
-    <string name="menu_stop_analysis">Stop Analysis</string>
 
     <string name="label_en_pass">En passant: </string>
     <string name="label_halfmove_clock">Halfmove clock: </string>
