@@ -1,18 +1,9 @@
-package com.ab.droid.chesspad;
+package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.text.Editable;
-import android.text.InputType;
 import android.text.TextUtils;
-import android.text.TextWatcher;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.MotionEvent;
-import android.view.View;
 import android.widget.EditText;
-import android.widget.ImageButton;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
@@ -26,23 +17,24 @@ import com.ab.pgn.fics.chat.InboundMessage;
 import java.util.List;
 import java.util.Locale;
 
-class FicsPadView extends ChessPadView.CpView {
+class FicsPadView extends ChessPadLayout.CpView {
     private static final boolean DEBUG = false;
 
     private TextView moveText;
     private EditText commandToFics;
-    private ChessPadView.CpEditText conversation;
-    private ChessPadView.CpImageButton buttonSend, buttonCommandHistoryUp, buttonCommandHistoryDown;
+    private ChessPadLayout.CpEditText conversation;
+    private ChessPadLayout.CpImageButton buttonSend, buttonCommandHistoryUp, buttonCommandHistoryDown;
     private PlayerHolder topPlayerHolder, bottomPlayerHolder;
     private OnPlayerClick onTopPlayerClick, onBottomPlayerClick;
     private boolean flipped;
 
-    FicsPadView(ChessPad chessPad) {
-        super(chessPad);
+    FicsPadView(ChessPadLayout chessPadLayout) {
+        super(chessPadLayout);
         setBoardHolder();
     }
 
     private void setBoardHolder() {
+/*
         boardHolder = new BoardHolder() {
             @Override
             public Board getBoard() {
@@ -84,6 +76,7 @@ class FicsPadView extends ChessPadView.CpView {
             }
 
         };
+*/
     }
 
     private Board getBoard() {
@@ -91,12 +84,14 @@ class FicsPadView extends ChessPadView.CpView {
     }
 
     private FicsPad getFicsPad() {
-        return chessPad.ficsPad;
+        return null;
+//        return chessPad.ficsPad;
     }
 
     @Override
     @SuppressLint("ClickableViewAccessibility")
     public void draw() {
+/*
         getFicsPad().resetKibitzHistory();
         Log.d(DEBUG_TAG, String.format("draw %s", Thread.currentThread().getName()));
         onTopPlayerClick = () -> topPlayerClicked();
@@ -108,7 +103,7 @@ class FicsPadView extends ChessPadView.CpView {
         moveText.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         moveText.setBackgroundColor(Color.WHITE);
 
-        conversation = new ChessPadView.CpEditText(chessPad) {
+        conversation = new ChessPadLayout.CpEditText(chessPad) {
             @Override
             protected void onDraw(Canvas canvas) {
                 if(DEBUG) {
@@ -150,7 +145,7 @@ class FicsPadView extends ChessPadView.CpView {
         w = Metrics.screenWidth - 2 * x;
         y = Metrics.titleHeight + Metrics.ySpacing;
         h = Metrics.screenHeight - Metrics.titleHeight - Metrics.ySpacing;
-        ChessPadView.addView(relativeLayoutMain, relativeLayoutFicsPad, x, y, w, h);
+        ChessPadLayout.addView(relativeLayoutMain, relativeLayoutFicsPad, x, y, w, h);
 
         if (Metrics.isVertical) {
             drawVerticalLayout(relativeLayoutFicsPad);
@@ -164,11 +159,13 @@ class FicsPadView extends ChessPadView.CpView {
             getFicsPad().send();
             commandToFics.setText("");
         });
+*/
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private PlayerHolder drawPlayerBar(int width, final OnPlayerClick onPlayerClick) {
         PlayerHolder playerHolder = new PlayerHolder();
+/*
         View.OnTouchListener playerOnTouchListener = (v, event) -> {
             if(event.getAction() == MotionEvent.ACTION_UP) {
                 onPlayerClick.clicked();
@@ -196,101 +193,104 @@ class FicsPadView extends ChessPadView.CpView {
         playerTime.setOnTouchListener(playerOnTouchListener);
 
         int w = width - timeWidth - 2 * Metrics.xSpacing;
-        ChessPadView.addTextView(relativeLayout, player, 0, 0, w, Metrics.titleHeight);
-        ChessPadView.addTextView(relativeLayout, playerTime, width - timeWidth, 0, timeWidth, Metrics.titleHeight);
+        ChessPadLayout.addTextView(relativeLayout, player, 0, 0, w, Metrics.titleHeight);
+        ChessPadLayout.addTextView(relativeLayout, playerTime, width - timeWidth, 0, timeWidth, Metrics.titleHeight);
 
         playerHolder.relativeLayout = relativeLayout;
         playerHolder.player = player;
         playerHolder.playerTime = playerTime;
+*/
         return playerHolder;
     }
 
+/*
     private void drawVerticalLayout(RelativeLayout relativeLayout) {
         int x, x0, y, y0, w, h;
 
         x = (Metrics.screenWidth - Metrics.boardViewSize) / 2;
-        boardView = ChessPadView.drawBoardView(chessPad, relativeLayout, x, 0, boardHolder);
+        boardView = ChessPadLayout.drawBoardView(chessPad, relativeLayout, x, 0, boardHolder);
 
         w = Metrics.screenWidth - Metrics.buttonSize - Metrics.xSpacing;
         topPlayerHolder = drawPlayerBar(w, onTopPlayerClick);
-        ChessPadView.addImageButton(chessPad, chessPad.getMainRelativeLayout(), ChessPad.Command.Menu, 0, 0,
+        ChessPadLayout.addImageButton(chessPad, chessPad.getMainRelativeLayout(), ChessPad.Command.Menu, 0, 0,
                 Metrics.buttonSize, Metrics.titleHeight, R.drawable.menu);
-        ChessPadView.addView(relativeLayoutMain, topPlayerHolder.relativeLayout, Metrics.buttonSize + Metrics.xSpacing, 0,
+        ChessPadLayout.addView(relativeLayoutMain, topPlayerHolder.relativeLayout, Metrics.buttonSize + Metrics.xSpacing, 0,
                 w, Metrics.titleHeight);
 
         w = Metrics.screenWidth;
         bottomPlayerHolder = drawPlayerBar(w, onBottomPlayerClick);
         y = Metrics.boardViewSize;
         h = Metrics.titleHeight;
-        ChessPadView.addView(relativeLayout, bottomPlayerHolder.relativeLayout, 0, y, w, h);
+        ChessPadLayout.addView(relativeLayout, bottomPlayerHolder.relativeLayout, 0, y, w, h);
 
         y += h + Metrics.ySpacing;
         w = Metrics.screenWidth - (Metrics.buttonSize + Metrics.xSpacing);
         h = Metrics.titleHeight;
-        ChessPadView.addTextView(relativeLayout, moveText, 0, y, w, h);
+        ChessPadLayout.addTextView(relativeLayout, moveText, 0, y, w, h);
 
         x0 = Metrics.screenWidth - Metrics.buttonSize;
-        ImageButton buttonFlip = ChessPadView.addImageButton(chessPad, relativeLayout, ChessPad.Command.Flip, x0, y, R.drawable.flip_board_view);
+        ImageButton buttonFlip = ChessPadLayout.addImageButton(chessPad, relativeLayout, ChessPad.Command.Flip, x0, y, R.drawable.flip_board_view);
 
         y0 = y + h + Metrics.ySpacing; // for conversation
         y = Metrics.screenHeight - Metrics.titleHeight - Metrics.buttonSize;
         w = Metrics.screenWidth - 2 * (Metrics.buttonSize + Metrics.xSpacing);
         h = Metrics.buttonSize;
-        ChessPadView.addTextView(relativeLayout, commandToFics, 0, y, w, h);
+        ChessPadLayout.addTextView(relativeLayout, commandToFics, 0, y, w, h);
 
         x = x0;
-        buttonCommandHistoryDown = ChessPadView.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_down);
+        buttonCommandHistoryDown = ChessPadLayout.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_down);
 
         x -= Metrics.buttonSize + Metrics.xSpacing;
-        buttonSend = ChessPadView.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.send);
+        buttonSend = ChessPadLayout.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.send);
 
         w = Metrics.screenWidth - Metrics.buttonSize - Metrics.xSpacing;
         h = y - y0 - Metrics.ySpacing;
         y = y0;
-        ChessPadView.addTextView(relativeLayout, conversation, 0, y, w, h);
+        ChessPadLayout.addTextView(relativeLayout, conversation, 0, y, w, h);
 
         x = x0;
         y = Metrics.screenHeight - Metrics.titleHeight - 2 * Metrics.buttonSize - Metrics.ySpacing;
-        buttonCommandHistoryUp = ChessPadView.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_up);
+        buttonCommandHistoryUp = ChessPadLayout.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_up);
     }
 
     private void drawHorizonlalLayout(RelativeLayout relativeLayout) {
         int x, x0, y, w, h;
         int timeWidth = Metrics.timeWidth;
 
-        boardView = ChessPadView.drawBoardView(chessPad, relativeLayout, 0, 0, boardHolder);
+        boardView = ChessPadLayout.drawBoardView(chessPad, relativeLayout, 0, 0, boardHolder);
 
         w = boardHolder.getBoardViewSize() - Metrics.buttonSize - Metrics.xSpacing;
         topPlayerHolder = drawPlayerBar(w, onTopPlayerClick);
-        ChessPadView.addImageButton(chessPad, chessPad.getMainRelativeLayout(), ChessPad.Command.Menu, 0, 0,
+        ChessPadLayout.addImageButton(chessPad, chessPad.getMainRelativeLayout(), ChessPad.Command.Menu, 0, 0,
                 Metrics.buttonSize, Metrics.titleHeight, R.drawable.menu);
-        ChessPadView.addView(relativeLayoutMain, topPlayerHolder.relativeLayout, Metrics.buttonSize + Metrics.xSpacing, 0,
+        ChessPadLayout.addView(relativeLayoutMain, topPlayerHolder.relativeLayout, Metrics.buttonSize + Metrics.xSpacing, 0,
                 w, Metrics.titleHeight);
 
         w = boardHolder.getBoardViewSize();
         bottomPlayerHolder = drawPlayerBar(w, onBottomPlayerClick);
         y = boardHolder.getBoardViewSize();
         h = Metrics.titleHeight;
-        ChessPadView.addView(relativeLayout, bottomPlayerHolder.relativeLayout, 0, y, w, h);
+        ChessPadLayout.addView(relativeLayout, bottomPlayerHolder.relativeLayout, 0, y, w, h);
         x = boardHolder.getBoardViewSize() + Metrics.ySpacing;
         w = Metrics.screenWidth - x;
         h = 5 * Metrics.titleHeight;
-        ChessPadView.addTextView(relativeLayout, conversation, x, 0, w, h);
+        ChessPadLayout.addTextView(relativeLayout, conversation, x, 0, w, h);
 
         x = 0;
         y = Metrics.boardViewSize - h;
 
         y -= h + Metrics.ySpacing;
         x0 = x;
-        buttonCommandHistoryDown = ChessPadView.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_down);
+        buttonCommandHistoryDown = ChessPadLayout.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_down);
 
         x -= Metrics.buttonSize + Metrics.xSpacing;
-        buttonSend = ChessPadView.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.send);
+        buttonSend = ChessPadLayout.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.send);
 
         x = x0;
         y = Metrics.screenHeight - Metrics.titleHeight - 2 * Metrics.buttonSize - Metrics.ySpacing;
-        buttonCommandHistoryUp = ChessPadView.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_up);
+        buttonCommandHistoryUp = ChessPadLayout.addImageButton(chessPad, relativeLayout, ChessPad.Command.None, x, y, R.drawable.arrow_up);
     }
+*/
 
     private String toHMS(int time) {
         int seconds = time % 60;
@@ -305,6 +305,11 @@ class FicsPadView extends ChessPadView.CpView {
 
     private void bottomPlayerClicked() {
         Log.d(DEBUG_TAG, "bottomPlayerClicked()");
+    }
+
+    @Override
+    void hideAllWidgets() {
+        // todo!
     }
 
     @Override
@@ -330,7 +335,7 @@ class FicsPadView extends ChessPadView.CpView {
             }
             selected = move.getTo();
         }
-        boardView.setSelected(selected);
+        relativeLayoutMain.boardView.setSelected(selected);
         this.moveText.setText(moveText);
 
         TextView topPlayer, topPlayerTime, bottomPlayer, bottomPlayerTime;

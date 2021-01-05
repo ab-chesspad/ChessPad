@@ -14,4 +14,5 @@ public interface BoardHolder {
     boolean onSquareClick(Square clicked);
     void onFling(Square clicked);
     int[] getBGResources();
+    boolean isFlipped();
 }

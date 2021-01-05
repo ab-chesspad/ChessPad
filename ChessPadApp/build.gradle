@@ -7,7 +7,8 @@ idea.module {
 
 android {
     compileSdkVersion 28
-    buildToolsVersion '28.0.3'
+//    buildToolsVersion '28.0.3'
+    buildToolsVersion '29.0.2'
     defaultConfig {
         applicationId "com.ab.droid.chesspad"
         minSdkVersion 16
@@ -39,6 +40,13 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    testOptions {
+        unitTests {
+            returnDefaultValues = true
+            includeAndroidResources = true
+        }
+    }
+
     sourceSets {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
@@ -56,9 +64,9 @@ dependencies {
     testImplementation 'org.powermock:powermock-core:1.7.0RC2'
     testImplementation 'org.powermock:powermock-module-junit4:1.7.0RC2'
     testImplementation 'org.powermock:powermock-api-mockito2:1.7.0RC2'
-//    implementation 'androidx.appcompat:appcompat:1.1.0'
+    //    implementation 'androidx.appcompat:appcompat:1.1.0'
     implementation 'androidx.appcompat:appcompat:1.0.2'
-//    androidTestImplementation 'org.mockito:mockito-android:2.24.5'
+    //    androidTestImplementation 'org.mockito:mockito-android:2.24.5'
     androidTestImplementation 'androidx.test.ext:junit:1.1.1'
     // Set this dependency to use JUnit 4 rules
     androidTestImplementation 'androidx.test:rules:1.1.1'
@@ -67,10 +75,13 @@ dependencies {
     // Set this dependency to build and run UI Automator tests
     //    androidTestCompile 'com.android.support.test.uiautomator:uiautomator-v18:2.1.2'
     // https://sites.google.com/a/android.com/tools/tech-docs/new-build-system/user-guide#TOC-Resolving-conflicts-between-main-and-test-APK
-//    androidTestImplementation 'com.android.support:support-annotations:24.2.0'
-//    androidTestImplementation 'org.mockito:mockito-core:1.+'
-//    androidTestImplementation 'com.google.dexmaker:dexmaker:1.2'
-//    androidTestImplementation 'com.google.dexmaker:dexmaker-mockito:1.2'
+    //    androidTestImplementation 'com.android.support:support-annotations:24.2.0'
+    //    androidTestImplementation 'org.mockito:mockito-core:1.+'
+    //    androidTestImplementation 'com.google.dexmaker:dexmaker:1.2'
+    //    androidTestImplementation 'com.google.dexmaker:dexmaker-mockito:1.2'
+//    androidTestImplementation files('lib/json-20180813.jar')
+    testImplementation 'org.json:json:20180813'
+//    androidTestImplementation files('lib/android.jar')
 }
 
 // Copy Stockfish executables to assets directory

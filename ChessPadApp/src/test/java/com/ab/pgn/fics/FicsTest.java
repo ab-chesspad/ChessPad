@@ -99,7 +99,7 @@ public class FicsTest extends BaseFicsTest{
     }
 
 
-    private int puzzleNumber = -1;
+    private int puzzleNumber = 0;
     private int moveNumber;
     private String[] moves;
     private String gameId;
@@ -109,17 +109,18 @@ public class FicsTest extends BaseFicsTest{
     @SuppressWarnings("unchecked")
     public void testBots() throws IOException {
         final Pair<String, String>[] puzzles = new Pair[] {
-            new Pair<>("tell puzzlebot gt 01046", "Rb1 Bxd6 Rxb3 Bxd6(backed) f3+ Kxf3 Rxb3+"),    // 1 erroneous move backed
-            new Pair<>("tell puzzlebot gm 01653", "Rxg5+ Kxg5 Qh7 Kxg5(backed) Qg7+ Kh5 Qg4#"),    // 1 erroneous move backed
-            new Pair<>("tell puzzlebot gm 01653", "Qxh6 (backed) Rxg5+ Kxg5 Qg7+ Kh5 Qg4#"),       // 1 erroneous move backed
-            new Pair<>("tell puzzlebot gs 01539", "Be2 g2 Nh5+ Kf5 Bf1 gxf1=N a6"),
-            new Pair<>("tell endgamebot play 8/k7/8/8/8/6Q1/8/1K6 --", "Qb3 Ka8 Ka2 Ka7 Ka3 Ka8 Ka4 Ka7 Ka5 Ka8 Kb6 Kb8 Qg8#"),
+            new Pair<>("tell puzzlebot gm 0042", "Be2 g2 Nh5+ Kf5 Bf1 gxf1=N a6"),
+//            new Pair<>("tell puzzlebot gt 01046", "Rb1 Bxd6 Rxb3 Bxd6(backed) f3+ Kxf3 Rxb3+"),    // 1 erroneous move backed
+//            new Pair<>("tell puzzlebot gm 01653", "Rxg5+ Kxg5 Qh7 Kxg5(backed) Qg7+ Kh5 Qg4#"),    // 1 erroneous move backed
+//            new Pair<>("tell puzzlebot gm 01653", "Qxh6 (backed) Rxg5+ Kxg5 Qg7+ Kh5 Qg4#"),       // 1 erroneous move backed
+//            new Pair<>("tell puzzlebot gs 01539", "Be2 g2 Nh5+ Kf5 Bf1 gxf1=N a6"),
+//            new Pair<>("tell endgamebot play 8/k7/8/8/8/6Q1/8/1K6 --", "Qb3 Ka8 Ka2 Ka7 Ka3 Ka8 Ka4 Ka7 Ka5 Ka8 Kb6 Kb8 Qg8#"),
         };
 //        final String finalPuzzleMsg = "puzzlebot stopped examining game ";
         final String finalPuzzleMsg = "You solved problem number ";
         final String finalEndgameMsg = "Thank you for playing endgamebot.";
 
-        allSend = true;     // per puzzle
+        allSend = false;     // per puzzle
 //        gameId = null;
 
         openFicsPad((inboundMessage) -> {
@@ -176,7 +177,7 @@ public class FicsTest extends BaseFicsTest{
                 }
             }
         });
-        waitUntilDone(40000);
+        waitUntilDone(400000);
         System.out.println(ficsPad.getPgnGraph().toPgn());
         System.out.println("done");
     }

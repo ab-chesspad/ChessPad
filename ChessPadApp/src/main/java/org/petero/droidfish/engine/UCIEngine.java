@@ -21,16 +21,19 @@
 
 package org.petero.droidfish.engine;
 
+import com.ab.pgn.PgnLogger;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.util.Date;
 import java.util.Locale;
 
 public abstract class UCIEngine {
-    private static final boolean DEBUG = true;
+    private static boolean DEBUG = false;
 
     public static final String
         // to UCI engine:
@@ -61,6 +64,7 @@ public abstract class UCIEngine {
         dummy_string = null;
 
     protected static final int ANALYSIS_SKILL_LEVEL = 20;
+    private static final PgnLogger logger = PgnLogger.getLogger(UCIEngine.class);
 
     /** Engine state. */
     protected enum State {
@@ -75,10 +79,12 @@ public abstract class UCIEngine {
     private final Object lock = new Object();
 
     protected Process engineProc;
-    protected State state = State.DEAD;
+    protected volatile State state = State.DEAD;
     private EngineWatcher engineWatcher;
     private Thread stdInThread;
     private Thread stdErrThread;
+    private Thread checkThread;
+    private volatile long lastMsgTS;
     private boolean processAlive;
     private boolean startedOk;
     private boolean isBlackMove;
@@ -116,8 +122,9 @@ public abstract class UCIEngine {
         // Start a thread to read stdin
         stdInThread = new Thread(() -> {
             Process ep = engineProc;
-            if (ep == null)
+            if (ep == null) {
                 return;
+            }
             InputStream is = ep.getInputStream();
             InputStreamReader isr = new InputStreamReader(is);
             BufferedReader br = new BufferedReader(isr, 8192);
@@ -136,11 +143,11 @@ public abstract class UCIEngine {
                         continue;
                     }
                     if(DEBUG) {
-                        System.out.printf("Engine -> GUI, state=%s: %s\n", state.toString(), line);
+                        logger.debug(String.format("Engine -> GUI, state=%s: %s\n", state.toString(), line));
                     }
                     consume(line);
                 }
-                System.out.printf("stdInThread %s loop ended\n", stdInThread.toString());
+                logger.debug(String.format("stdInThread %s loop ended\n", stdInThread.toString()));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -152,23 +159,49 @@ public abstract class UCIEngine {
             byte[] buffer = new byte[128];
             while (true) {
                 Process ep = engineProc;
-                if ((ep == null) || Thread.currentThread().isInterrupted())
-                    return;
+                if ((ep == null) || Thread.currentThread().isInterrupted()) {
+                    break;
+                }
                 try {
                     int len = ep.getErrorStream().read(buffer, 0, buffer.length);
                     if (len < 0) {
                         break;
                     }
                     String errMsg = new String(buffer);
-                    System.out.printf("Engine -> GUI: error %s\n", errMsg);
+                    logger.debug(String.format("Engine -> GUI: error %s\n", errMsg));
                     engineWatcher.reportError(errMsg);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             }
-            System.out.printf("stdErrThread %s loop ended\n", stdErrThread.toString());
+            logger.debug(String.format("stdErrThread %s loop ended\n", stdErrThread.toString()));
         });
         stdErrThread.start();
+
+        checkThread = new Thread(() -> {
+            while (true) {
+                Process ep = engineProc;
+                if ((ep == null) || Thread.currentThread().isInterrupted()) {
+                    break;
+                }
+                try { Thread.sleep(1000); } catch (InterruptedException ignore) { }
+                if (state == State.STOP_SEARCH) {
+                    long delta = new Date().getTime() - lastMsgTS;
+                    logger.debug(String.format("state==STOP_SEARCH, delta=%d", delta));
+                    if (delta > 5000) {
+                        logger.debug("state==STOP_SEARCH, RESTART UCIEngine!!");
+                        shutDown();
+                        try {
+                            launch();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+            logger.debug(String.format("checkThread %s loop ended\n", checkThread.toString()));
+        });
+        checkThread.start();
 
         synchronized (lock) {
             try {
@@ -186,7 +219,9 @@ public abstract class UCIEngine {
         if (this.doAnalysis) {
             abortCurrentAnalisys();
         }
-        System.out.println(String.format("doAnalysis, state %s, old %b, new %b", state.toString(), this.doAnalysis, doAnalysis));
+        if (DEBUG) {
+            logger.debug(String.format(String.format("doAnalysis, state %s, old %b, new %b", state.toString(), this.doAnalysis, doAnalysis)));
+        }
         this.doAnalysis = doAnalysis;
         if (doAnalysis) {
             startNewGame();
@@ -196,16 +231,22 @@ public abstract class UCIEngine {
 
     // stop current analysis, after UCIEndine.state == IDLE, it picks up the new position and resumes analysis
     public void abortCurrentAnalisys() {
-        System.out.println(String.format("abortCurrentAnalisys, state %s, %b", state.toString(), this.doAnalysis));
+//        if (DEBUG) {
+//            logger.debug(String.format("abortCurrentAnalisys, state %s, %b", state.toString(), this.doAnalysis));
+//        }
+        logger.debug(String.format("abortCurrentAnalisys, state %s, %b", state.toString(), this.doAnalysis));
         if (state == State.ANALYZE) {
             writeCommand(UCIEngine.COMMAND_STOP);
             setState(State.STOP_SEARCH);
+            DEBUG = true;
         }
     }
 
     protected void setState(State state) {
         this.state = state;
-        System.out.println(String.format("setState %s", state.toString()));
+        if (DEBUG) {
+            logger.debug(String.format("setState %s", state.toString()));
+        }
     }
 
     /** Shut down engine. */
@@ -226,6 +267,9 @@ public abstract class UCIEngine {
             engineProc.destroy();
         }
         engineProc = null;
+        if (checkThread != null) {
+            checkThread.interrupt();
+        }
         if (stdInThread != null) {
             stdInThread.interrupt();
         }
@@ -255,7 +299,7 @@ public abstract class UCIEngine {
     /** Write a command to the engine. \n is added automatically. */
     protected void writeCommand(String command) {
         if(DEBUG) {
-            System.out.println(String.format("UI -> Engine: %s, state=%s", command, state.toString()));
+            logger.debug(String.format("UI -> Engine: %s, state=%s", command, state.toString()));
         }
 
         if (!command.endsWith("\n")) {
@@ -276,7 +320,7 @@ public abstract class UCIEngine {
     }
 
     public void resumeAnalisys() {
-        System.out.printf("resumeAnalisys(), state=%s\n", state.toString());
+        logger.debug(String.format("resumeAnalisys(), state=%s\n", state.toString()));
         if(state == State.IDLE) {
             handleIdleState();
         }
@@ -302,9 +346,10 @@ public abstract class UCIEngine {
     }
 
     private void consume(String s) {
+        lastMsgTS = new Date().getTime();
         switch (state) {
             case READ_OPTIONS: {
-                System.out.printf("Engine: %s\n", s);   // log engine options
+                logger.debug(String.format("Engine: %s\n", s));   // log engine options
                 if (MSG_UCIOK.equals(s)) {
                     engineWatcher.engineOk();
                     writeCommand(COMMAND_UCINEWGAME);
@@ -336,9 +381,14 @@ public abstract class UCIEngine {
                 break;
             }
             case STOP_SEARCH: {
+//                if(DEBUG) {
+//                    logger.debug(String.format("state==STOP_SEARCH: %s", s));
+//                }
+                logger.debug(String.format("state==STOP_SEARCH: %s", s));
                 if(s.startsWith(MSG_BESTMOVE)) {
                     writeCommand(COMMAND_ISREADY);
                     setState(State.WAIT_READY);
+                    DEBUG = false;
                 }
                 break;
             }
@@ -347,7 +397,9 @@ public abstract class UCIEngine {
     }
 
     private void parseInfoMsg(String s) {
-        System.out.println(s);
+        if (DEBUG) {
+            logger.debug(s);
+        }
         String[] tokens = s.split("\\s+");
         IncomingInfoMessage incomingInfoMessage = new IncomingInfoMessage();
         incomingInfoMessage.isBlackMove = isBlackMove;

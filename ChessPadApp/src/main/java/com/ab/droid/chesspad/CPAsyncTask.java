@@ -3,6 +3,7 @@ package com.ab.droid.chesspad;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import com.ab.droid.chesspad.layout.ProgressBarHolder;
 import com.ab.pgn.Config;
 
 /**
@@ -34,20 +35,31 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     @Override
     protected void onPreExecute() {
         super.onPreExecute();
-        ChessPadView.CpProgressBar cpProgressBar;
+        if (progressBarHolder != null) {
+            progressBarHolder.showProgressBar(true);
+            progressBarHolder.updateProgressBar(oldProgress);
+        }
+/*
+        ChessPadLayout.CpProgressBar cpProgressBar;
         if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
             cpProgressBar.show(true);
             cpProgressBar.update(oldProgress);
         }
+*/
     }
 
     @Override
     protected void onPostExecute(Config.PGNException param) {
         super.onPostExecute(param);
-        ChessPadView.CpProgressBar cpProgressBar;
+        if (progressBarHolder != null) {
+            progressBarHolder.showProgressBar(false);
+        }
+/*
+        ChessPadLayout.CpProgressBar cpProgressBar;
         if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
             cpProgressBar.show(false);
         }
+*/
         try {
             if(param == null) {
                 cpExecutor.onPostExecute();
@@ -73,9 +85,14 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     @Override
     protected void onProgressUpdate(Integer... values) {
         super.onProgressUpdate(values);
-        ChessPadView.CpProgressBar cpProgressBar;
+/*
+        ChessPadLayout.CpProgressBar cpProgressBar;
         if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
             cpProgressBar.update(values[0]);
+        }
+*/
+        if (progressBarHolder != null) {
+            progressBarHolder.updateProgressBar(values[0]);
         }
     }
 
@@ -89,7 +106,6 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
             super.publishProgress(progress);
         }
     }
-
 }
 
 interface ProgressPublisher {
@@ -105,6 +121,3 @@ interface CPExecutor extends CPPostExecutor{
     void doInBackground(ProgressPublisher progressPublisher) throws Config.PGNException;
 }
 
-interface ProgressBarHolder {
-    ChessPadView.CpProgressBar getProgressBar();
-}

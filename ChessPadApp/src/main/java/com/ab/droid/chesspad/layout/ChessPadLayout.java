@@ -1,4 +1,4 @@
-package com.ab.droid.chesspad;
+package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -24,27 +24,48 @@ import android.widget.TextView;
 import androidx.appcompat.widget.AppCompatEditText;
 import androidx.appcompat.widget.AppCompatImageButton;
 
+import com.ab.droid.chesspad.BoardHolder;
+import com.ab.droid.chesspad.ChessPad;
+import com.ab.droid.chesspad.R;
 import com.ab.pgn.Config;
+import com.ab.pgn.Pair;
+
+import java.util.List;
 
 /**
  * full ChessPad screen
  * Created by Alexander Bootman on 8/20/16.
  */
-public class ChessPadView extends View implements ProgressBarHolder {
+public class ChessPadLayout implements ProgressBarHolder {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private final ChessPad chessPad;
-    private final RelativeLayout relativeLayoutMain;
-    private CpProgressBar cpProgressBar;
+    final RelativeLayout mainLayout;
+    private ChessPadLayout.CpProgressBar cpProgressBar;
+    CpImageButton menuButton;
+    TextView title;
+    BoardView boardView;
+
+    TextView setupStatus;
+//    BoardHolder boardHolder;
+//    TextView glyph, move, analysis;
+//    ChessPadLayout.CpEditText comment;
+//    LichessChartView chart;
+
+
+    private final ChessPadLayout.CpImageButton[] imageButtons = new ChessPadLayout.CpImageButton[ChessPad.Command.total()];
+    private final Bitmap checkBitmap;
 
     private CpView cpView;
-    private static Bitmap checkBitmap = null;
+    private final GameView gameView;
+    private final SetupView setupView;
+    private final DgtBoardView dgtBoardView;
+    private final FicsPadView ficsPadView;
 
-    public ChessPadView(ChessPad chessPad) {
-        super(chessPad);
+    public ChessPadLayout(ChessPad chessPad) {
+//        super(chessPad);
         this.chessPad = chessPad;
-        // fix it!
-        checkBitmap = BitmapFactory.decodeResource(chessPad.getResources(), R.drawable.chk);
+        mainLayout = chessPad.getMainLayout();
 
         try {
             chessPad.getSupportActionBar().hide();
@@ -52,30 +73,108 @@ public class ChessPadView extends View implements ProgressBarHolder {
             Log.e(this.getClass().getName(), "getSupportActionBar error", e);
         }
 
-        relativeLayoutMain = chessPad.getMainRelativeLayout();
+//        RelativeLayout.LayoutParams rlp = new RelativeLayout.LayoutParams(
+//                RelativeLayout.LayoutParams.MATCH_PARENT,
+//                RelativeLayout.LayoutParams.MATCH_PARENT);
+//        setBackgroundColor(Color.CYAN);
+//        chessPad.setContentView(this, rlp);
+
+        checkBitmap = BitmapFactory.decodeResource(chessPad.getResources(), R.drawable.chk);
+
+        createTitleBar();
+/*
+        title = createTitleBar(chessPad, new TitleHolder() {
+            @Override
+            public int getLength() {
+                return Metrics.screenWidth;
+            }
+
+            @Override
+            public void onTitleClick() {
+                chessPad.onButtonClick(ChessPad.Command.EditTags);
+            }
+
+            @Override
+            public List<Pair<String, String>> getTags() {
+                return chessPad.getTags();
+            }
+        });
+*/
+        boardView = new BoardView(chessPad);
+        mainLayout.addView(boardView);
+
+        gameView = new GameView(this);
+        setupView = new SetupView(this);
+        dgtBoardView = new DgtBoardView(this);
+        ficsPadView = new FicsPadView(this);
+
+        cpView = gameView;
     }
+
+    CpImageButton createImageButton(final RelativeLayout relativeLayout, final ChessPad.Command command, int resource) {
+        CpImageButton btn = new CpImageButton(chessPad, resource);
+        btn.setId(command.getValue());
+        btn.setOnClickListener((v) -> {
+//            Log.d(Config.DEBUG_TAG + "ImageBtn", String.format("OnClick %s", command.toString()));
+            chessPad.onButtonClick(ChessPad.Command.command(v.getId()));
+        });
+        relativeLayout.addView(btn);
+        return btn;
+    }
+
+/*
+    private void  hideAllWidgets() {
+        gameView.hideAllWidgets();
+        setupView.hideAllWidgets();
+        dgtBoardView.hideAllWidgets();
+        ficsPadView.hideAllWidgets();
+    }
+*/
 
     public void redraw() {
 //        relativeLayoutMain.removeAllViewsInLayout();
-        relativeLayoutMain.removeAllViews();
+//        removeAllViews();
+
+        cpView.hideAllWidgets();
         recalcSizes();
+//        ChessPad chessPad = (ChessPad)getContext();
+        if (Metrics.isVertical) {
+            moveTo(boardView, 0, Metrics.titleHeight + Metrics.ySpacing, Metrics.boardViewSize, Metrics.boardViewSize);
+        } else {
+            moveTo(boardView, 0, 0, Metrics.boardViewSize, Metrics.boardViewSize);
+        }
+
+        boardView.draw();
+/*
+// DEBUG!! {
+        for (int i = 0; i < 10; ++i) {
+            boardView.draw();
+            System.gc();
+        }
+        System.gc();
+// DEBUG!! }
+//*/
+
+//        CpView cpView = null;
+        drawTitleBar();
 
         switch (chessPad.getMode()) {
+            case LichessPuzzle:
             case Game:
             case Puzzle:
-                cpView = new GameView(chessPad);
+                cpView = gameView;
                 break;
 
             case Setup:
-                cpView = new SetupView(chessPad);
+                cpView = setupView;
                 break;
 
             case DgtGame:
-                cpView = new DgtBoardView(chessPad);
+                cpView = dgtBoardView;
                 break;
 
             case FicsConnection:
-                cpView = new FicsPadView(chessPad);
+                cpView = ficsPadView;
                 break;
 
         }
@@ -84,26 +183,20 @@ public class ChessPadView extends View implements ProgressBarHolder {
         if (cpProgressBar != null) {
             showProgressBar = cpProgressBar.isVisible();
         }
-        cpProgressBar = new CpProgressBar(chessPad, relativeLayoutMain);
+        cpProgressBar = new CpProgressBar(chessPad, mainLayout);
         cpProgressBar.show(showProgressBar);
         invalidate();
     }
 
-    public void enableNavigation(boolean enable) {
-        if (cpView instanceof GameView) {
-            ((GameView)cpView).navigationEnabled = enable;
-        }
-    }
-
-    @Override
     public void invalidate() {
         if(cpView != null) {
             cpView.invalidate();
         }
-        super.invalidate();
+        mainLayout.invalidate();
     }
 
     private void recalcSizes() {
+//        ChessPad chessPad = (ChessPad)getContext();
         int orientation = chessPad.getResources().getConfiguration().orientation;
         Metrics.isVertical = orientation == Configuration.ORIENTATION_PORTRAIT;
 
@@ -189,19 +282,17 @@ public class ChessPadView extends View implements ProgressBarHolder {
             Metrics.paneHeight = Metrics.screenHeight - Metrics.boardViewSize - Metrics.titleHeight - Metrics.ySpacing;
             Metrics.paneWidth = Metrics.screenWidth;
         } else {
-            Metrics.paneHeight = Metrics.screenHeight - Metrics.titleHeight - Metrics.ySpacing;
+            Metrics.paneHeight = Metrics.screenHeight;
             Metrics.squareSize = Metrics.paneHeight / 8;
-            Metrics.ySpacing = Metrics.buttonSize / 20;
+//            Metrics.ySpacing = Metrics.buttonSize / 20;
+            Metrics.ySpacing = Metrics.squareSize / 20;
             if (Metrics.ySpacing <= 1) {
                 Metrics.ySpacing = 1;
-            } else {
-                Metrics.squareSize -= Metrics.ySpacing;
-            }
-            if (Metrics.xSpacing == 0) {
-                Metrics.xSpacing = 1;
+//            } else {
+//                Metrics.squareSize -= Metrics.ySpacing;
             }
             Metrics.xSpacing = Metrics.ySpacing;
-            Metrics.buttonSize = Metrics.squareSize - Metrics.xSpacing;
+            Metrics.buttonSize = (Metrics.paneHeight - Metrics.titleHeight) / ChessPad.Command.Flip.getValue() - Metrics.xSpacing;
             Metrics.boardViewSize = Metrics.paneHeight;
             Metrics.paneWidth = Metrics.screenWidth - Metrics.boardViewSize - Metrics.xSpacing;
         }
@@ -209,30 +300,106 @@ public class ChessPadView extends View implements ProgressBarHolder {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    static TextView drawTitleBar(ChessPad chessPad, final TitleHolder titleHolder) {
-        TextView title = new TextView(chessPad);
+    void createTitleBar() {
+        title = new TextView(chessPad);
         title.setSingleLine();
         title.setBackgroundColor(Color.GREEN);
         title.setTextColor(Color.BLACK);
+
+        final TitleHolder titleHolder = new TitleHolder() {
+//            @Override
+//            public int getLength() {
+//                return Metrics.screenWidth;
+//            }
+
+            @Override
+            public void onTitleClick() {
+                chessPad.onButtonClick(ChessPad.Command.EditTags);
+            }
+
+            @Override
+            public List<Pair<String, String>> getTags() {
+                return chessPad.getTags();
+            }
+        };
+
         title.setOnTouchListener((v, event) -> {
-            if(titleHolder != null && event.getAction() == MotionEvent.ACTION_UP) {
+            if (event.getAction() == MotionEvent.ACTION_UP) {
                 titleHolder.onTitleClick();
             }
             return true;
         });
         title.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        addTextView(chessPad.getMainRelativeLayout(), title, Metrics.buttonSize + Metrics.xSpacing, 0, titleHolder.getLength() - Metrics.buttonSize - Metrics.xSpacing, Metrics.titleHeight);
-        addImageButton(chessPad, chessPad.getMainRelativeLayout(), ChessPad.Command.Menu, 0, 0, Metrics.buttonSize, Metrics.titleHeight, R.drawable.menu);
-        return title;
+        this.addView(title);
+        menuButton = this.createImageButton(mainLayout, ChessPad.Command.Menu, R.drawable.menu);
     }
 
-    static BoardView drawBoardView(Context context, RelativeLayout relativeLayout, int x, int y, BoardHolder boardHolder) {
+    private void drawTitleBar() {
+        int x, w;
+        moveTo(menuButton, Metrics.screenWidth - Metrics.buttonSize, 0, Metrics.buttonSize, Metrics.titleHeight);
+        if (Metrics.isVertical) {
+            x = 0;
+        } else {
+            x = Metrics.boardViewSize + 2 * Metrics.xSpacing;
+        }
+
+/*
+        if (Metrics.isVertical) {
+            x = 0;
+            x = Metrics.screenWidth - Metrics.buttonSize;
+        } else {
+            x = Metrics.boardViewSize;
+        }
+
+        moveTo(menuButton, x, 0, Metrics.buttonSize, Metrics.titleHeight);
+*/
+        w = Metrics.screenWidth - x - Metrics.buttonSize - Metrics.xSpacing;
+        moveTo(title, x, 0, w, Metrics.titleHeight);
+
+//
+//        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(
+//                LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
+//
+//        layoutParams.leftMargin = 0;
+//        layoutParams.topMargin = 0;
+//        layoutParams.width = Metrics.buttonSize;
+//        layoutParams.height = Metrics.titleHeight;
+//        menuButton.setLayoutParams(layoutParams);
+//
+//        layoutParams.leftMargin = layoutParams.width + Metrics.xSpacing;
+//        layoutParams.width = Metrics.screenWidth - layoutParams.leftMargin;
+//        title.setLayoutParams(layoutParams);
+    }
+
+    void moveTo(View v, int x, int y, int w, int h) {
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
+
+        layoutParams.leftMargin = x;
+        layoutParams.topMargin = y;
+        layoutParams.width = w;
+        layoutParams.height = h;
+        v.setLayoutParams(layoutParams);
+    }
+
+    void moveTo(View v, int x, int y) {
+        RelativeLayout.LayoutParams layoutParams = new RelativeLayout.LayoutParams(
+                RelativeLayout.LayoutParams.WRAP_CONTENT, RelativeLayout.LayoutParams.WRAP_CONTENT);
+
+        layoutParams.leftMargin = x;
+        layoutParams.topMargin = y;
+        v.setLayoutParams(layoutParams);
+    }
+
+/*
+    BoardView drawBoardView(Context context, RelativeLayout relativeLayout, int x, int y, BoardHolder boardHolder) {
         BoardView boardView = new BoardView(context, boardHolder);
         addView(relativeLayout, boardView, x, y);
         return boardView;
     }
+*/
 
-    static void addTextView(RelativeLayout relativeLayout, TextView view, int x, int y, int w, int h) {
+    void addTextView(RelativeLayout relativeLayout, TextView view, int x, int y, int w, int h) {
         view.setPadding(0, 0, 0, 0);
         view.setTextSize(16);
         view.setTextColor(Color.DKGRAY);
@@ -245,21 +412,26 @@ public class ChessPadView extends View implements ProgressBarHolder {
         addView(relativeLayout, view, x, y, w, h);
     }
 
-    static CpImageButton addImageButton(ChessPad chessPad, RelativeLayout relativeLayout, ChessPad.Command command, int x, int y, int resource) {
+    CpImageButton addImageButton(ChessPad chessPad, RelativeLayout relativeLayout, ChessPad.Command command, int x, int y, int resource) {
         return addImageButton(chessPad, relativeLayout, command, x, y, Metrics.buttonSize, Metrics.buttonSize, resource);
     }
 
-    static CpImageButton addImageButton(final ChessPad chessPad, RelativeLayout relativeLayout, final ChessPad.Command command, int x, int y, int width, int height, int resource) {
+    CpImageButton addImageButton(final ChessPad chessPad, RelativeLayout relativeLayout, final ChessPad.Command command, int x, int y, int width, int height, int resource) {
         CpImageButton btn = new CpImageButton(chessPad, resource);
         btn.setId(command.getValue());
         addView(relativeLayout, btn, x, y, width, height);
         btn.setOnClickListener((v) -> {
+//            Log.d(Config.DEBUG_TAG + "ImageBtn", String.format("OnClick %s", command.toString()));
             chessPad.onButtonClick(ChessPad.Command.command(v.getId()));
         });
         return btn;
     }
 
-    private static void addView(RelativeLayout relativeLayout, View view, int x, int y) {
+    void addView(View view) {
+        mainLayout.addView(view);
+    }
+
+    private void addView(RelativeLayout relativeLayout, View view, int x, int y) {
         addView(relativeLayout, view, x, y, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
@@ -267,22 +439,18 @@ public class ChessPadView extends View implements ProgressBarHolder {
         RelativeLayout.LayoutParams rlp = new RelativeLayout.LayoutParams(w, h);
         rlp.setMargins(x, y, 0, 0);
         relativeLayout.addView(view, rlp);
+//        relativeLayout.setLayoutParams();
     }
 
     public void setButtonEnabled(int indx, boolean enable) {
-        if (cpView instanceof GameView) {
-            ((GameView)cpView).setButtonEnabled(indx, enable);
-        }
-    }
-
-    @Override
-    public CpProgressBar getProgressBar() {
-        return cpProgressBar;
+//        if (cpView instanceof GameView) {
+//            ((GameView)cpView).setButtonEnabled(indx, enable);
+//        }
     }
 
     // how to redraw after keyboard dismissal?
     // remove?
-    private static void createLabel(Context context, RelativeLayout relativeLayout, int x, int y, int w1, int h, int rscLabel) {
+    private void createLabel(Context context, RelativeLayout relativeLayout, int x, int y, int w1, int h, int rscLabel) {
         TextView label = new TextView(context);
         label.setBackgroundColor(Color.GRAY);
         label.setTextColor(Color.BLACK);
@@ -292,7 +460,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
         addTextView(relativeLayout, label, x, y, w1, h);
     }
 
-    public static CpEditText createLabeledEditText(Context context, RelativeLayout relativeLayout, int x, int y, int labelWidth, int valueWidth, int h, int rscLabel) {
+    public CpEditText createLabeledEditText(Context context, RelativeLayout relativeLayout, int x, int y, int labelWidth, int valueWidth, int h, int rscLabel) {
         createLabel(context, relativeLayout, x, y, labelWidth, h, rscLabel);
         CpEditText editText = new CpEditText(context);
         editText.setBackgroundColor(Color.GREEN);
@@ -306,13 +474,23 @@ public class ChessPadView extends View implements ProgressBarHolder {
     }
 
     public void enableCommentEdit(boolean enable) {
-        if (cpView instanceof GameView) {
-            ((GameView)cpView).enableCommentEdit(enable);
-        }
+//        if (cpView instanceof GameView) {
+//            ((GameView)cpView).enableCommentEdit(enable);
+//        }
+    }
+
+    @Override
+    public void showProgressBar(boolean doShow) {
+        cpProgressBar.show(doShow);
+    }
+
+    @Override
+    public void updateProgressBar(int progress) {
+        cpProgressBar.update(progress);
     }
 
     static class CpEditText extends AppCompatEditText {
-        private ChessPadView.StringKeeper stringKeeper;
+        private ChessPadLayout.StringKeeper stringKeeper;
 
         public CpEditText(Context context) {
             super(context);
@@ -339,13 +517,13 @@ public class ChessPadView extends View implements ProgressBarHolder {
             });
         }
 
-        public void setStringKeeper(ChessPadView.StringKeeper stringKeeper) {
+        public void setStringKeeper(ChessPadLayout.StringKeeper stringKeeper) {
             this.stringKeeper = stringKeeper;
             this.setText(stringKeeper.getValue());
         }
     }
 
-    public static class CpImageButton extends AppCompatImageButton {
+    static class CpImageButton extends AppCompatImageButton {
         CpImageButton(Context context, int resource) {
             super(context);
             setBackgroundResource(R.drawable.btn_background);
@@ -358,60 +536,6 @@ public class ChessPadView extends View implements ProgressBarHolder {
         }
     }
 
-    static class CpProgressBar {
-        private boolean isVisible;
-        private final ProgressBar progressBar;
-        private final TextView progressText;
-
-        CpProgressBar(Context context, RelativeLayout relativeLayout) {
-            int x, y, h, w;
-            w = Metrics.boardViewSize;
-            x = (Metrics.screenWidth - w) / 2;
-            h = Metrics.titleHeight;
-            y = Metrics.titleHeight * 2;
-            progressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
-            progressBar.setVisibility(View.GONE);
-            progressBar.setMax(100);
-            ChessPadView.addView(relativeLayout, progressBar, x, y, w, h);
-
-            w = Metrics.maxMoveWidth / 2;
-            x = (Metrics.screenWidth - w) / 2;
-            y += h + Metrics.ySpacing;
-            h = Metrics.titleHeight;
-            progressText = new TextView(context);
-            progressText.setSingleLine();
-            progressText.setBackgroundColor(Color.RED);
-            progressText.setTextColor(Color.WHITE);
-            progressText.setGravity(Gravity.CENTER);
-            progressText.setVisibility(View.GONE);
-            ChessPadView.addView(relativeLayout, progressText, x, y, w, h);
-            isVisible = false;
-        }
-
-        boolean isVisible() {
-            return this.isVisible;
-        }
-
-        void show(boolean bShow) {
-            if (progressBar == null) {
-                return;
-            }
-            isVisible = bShow;
-            if (bShow) {
-                progressBar.setVisibility(View.VISIBLE);
-                progressText.setVisibility(View.VISIBLE);
-            } else {
-                progressBar.setVisibility(View.GONE);
-                progressText.setVisibility(View.GONE);
-            }
-        }
-
-        void update(int progress) {
-            progressBar.setProgress(progress);
-            progressText.setText(String.format("%s%%", progress));
-        }
-    }
-
     public interface ChangeObserver {
         void onValueChanged(Object value);
     }
@@ -419,7 +543,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
     public abstract static class StringKeeper {
         public void setValue(String str) {}
         public String getValue() { return null; }
-        int getNumericValue(String value) {
+        public int getNumericValue(String value) {
             int res = 0;
             if(value != null && !value.isEmpty()) {
                 try {
@@ -437,7 +561,7 @@ public class ChessPadView extends View implements ProgressBarHolder {
         boolean getFlag();
     }
 
-    public static class CpToggleButton extends ChessPadView.CpImageButton {
+    public class CpToggleButton extends ChessPadLayout.CpImageButton {
         private FlagKeeper flagKeeper;
 
         public CpToggleButton(ChessPad chessPad, RelativeLayout rl, int size, int x, int y, int rscNormal) {
@@ -469,23 +593,27 @@ public class ChessPadView extends View implements ProgressBarHolder {
     static abstract class CpView {
         final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
         final ChessPad chessPad;
-        final RelativeLayout relativeLayoutMain;
+        final ChessPadLayout relativeLayoutMain;
+        final BoardHolder boardHolder;
+//        TextView setupStatus;
 
-        TextView title;
-        TextView setupStatus;
-
-        BoardHolder boardHolder;
-        BoardView boardView;
+//        TextView title;
+//
+//        BoardView boardView;
         int selectedPiece = -1;
 
+/*
         CpView(ChessPad chessPad) {
-            this(chessPad, chessPad);
-        }
-
-        CpView(ChessPad chessPad, BoardHolder boardHolder) {
+            this.relativeLayoutMain = chessPad.chessPadLayout;
             this.chessPad = chessPad;
-            this.boardHolder = boardHolder;
-            this.relativeLayoutMain = chessPad.getMainRelativeLayout();
+            this.boardHolder = chessPad;
+        }
+*/
+
+        CpView(ChessPadLayout chessPadLayout) {
+            this.relativeLayoutMain = chessPadLayout;
+            this.chessPad = chessPadLayout.chessPad;
+            this.boardHolder = chessPadLayout.chessPad;
         }
 
         void draw() {
@@ -493,20 +621,77 @@ public class ChessPadView extends View implements ProgressBarHolder {
         }
 
         void setStatus(int errNum) {
-            if(setupStatus != null) {
-                setupStatus.setText(chessPad.getSetupErr(errNum));
+            if(relativeLayoutMain.setupStatus != null) {
+                relativeLayoutMain.setupStatus.setText(chessPad.getSetupErr(errNum));
                 if (errNum == 0) {
-                    setupStatus.setTextColor(Color.BLACK);
-                    setupStatus.setBackgroundColor(Color.GREEN);
+                    relativeLayoutMain.setupStatus.setTextColor(Color.BLACK);
+                    relativeLayoutMain.setupStatus.setBackgroundColor(Color.GREEN);
                 } else {
-                    setupStatus.setTextColor(Color.RED);
-                    setupStatus.setBackgroundColor(Color.LTGRAY);
+                    relativeLayoutMain.setupStatus.setTextColor(Color.RED);
+                    relativeLayoutMain.setupStatus.setBackgroundColor(Color.LTGRAY);
                 }
             }
         }
 
-        void invalidate() {
-            chessPad.chessPadView.invalidate();
+//        void invalidate() {
+//            chessPad.chessPadLayout.invalidate();
+//        }
+        abstract void hideAllWidgets();
+        abstract void invalidate();
+    }
+
+    class CpProgressBar {
+        private boolean isVisible;
+        private final ProgressBar progressBar;
+        private final TextView progressText;
+
+        CpProgressBar(Context context, RelativeLayout relativeLayout) {
+            int x, y, h, w;
+            w = Metrics.boardViewSize;
+            x = (Metrics.screenWidth - w) / 2;
+            h = Metrics.titleHeight;
+            y = Metrics.titleHeight * 2;
+            progressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
+            progressBar.setVisibility(View.GONE);
+            progressBar.setMax(100);
+            addView(relativeLayout, progressBar, x, y, w, h);
+
+            w = Metrics.maxMoveWidth / 2;
+            x = (Metrics.screenWidth - w) / 2;
+            y += h + Metrics.ySpacing;
+            h = Metrics.titleHeight;
+            progressText = new TextView(context);
+            progressText.setSingleLine();
+            progressText.setBackgroundColor(Color.RED);
+            progressText.setTextColor(Color.WHITE);
+            progressText.setGravity(Gravity.CENTER);
+            progressText.setVisibility(View.GONE);
+            addView(relativeLayout, progressText, x, y, w, h);
+            isVisible = false;
+        }
+
+        boolean isVisible() {
+            return this.isVisible;
+        }
+
+        void show(boolean doShow) {
+            if (progressBar == null) {
+                return;
+            }
+            isVisible = doShow;
+            if (doShow) {
+                progressBar.setVisibility(View.VISIBLE);
+                progressText.setVisibility(View.VISIBLE);
+            } else {
+                progressBar.setVisibility(View.GONE);
+                progressText.setVisibility(View.GONE);
+            }
+        }
+
+        void update(int progress) {
+            progressBar.setProgress(progress);
+            progressText.setText(String.format("%s%%", progress));
         }
     }
 }
+

@@ -1,42 +1,37 @@
-package com.ab.droid.chesspad;
+package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
-import android.graphics.Color;
 import android.text.InputType;
 import android.util.Log;
-import android.view.Gravity;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 
+import com.ab.droid.chesspad.BoardHolder;
+import com.ab.droid.chesspad.R;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
-import com.ab.pgn.Pair;
 import com.ab.pgn.Setup;
 import com.ab.pgn.Square;
-
-import java.util.List;
 
 /**
  *
  * Created by Alexander Bootman on 11/27/16.
  */
 
-public class SetupView extends ChessPadView.CpView {
+public class SetupView extends ChessPadLayout.CpView {
     final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
     private BoardView piecesView;
-    ChessPadView.CpToggleButton btnWhiteMove;
-    ChessPadView.CpToggleButton btnBlackMove;
-    ChessPadView.CpToggleButton btnWhiteQueenCastle;
-    ChessPadView.CpToggleButton btnWhiteKingCastle;
-    ChessPadView.CpToggleButton btnBlackQueenCastle;
-    ChessPadView.CpToggleButton btnBlackKingCastle;
-    ChessPadView.CpEditText enPassEditText, hmClockEditText, moveNumEditText;
+    ChessPadLayout.CpToggleButton btnWhiteMove;
+    ChessPadLayout.CpToggleButton btnBlackMove;
+    ChessPadLayout.CpToggleButton btnWhiteQueenCastle;
+    ChessPadLayout.CpToggleButton btnWhiteKingCastle;
+    ChessPadLayout.CpToggleButton btnBlackQueenCastle;
+    ChessPadLayout.CpToggleButton btnBlackKingCastle;
+    ChessPadLayout.CpEditText enPassEditText, hmClockEditText, moveNumEditText;
 
-    public SetupView(ChessPad chessPad) {
-        super(chessPad);
+    SetupView(ChessPadLayout chessPadLayout) {
+        super(chessPadLayout);
     }
 
     Board getBoard() {
@@ -80,16 +75,23 @@ public class SetupView extends ChessPadView.CpView {
                 getSetup().getBoard().setPiece(clicked, Config.EMPTY);
                 invalidate();
             }
+
+            @Override
+            public boolean isFlipped() {
+                return false;
+            }
+
         };
     }
 
     @Override
     @SuppressLint("ClickableViewAccessibility")
     void draw() {
+/*
         int x, y;
 
         Log.d(DEBUG_TAG, "draw()");
-        title = ChessPadView.drawTitleBar(chessPad, new TitleHolder() {
+        title = ChessPadLayout.drawTitleBar(chessPad, new TitleHolder() {
             @Override
             public int getLength() {
                 return Metrics.screenWidth;
@@ -112,7 +114,7 @@ public class SetupView extends ChessPadView.CpView {
             x = 0;
         }
         y = Metrics.titleHeight + Metrics.ySpacing;
-        boardView = ChessPadView.drawBoardView(chessPad, relativeLayoutMain, x, y, getMainBoardHolder());
+        boardView = ChessPadLayout.drawBoardView(chessPad, relativeLayoutMain, x, y, getMainBoardHolder());
 
         RelativeLayout relativeLayoutSetup = new RelativeLayout(chessPad);
         relativeLayoutSetup.setBackgroundColor(Color.BLACK);
@@ -135,12 +137,12 @@ public class SetupView extends ChessPadView.CpView {
         if (Metrics.isVertical) {
             x = 0; // xSpacing;
             y = Metrics.titleHeight + Metrics.ySpacing + Metrics.boardViewSize + Metrics.ySpacing;
-            ChessPadView.addView(relativeLayoutMain, relativeLayoutSetup, x, y, Metrics.paneWidth, Metrics.paneHeight);
+            ChessPadLayout.addView(relativeLayoutMain, relativeLayoutSetup, x, y, Metrics.paneWidth, Metrics.paneHeight);
             drawSetupVerticalLayout(relativeLayoutSetup);
         } else {
             x = Metrics.boardViewSize + Metrics.xSpacing;
             y = Metrics.titleHeight + Metrics.ySpacing;
-            ChessPadView.addView(relativeLayoutMain, relativeLayoutSetup, x, y, Metrics.paneWidth, Metrics.paneHeight);
+            ChessPadLayout.addView(relativeLayoutMain, relativeLayoutSetup, x, y, Metrics.paneWidth, Metrics.paneHeight);
             drawSetupHorizonlalLayout(relativeLayoutSetup);
         }
 
@@ -176,12 +178,18 @@ public class SetupView extends ChessPadView.CpView {
         setFields();
         Log.d(DEBUG_TAG, "draw() done");
         invalidate();
+*/
+    }
+
+    @Override
+    void hideAllWidgets() {
+        // todo!
     }
 
     private void setFields() {
         if(enPassEditText != null) {
             enPassEditText.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-            enPassEditText.setStringKeeper(new ChessPadView.StringKeeper() {
+            enPassEditText.setStringKeeper(new ChessPadLayout.StringKeeper() {
                 @Override
                 public void setValue(String enPass) {
                     String oldEnPass = getSetup().getEnPass();
@@ -199,7 +207,7 @@ public class SetupView extends ChessPadView.CpView {
         }
 
         if(hmClockEditText != null) {
-            hmClockEditText.setStringKeeper(new ChessPadView.StringKeeper() {
+            hmClockEditText.setStringKeeper(new ChessPadLayout.StringKeeper() {
                 @Override
                 public void setValue(String str) {
                     int hmClock = getNumericValue(str);
@@ -218,7 +226,7 @@ public class SetupView extends ChessPadView.CpView {
         }
 
         if(moveNumEditText != null) {
-            moveNumEditText.setStringKeeper(new ChessPadView.StringKeeper() {
+            moveNumEditText.setStringKeeper(new ChessPadLayout.StringKeeper() {
                 @Override
                 public void setValue(String str) {
                     int moveNum = getNumericValue(str);
@@ -254,6 +262,7 @@ public class SetupView extends ChessPadView.CpView {
         board.setPlyNum(plyNum);
     }
 
+/*
     void drawSetupVerticalLayout(RelativeLayout relativeLayoutSetup) {
         int x, y;
 
@@ -272,35 +281,35 @@ public class SetupView extends ChessPadView.CpView {
         // white / black move buttons
         x = 0;
         y = Metrics.squareSize * 2 + Metrics.ySpacing;
-        btnWhiteMove = new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
+        btnWhiteMove = new ChessPadLayout.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
         y += toggleButtonSize + Metrics.ySpacing;
-        btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
+        btnBlackMove = new ChessPadLayout.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
 
         // castle buttons
         x = toggleButtonSize + Metrics.xSpacing;
         y = Metrics.squareSize * 2 + Metrics.ySpacing;
-        btnWhiteQueenCastle = new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+        btnWhiteQueenCastle = new ChessPadLayout.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
         x += toggleButtonSize + Metrics.xSpacing;
-        btnWhiteKingCastle = new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+        btnWhiteKingCastle = new ChessPadLayout.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
 
         x = toggleButtonSize + Metrics.xSpacing;
         y += toggleButtonSize + Metrics.ySpacing;
-        btnBlackQueenCastle = new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+        btnBlackQueenCastle = new ChessPadLayout.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
         x += toggleButtonSize + Metrics.xSpacing;
-        btnBlackKingCastle = new ChessPadView.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+        btnBlackKingCastle = new ChessPadLayout.CpToggleButton(chessPad,relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
 
         // texts:
         x += toggleButtonSize + 2 * Metrics.xSpacing;
         y = Metrics.squareSize * 2 + Metrics.ySpacing;
         int height = (2 * toggleButtonSize - 2 * Metrics.ySpacing) / 3;
-        enPassEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+        enPassEditText = ChessPadLayout.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
                 Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_en_pass);
 
         y += height + Metrics.ySpacing;
-        hmClockEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+        hmClockEditText = ChessPadLayout.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
                 Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_halfmove_clock);
         y += height + Metrics.ySpacing;
-        moveNumEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+        moveNumEditText = ChessPadLayout.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
                 Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_move_num);
         y += height;
 
@@ -316,7 +325,7 @@ public class SetupView extends ChessPadView.CpView {
             y = 0;
             height = 2 * Metrics.squareSize;
         }
-        ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
+        ChessPadLayout.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
     }
 
     void drawSetupHorizonlalLayout(RelativeLayout relativeLayoutSetup) {
@@ -327,14 +336,14 @@ public class SetupView extends ChessPadView.CpView {
 
         // texts:
         int height = (2 * toggleButtonSize - 2 * Metrics.ySpacing) / 3;
-        enPassEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+        enPassEditText = ChessPadLayout.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
                 Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_en_pass);
 
         y += height + Metrics.ySpacing;
-        hmClockEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+        hmClockEditText = ChessPadLayout.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
                 Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_halfmove_clock);
         y += height + Metrics.ySpacing;
-        moveNumEditText = ChessPadView.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
+        moveNumEditText = ChessPadLayout.createLabeledEditText(chessPad, relativeLayoutSetup, x, y,
                 Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, height, R.string.label_move_num);
         y += height + Metrics.ySpacing;
         int y0 = y;
@@ -350,34 +359,36 @@ public class SetupView extends ChessPadView.CpView {
 
         x = 2 * Metrics.squareSize + 2 * Metrics.xSpacing;
         y = y0;
-        btnWhiteMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
+        btnWhiteMove = new ChessPadLayout.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kw);
         x += toggleButtonSize + Metrics.xSpacing;
-        btnBlackMove = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
+        btnBlackMove = new ChessPadLayout.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.kb);
 
         // castle buttons
         x = 2 * Metrics.squareSize + 2 * Metrics.xSpacing;
         y = y0 + Metrics.squareSize + Metrics.ySpacing;
-        btnWhiteQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+        btnWhiteQueenCastle = new ChessPadLayout.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
         y += toggleButtonSize + Metrics.ySpacing;
-        btnWhiteKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+        btnWhiteKingCastle = new ChessPadLayout.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
 
         x += Metrics.squareSize + Metrics.xSpacing;
         y = y0 + Metrics.squareSize + Metrics.ySpacing;
-        btnBlackQueenCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
+        btnBlackQueenCastle = new ChessPadLayout.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.l_castle);
         y += toggleButtonSize + Metrics.ySpacing;
-        btnBlackKingCastle = new ChessPadView.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
+        btnBlackKingCastle = new ChessPadLayout.CpToggleButton(chessPad, relativeLayoutSetup, toggleButtonSize, x, y, R.drawable.s_castle);
         y0 = y + toggleButtonSize + Metrics.ySpacing;
 
         x = 2 * Metrics.squareSize + 2 * Metrics.xSpacing;
         int width = Metrics.paneWidth - x;
         y = y0;
         height = Metrics.paneHeight - y;
-        ChessPadView.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
+        ChessPadLayout.addTextView(relativeLayoutSetup, setupStatus, x, y, width, height);
     }
+*/
 
     private void createPiecesView(RelativeLayout relativeLayout, int x, int y, int[][] _pieces) {
         final Board pieces = new Board(_pieces);
-        piecesView = ChessPadView.drawBoardView(chessPad, relativeLayout, x, y, new BoardHolder() {
+/*
+        piecesView = ChessPadLayout.drawBoardView(chessPad, relativeLayout, x, y, new BoardHolder() {
             @Override
             public Board getBoard() {
                 return pieces;
@@ -407,6 +418,7 @@ public class SetupView extends ChessPadView.CpView {
                 Log.d(DEBUG_TAG, String.format("pieces onFling (%s)", clicked.toString()));
             }
         });
+*/
     }
 
     private boolean alreadyThere = false;   // quick and dirty
@@ -418,9 +430,9 @@ public class SetupView extends ChessPadView.CpView {
         alreadyThere = true;
         getSetup().validate();
         setStatus(getSetup().getErrNum());
-        super.invalidate();
-        title.setText(getSetup().getTitleText());
-        invalidateViewGroup(relativeLayoutMain);
+//        super.invalidate();
+        relativeLayoutMain.title.setText(getSetup().getTitleText());
+        invalidateViewGroup(relativeLayoutMain.mainLayout);
         alreadyThere = false;
     }
 
@@ -435,7 +447,7 @@ public class SetupView extends ChessPadView.CpView {
         }
     }
 
-    class SetupFlagKeeper implements ChessPadView.FlagKeeper {
+    class SetupFlagKeeper implements ChessPadLayout.FlagKeeper {
         final int flag;
 
         SetupFlagKeeper(int flag) {

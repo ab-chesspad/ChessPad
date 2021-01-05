@@ -1,7 +1,6 @@
-package com.ab.droid.chesspad;
+package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -15,6 +14,9 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 
+import com.ab.droid.chesspad.BoardHolder;
+import com.ab.droid.chesspad.ChessPad;
+import com.ab.droid.chesspad.R;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
 import com.ab.pgn.Pair;
@@ -40,19 +42,21 @@ public class BoardView extends View {
     }
 
     private Bitmap[] pieces;
-    private final int squareSize, margin = 0;
+    private Bitmap[] bgBitmaps;
+    private int squareSize, margin = 0;
     private Square selected = new Square();
     private final BoardHolder boardHolder;
-    private Bitmap[] bgBitmaps;
     private final List<Pair<Square, Square>> hints = new ArrayList<>();
 
     @SuppressLint("ClickableViewAccessibility")
-    public BoardView(Context context, BoardHolder boardHolder) {
-        super(context);
+//    public BoardView(Context context, BoardHolder boardHolder) {
+    public BoardView(ChessPad chessPad) {
+        super(chessPad);
 
-        this.boardHolder = boardHolder;
-        this.squareSize = boardHolder.getBoardViewSize() / 8;
-        this.setBackgroundColor(Color.BLACK);
+        this.boardHolder = chessPad;
+//        this.squareSize = boardHolder.getBoardViewSize() / 8;
+//        this.setBackgroundColor(Color.TRANSPARENT);
+        this.setBackgroundColor(Color.CYAN);
         initBitmaps();
         initBitmaps(boardHolder.getBGResources());
         this.setOnTouchListener(new BoardOnTouchListener());
@@ -65,7 +69,6 @@ public class BoardView extends View {
         for (int i = 0; i < bgResources.length; ++i) {
             bgBitmaps[i] = BitmapFactory.decodeResource(r, bgResources[i]);
         }
-        recalcBitmapSizes(bgBitmaps);
     }
 
     private void initBitmaps() {
@@ -89,7 +92,11 @@ public class BoardView extends View {
 
         pieces[Config.SELECTED_SQUARE_INDEX] = BitmapFactory.decodeResource(r, R.drawable.selected);
         pieces[Config.POOL_BG_INDEX] = BitmapFactory.decodeResource(r, R.drawable.greenbg);
+    }
 
+    public void draw() {
+        squareSize = boardHolder.getBoardViewSize() / 8;
+        recalcBitmapSizes(bgBitmaps);
         recalcBitmapSizes(pieces);
     }
 
@@ -125,7 +132,7 @@ public class BoardView extends View {
         if (board == null) {
             return res;
         }
-        if (((ChessPad)ChessPad.getContext()).isFlipped()) {
+        if (boardHolder.isFlipped()) {
             int xSize = board.getXSize();
             res.x = margin + (xSize - 1 - x) * squareSize;
             res.y = margin + y * squareSize;
@@ -144,7 +151,7 @@ public class BoardView extends View {
         if (board == null) {
             return res;
         }
-        if (((ChessPad)ChessPad.getContext()).isFlipped()) {
+        if (boardHolder.isFlipped()) {
             res.x = board.getXSize() - 1 - (x - margin) / squareSize;
             res.y = (y - margin) / squareSize;
         } else {
@@ -164,6 +171,7 @@ public class BoardView extends View {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        super.onDraw(canvas);
         drawBoard(canvas);
         drawHints(canvas);
     }

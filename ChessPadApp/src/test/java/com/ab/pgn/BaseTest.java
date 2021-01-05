@@ -26,7 +26,8 @@ import java.util.regex.Pattern;
  */
 public class BaseTest {
     static final boolean DEBUG = false;
-    static final boolean USE_BIT_STREAMS = Config.USE_BIT_STREAMS;
+//    static final boolean USE_BIT_STREAMS = Config.USE_BIT_STREAMS;
+    static final boolean USE_BIT_STREAMS = true;
     static final int FLAGS_PROMOTION = 0x010000;
     static final int FLAGS_ENPASSANT = 0x020000;
 
@@ -38,8 +39,8 @@ public class BaseTest {
             prefix = "../";
         }
     }
-    static final String TEST_ROOT = prefix + "etc/test/";
-    static final String TEST_TMP_ROOT = prefix + "etc/test_tmp/";
+    protected static final String TEST_ROOT = prefix + "etc/test/";
+    protected static final String TEST_TMP_ROOT = prefix + "etc/test_tmp/";
 
     /*
     public static String LOG_FILE_NAME = null;

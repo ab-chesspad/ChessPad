@@ -28,8 +28,9 @@ import java.util.ListIterator;
  */
 //@Ignore
 public class PgnGraphTest extends BaseTest {
-    private static final String LOG_FILE_WRITER_NAME = prefix + "log/graph-w.log";
-    private static final String LOG_FILE_READER_NAME = prefix + "log/graph-r.log";
+    private static final String LOG_DIR_NAME = "log/";
+    private static final String LOG_FILE_WRITER_NAME = TEST_TMP_ROOT + LOG_DIR_NAME + "graph-w.log";
+    private static final String LOG_FILE_READER_NAME = TEST_TMP_ROOT + LOG_DIR_NAME + "graph-r.log";
 
     private static final int TEST_GLYPH = 79;
     private static final String TEST_COMMENT = "Test comment";
@@ -217,7 +218,7 @@ public class PgnGraphTest extends BaseTest {
         PgnGraph pgnGraph = graphs.get(0);
         String s = pgnGraph.toPgn();
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} \n *"));
+        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} *"));
         System.out.println(s);
         List<String> movesText = pgnGraph.getMovesText();
         for(String part : movesText) {
@@ -239,7 +240,7 @@ public class PgnGraphTest extends BaseTest {
         String s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} \n *"));
+        Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} *"));
 
         graph.delCurrentMove();
         s = graph.toPgn();
@@ -249,12 +250,12 @@ public class PgnGraphTest extends BaseTest {
         graph.delCurrentMove();
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        Assert.assertTrue(s.trim().endsWith("3. Bc4 {main} \n *"));
+        Assert.assertTrue(s.trim().endsWith("3. Bc4 {main} *"));
 
         graph.delCurrentMove();
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        Assert.assertTrue(s.trim().endsWith("2. ... Nc6 {main} \n *"));
+        Assert.assertTrue(s.trim().endsWith("2. ... Nc6 {main} *"));
 
         // test navigation through graph
         graph.toInit();
@@ -294,12 +295,12 @@ public class PgnGraphTest extends BaseTest {
         graph.delCurrentMove();
         Assert.assertEquals(1, graph.moveLine.size());
         s = graph.toPgn().trim();
-        Assert.assertEquals(String.format("{%s} \n *", TEST_COMMENT), s);
+        Assert.assertEquals(String.format("{%s} *", TEST_COMMENT), s);
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Assert.assertTrue(graph.isModified());
-        graph.setModified(false);
-        Assert.assertFalse(graph.isModified());
+//        graph.setModified(false);
+//        Assert.assertFalse(graph.isModified());
     }
 
     @Test
@@ -321,7 +322,7 @@ public class PgnGraphTest extends BaseTest {
         String s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
-        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1} \n *", TEST_GLYPH)));
+        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1} *", TEST_GLYPH)));
 
         graph.toPrevVar();                      // 1. ... e5
         List<Move> variations = graph.getVariations();
@@ -331,7 +332,7 @@ public class PgnGraphTest extends BaseTest {
 
         graph.delCurrentMove();
         s = graph.toPgn();
-        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1} \n *", TEST_GLYPH)));
+        Assert.assertTrue(s.trim().endsWith(String.format("4. c3 $%s {main; v2; v1} *", TEST_GLYPH)));
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Move m = new Move(0);
@@ -610,11 +611,12 @@ public class PgnGraphTest extends BaseTest {
 
 
     @Test
-    @Ignore("unused functionality")
     public void testSerializeGraph_0() throws Config.PGNException, IOException {
         String pgn =
             "[White \"merge\"]\n" +
             "[Black \"variations\"]\n" +
+            "[CustomTag1 \"custom tag 1\"]\n" +
+            "[CustomTag2 \"custom tag 2\"]\n" +
             "{Merge variations test}" +
             "1.e4{1.} e5{..1} 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4. d4 {v1} (4.c3{v11} $7) 4. ... exd4 {v1}) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) (2.d4 {v3} exd4 {v3}) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
             "\n";
@@ -649,13 +651,14 @@ public class PgnGraphTest extends BaseTest {
     }
 
     @Test
-    @Ignore("unused functionality")
     public void testSerializeGraph_1() throws Config.PGNException, IOException {
         CpFile.setRoot(new File(TEST_ROOT));
+        File tmpLog = new File(TEST_TMP_ROOT + LOG_DIR_NAME);
+        tmpLog.mkdirs();
         String[] fNames = {
             "MaxLange-0.pgn",
             "MaxLange-00.pgn",
-            "SicilianTaimanovMain-merged.pgn",
+//            "SicilianTaimanovMain-merged.pgn",    // long file
         };
 
         for(final String fName : fNames) {
@@ -764,7 +767,7 @@ public class PgnGraphTest extends BaseTest {
     }
 
     @Test
-//    @Ignore("todo: move this code to buildSrc and use com.ab.pgn package")
+    @Ignore("todo: move this code to buildSrc to use with com.ab.pgn package")
     public void runBookBuilder() throws Config.PGNException {
         final String DATA_DIR = "../../ChessPadApp/src/main/book/";
         final String ecoFileName = DATA_DIR + "eco.pgn";

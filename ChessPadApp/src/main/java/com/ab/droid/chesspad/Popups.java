@@ -25,6 +25,8 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 
+import com.ab.droid.chesspad.layout.ChessPadLayout;
+import com.ab.droid.chesspad.layout.Metrics;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Config;
 import com.ab.pgn.CpFile;
@@ -403,7 +405,7 @@ public class Popups {
 
         if (selected == DialogInterface.BUTTON_NEGATIVE) {
             dismissDlg();
-            chessPad.chessPadView.invalidate();
+            chessPad.chessPadLayout.invalidate();
             return;
         }
         switch (dialogType) {
@@ -413,7 +415,7 @@ public class Popups {
 
             case Glyphs:
                 dismissDlg();
-                if(chessPad.mode == ChessPad.Mode.Game || chessPad.mode == ChessPad.Mode.Puzzle) {
+                if(chessPad.mode == ChessPad.Mode.Game || chessPad.puzzleMode()) {
                     chessPad.getPgnGraph().setGlyph(selected);
                 } else if(chessPad.mode == ChessPad.Mode.DgtGame) {
                     chessPad.dgtBoardPad.getPgnGraph().getCurrentMove().setGlyph(selected);
@@ -436,6 +438,7 @@ public class Popups {
                 dismissDlg();
                 promotionMove.setPiecePromoted(promotionPieces.get(selected) | (promotionMove.moveFlags & Config.BLACK));
                 chessPad.completePromotion(promotionMove);
+                promotionMove = null;
                 break;
 
             case Menu:
@@ -458,11 +461,14 @@ public class Popups {
                     Log.d(DEBUG_TAG, String.format("selectedSquare %s", selectedValue.toString()));
                     dismissDlg();
                     final CpFile.Item actualItem = (CpFile.Item) selectedValue;
-                    new CPAsyncTask(chessPad.chessPadView, new CPExecutor() {
+                    new CPAsyncTask(chessPad.chessPadLayout, new CPExecutor() {
                         @Override
                         public void onPostExecute() {
                             Log.d(DEBUG_TAG, String.format("gePgnFile end, thread %s", Thread.currentThread().getName()));
                             try {
+//                                if (chessPad.puzzleMode()) {
+//                                    chessPad.getPgnGraph().setModified(false);
+//                                }
                                 chessPad.mode = ChessPad.Mode.Game;
                                 chessPad.setPgnGraph(actualItem);
                             } catch (Config.PGNException e) {
@@ -542,7 +548,7 @@ public class Popups {
                 break;
         }
         if (currentAlertDialog == null) {
-            chessPad.chessPadView.invalidate();
+            chessPad.chessPadLayout.invalidate();
         }
     }
 
@@ -557,6 +563,7 @@ public class Popups {
             }
         }
         this.dialogType = DialogType.None;
+        editTags = null;
     }
 
     private void dlgMessage(final DialogType dialogType, String msg, int icon, DialogButton button) {
@@ -698,11 +705,11 @@ public class Popups {
     }
 
     static class MergeData extends PgnGraph.MergeData {
-        ChessPadView.StringKeeper startStringWrapper;
-        ChessPadView.StringKeeper endStringWrapper;
-        ChessPadView.StringKeeper maxPlysPathWrapper;
-        ChessPadView.StringKeeper pgnPathWrapper;
-        ChessPadView.ChangeObserver changeObserver;
+        ChessPadLayout.StringKeeper startStringWrapper;
+        ChessPadLayout.StringKeeper endStringWrapper;
+        ChessPadLayout.StringKeeper maxPlysPathWrapper;
+        ChessPadLayout.StringKeeper pgnPathWrapper;
+        ChessPadLayout.ChangeObserver changeObserver;
 
         MergeData() {
             super();
@@ -715,7 +722,7 @@ public class Popups {
         }
 
         private void init() {
-            pgnPathWrapper = new ChessPadView.StringKeeper() {
+            pgnPathWrapper = new ChessPadLayout.StringKeeper() {
                 @Override
                 public void setValue(String str) {
                     pgnPath = str;
@@ -730,7 +737,7 @@ public class Popups {
                 }
             };
 
-            startStringWrapper = new ChessPadView.StringKeeper() {
+            startStringWrapper = new ChessPadLayout.StringKeeper() {
                 @Override
                 public void setValue(String value) {
                     if( value.isEmpty()) {
@@ -752,7 +759,7 @@ public class Popups {
                 }
             };
 
-            endStringWrapper = new ChessPadView.StringKeeper() {
+            endStringWrapper = new ChessPadLayout.StringKeeper() {
                 @Override
                 public void setValue(String value) {
                     if( value.isEmpty()) {
@@ -774,7 +781,7 @@ public class Popups {
                 }
             };
 
-            maxPlysPathWrapper = new ChessPadView.StringKeeper() {
+            maxPlysPathWrapper = new ChessPadLayout.StringKeeper() {
                 @Override
                 public void setValue(String value) {
                     if( value.isEmpty()) {
@@ -797,7 +804,7 @@ public class Popups {
             };
         }
 
-        void setChangeObserver(ChessPadView.ChangeObserver changeObserver) {
+        void setChangeObserver(ChessPadLayout.ChangeObserver changeObserver) {
             this.changeObserver = changeObserver;
         }
     }
@@ -810,7 +817,7 @@ public class Popups {
         textViewAnnotate.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
     }
 
-    private void attachStringKeeper(final EditText editText, final ChessPadView.StringKeeper stringKeeper) {
+    private void attachStringKeeper(final EditText editText, final ChessPadLayout.StringKeeper stringKeeper) {
         if(stringKeeper == null) {
             return;
         }
@@ -1081,7 +1088,7 @@ public class Popups {
         currentAlertDialog = builder.create();
 
         usernameEditText.setText(chessPad.getLichessSettings().getUsername());
-        passwordEditText.setText(chessPad.getLichessSettings().getUsername());
+        passwordEditText.setText(chessPad.getLichessSettings().getPassword());
         currentAlertDialog.show();
     }
 
@@ -1296,7 +1303,7 @@ public class Popups {
                 ++selectedIndex;
             }
 
-            new CPAsyncTask(chessPad.chessPadView, new CPExecutor() {
+            new CPAsyncTask(chessPad.chessPadLayout, new CPExecutor() {
                 @Override
                 public void onPostExecute() {
                     oomReserve[0] = null;
@@ -1329,7 +1336,7 @@ public class Popups {
                             if(progress < 0) {
                                 // on OOM additional diagnostics require more memory and crash
 //                                String message = "ERROR, list truncated to " + (-progress);
-                                chessPad.sendMessage(Config.MSG_OOM, "Operation aborted");
+                                chessPad.sendMessage(Config.MSG_NOTIFICATION, "Operation aborted");
                                 return true;
                             }
                             if(DEBUG) {

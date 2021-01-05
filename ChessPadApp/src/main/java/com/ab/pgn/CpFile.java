@@ -267,7 +267,7 @@ public abstract class CpFile implements Comparable<CpFile> {
     }
 
     // when parseItems == false return raw pgn item text in item.moveText
-    private static synchronized  void parsePgnFiles(CpFile parent, BufferedReader br, EntryHandler entryHandler, boolean parseItems) throws Config.PGNException {
+    private static synchronized void parsePgnFiles(CpFile parent, BufferedReader br, EntryHandler entryHandler, boolean parseItems) throws Config.PGNException {
         if(br == null) {
             return; // crashes otherwise
         }
@@ -564,21 +564,6 @@ public abstract class CpFile implements Comparable<CpFile> {
         }
     }
 
-    private static void serialize(BitStream.Writer writer, String[] tags) throws Config.PGNException {
-        try {
-            if (tags == null) {
-                writer.write(0, 8);
-                return;
-            }
-            writer.write(tags.length, 8);
-            for (String tag : tags) {
-                writer.writeString(tag);
-            }
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
-        }
-    }
-
     private static String[] unserializeTags(DataInputStream is) throws Config.PGNException {
         if(Config.USE_BIT_STREAMS) {
             return null;
@@ -599,21 +584,22 @@ public abstract class CpFile implements Comparable<CpFile> {
         }
     }
 
-    public static void serializeTagList(BitStream.Writer writer, List<Pair<String, String>> tags) throws Config.PGNException {
+/*
+    private static void serialize(BitStream.Writer writer, String[] tags) throws Config.PGNException {
         try {
             if (tags == null) {
                 writer.write(0, 8);
                 return;
             }
-            writer.write(tags.size(), 8);
-            for (Pair<String, String> tag : tags) {
-                writer.writeString(tag.first);
-                writer.writeString(tag.second);
+            writer.write(tags.length, 8);
+            for (String tag : tags) {
+                writer.writeString(tag);
             }
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
     }
+*/
 
     public static List<Pair<String, String>> unserializeTagList(DataInputStream is) throws Config.PGNException {
         if(Config.USE_BIT_STREAMS) {
@@ -637,6 +623,7 @@ public abstract class CpFile implements Comparable<CpFile> {
         }
     }
 
+/*
     private static String[] unserializeTags(BitStream.Reader reader) throws Config.PGNException {
         try {
             int totalTags = reader.read(8);
@@ -648,6 +635,23 @@ public abstract class CpFile implements Comparable<CpFile> {
                 tags[i] = reader.readString();
             }
             return tags;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+*/
+
+    public static void serializeTagList(BitStream.Writer writer, List<Pair<String, String>> tags) throws Config.PGNException {
+        try {
+            if (tags == null) {
+                writer.write(0, 8);
+                return;
+            }
+            writer.write(tags.size(), 8);
+            for (Pair<String, String> tag : tags) {
+                writer.writeString(tag.first);
+                writer.writeString(tag.second);
+            }
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -709,7 +713,11 @@ public abstract class CpFile implements Comparable<CpFile> {
                     parent = null;   // exception?
                 }
             } else {
-                parent = new Dir(parent, part);     // verify
+                if (this instanceof Item) {
+                    parent = new Pgn(parent, part);
+                } else {
+                    parent = new Dir(parent, part);     // verify
+                }
             }
         }
         this.parent = parent;
@@ -962,9 +970,14 @@ public abstract class CpFile implements Comparable<CpFile> {
 
         private Item(BitStream.Reader reader) throws Config.PGNException {
             super(reader);
-            this.tagArray = unserializeTags(reader);
+            initTags();
             try {
-                this.fen = reader.readString();
+                int size = reader.read(6);
+                for (int i = 0; i < size; ++i) {
+                    String name = reader.readString();
+                    String value = reader.readString();
+                    setTag(name, value);
+                }
             } catch (IOException e) {
                 throw new Config.PGNException(e);
             }
@@ -991,9 +1004,13 @@ public abstract class CpFile implements Comparable<CpFile> {
         @Override
         public void serialize(BitStream.Writer writer) throws Config.PGNException {
             serializeBase(writer);
-            CpFile.serialize(writer, this.tagArray);
+            List<Pair<String, String>>  tags = getTags();
             try {
-                writer.writeString(this.fen);
+                writer.write(tags.size(), 6);
+                for (Pair<String, String>  tag : tags) {
+                    writer.writeString(tag.first);
+                    writer.writeString(tag.second);
+                }
             } catch (IOException e) {
                 throw new Config.PGNException(e);
             }
@@ -1131,7 +1148,7 @@ public abstract class CpFile implements Comparable<CpFile> {
             this.tagArray[i] = tagValue;
         }
 
-        String getTag(String tagName) {
+        public String getTag(String tagName) {
             int i = ((Pgn)this.parent).getTagIndex(tagName);
             if(i >= this.tagArray.length) {
                 return Config.TAG_UNKNOWN_VALUE;
