@@ -1,6 +1,23 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -43,23 +60,24 @@ public class BoardView extends View {
 
     private Bitmap[] pieces;
     private Bitmap[] bgBitmaps;
-    private int squareSize, margin = 0;
+    private int squareSize;
+    private final int margin = 0;
     private Square selected = new Square();
-    private final BoardHolder boardHolder;
+    private BoardHolder boardHolder;
     private final List<Pair<Square, Square>> hints = new ArrayList<>();
 
     @SuppressLint("ClickableViewAccessibility")
-//    public BoardView(Context context, BoardHolder boardHolder) {
-    public BoardView(ChessPad chessPad) {
-        super(chessPad);
-
-        this.boardHolder = chessPad;
-//        this.squareSize = boardHolder.getBoardViewSize() / 8;
-//        this.setBackgroundColor(Color.TRANSPARENT);
+    public BoardView(Context context, BoardHolder boardHolder) {
+        super(context);
+        this.boardHolder = boardHolder;
         this.setBackgroundColor(Color.CYAN);
         initBitmaps();
         initBitmaps(boardHolder.getBGResources());
         this.setOnTouchListener(new BoardOnTouchListener());
+    }
+
+    public BoardView(ChessPad chessPad) {
+        this(chessPad, chessPad);
     }
 
     private void initBitmaps(int... bgResources) {
@@ -94,8 +112,20 @@ public class BoardView extends View {
         pieces[Config.POOL_BG_INDEX] = BitmapFactory.decodeResource(r, R.drawable.greenbg);
     }
 
+    public void draw(BoardHolder boardHolder) {
+        this.boardHolder = boardHolder;
+        draw();
+    }
+
     public void draw() {
-        squareSize = boardHolder.getBoardViewSize() / 8;
+        int size = 8;
+        Board board = boardHolder.getBoard();
+        if (board != null) {
+            int xSize = boardHolder.getBoard().getXSize();
+            int ySize = boardHolder.getBoard().getYSize();
+            size = Math.max(xSize, ySize);
+        }
+        squareSize = boardHolder.getBoardViewSize() / size;
         recalcBitmapSizes(bgBitmaps);
         recalcBitmapSizes(pieces);
     }
@@ -109,6 +139,9 @@ public class BoardView extends View {
     }
 
     public void setSelected(Square selected) {
+        if (selected == null) {
+            selected = new Square();
+        }
         this.selected = selected;
     }
 
@@ -260,7 +293,7 @@ public class BoardView extends View {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    class BoardOnTouchListener implements OnTouchListener {
+    private class BoardOnTouchListener implements OnTouchListener {
         Square selected = null;
         float startX, startY;
         boolean fling;

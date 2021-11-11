@@ -33,9 +33,9 @@ public class LichessChartView extends RelativeLayout {
         INIT_MAX_Y = 1510,
 		dummy_int = 0;
 
-	private ChessPad context;
+	private final ChessPad context;
 	private ChartSettings chartSettings = new ChartSettings();	// todo:
-	private Paint mPaint = new Paint();
+	private final Paint mPaint = new Paint();
 
 	private List<Double> values;
 	private List<Double> labelValues;
@@ -43,7 +43,7 @@ public class LichessChartView extends RelativeLayout {
 	private int gridLeft, gridTop, gridRight, gridBottom;
 	private LinearLayout leftLabelLayout;
 	private LinearLayout topLabelLayout;
-	private LinearLayout[] bottomLabelLayouts = new LinearLayout[2];
+	private final LinearLayout[] bottomLabelLayouts = new LinearLayout[2];
 
 	public LichessChartView(ChessPad context) {
 		this(context, null);
@@ -315,13 +315,14 @@ public class LichessChartView extends RelativeLayout {
 	}
 
 	public static class ChartSettings {
-		public int backgroundColor = Color.CYAN;
-		public int lineColor = 0xFF0099CC;
-		public int lineWidth = 2;
+		// todo: parameterize
+		public final int backgroundColor = Color.CYAN;
+		public final int lineColor = 0xFF0099CC;
+		public final int lineWidth = 2;
 
-		public int gridLineColor = Color.LTGRAY;
-		public int gridLineWidth = 1;
-		public int gridLinesHorizontal = 4;
-		public int gridLinesVertical = 3;
+		public final int gridLineColor = Color.LTGRAY;
+		public final int gridLineWidth = 1;
+		public final int gridLinesHorizontal = 4;
+		public final int gridLinesVertical = 3;
 	}
 }

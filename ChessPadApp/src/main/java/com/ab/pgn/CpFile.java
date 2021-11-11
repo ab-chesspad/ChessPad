@@ -1,3 +1,21 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * Created by Alexander Bootman on 7/30/16.
+ */
 package com.ab.pgn;
 
 import java.io.BufferedOutputStream;
@@ -32,8 +50,6 @@ import java.util.zip.ZipOutputStream;
 /**
  * Concrete subclasses: CpFile, Pgn, Zip, Dir
  * List directory/zip/pgn file, extract individual game (Item) and add/update/delete game
- *
- * Created by Alexander Bootman on 7/30/16.
  */
 public abstract class CpFile implements Comparable<CpFile> {
     private static final boolean DEBUG = false;
@@ -584,23 +600,6 @@ public abstract class CpFile implements Comparable<CpFile> {
         }
     }
 
-/*
-    private static void serialize(BitStream.Writer writer, String[] tags) throws Config.PGNException {
-        try {
-            if (tags == null) {
-                writer.write(0, 8);
-                return;
-            }
-            writer.write(tags.length, 8);
-            for (String tag : tags) {
-                writer.writeString(tag);
-            }
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
-        }
-    }
-*/
-
     public static List<Pair<String, String>> unserializeTagList(DataInputStream is) throws Config.PGNException {
         if(Config.USE_BIT_STREAMS) {
             return null;
@@ -622,24 +621,6 @@ public abstract class CpFile implements Comparable<CpFile> {
             }
         }
     }
-
-/*
-    private static String[] unserializeTags(BitStream.Reader reader) throws Config.PGNException {
-        try {
-            int totalTags = reader.read(8);
-            if (totalTags == 0) {
-                return null;
-            }
-            String[] tags = new String[totalTags];
-            for (int i = 0; i < totalTags; ++i) {
-                tags[i] = reader.readString();
-            }
-            return tags;
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
-        }
-    }
-*/
 
     public static void serializeTagList(BitStream.Writer writer, List<Pair<String, String>> tags) throws Config.PGNException {
         try {
@@ -797,29 +778,26 @@ public abstract class CpFile implements Comparable<CpFile> {
         return getName();
     }
 
-    public boolean equals(String name) {
-        return getName().equals(name);
-    }
-
-    public boolean equals(CpFile item) {
-        if (item == null)
-            return false;
-        return getAbsolutePath().equals(item.getAbsolutePath());
+    public boolean differs(CpFile item) {
+        if (item == null) {
+            return true;
+        }
+        return !getAbsolutePath().equals(item.getAbsolutePath());
     }
 
     public int parentIndex(CpFile parent) throws Config.PGNException {
         String myPath = getAbsolutePath();
-        if(!myPath.startsWith(parent.getAbsolutePath())) {
+        if (!myPath.startsWith(parent.getAbsolutePath())) {
             return -1;
         }
 
         String parentPath = parent.getAbsolutePath();
         String relativePath = myPath.substring(parentPath.length() + 1);
-        if(parent.getType() == PgnFileType.Zip) {
+        if (parent.getType() == PgnFileType.Zip) {
             // SicilianGrandPrix.pgn/item
             String[] parts = relativePath.split("/");
-            for(String part : parts) {
-                if(CpFile.isPgnOk(part)) {
+            for (String part : parts) {
+                if (CpFile.isPgnOk(part)) {
                     relativePath = part;
                     break;
                 }
@@ -1067,13 +1045,17 @@ public abstract class CpFile implements Comparable<CpFile> {
         }
 
         public StringBuilder tagsToString(boolean cr2Space, boolean escapeTags) {
+            return tagsToString(cr2Space, escapeTags, false);
+        }
+
+        public StringBuilder tagsToString(boolean cr2Space, boolean escapeTags, boolean skipEmptySTR) {
             StringBuilder sb = new StringBuilder();
             String sep = "";
             Pgn parent = (Pgn)this.parent;
             for(int i = 0; i < tagArray.length; ++i) {
                 String tValue = tagArray[i];
                 if (tValue == null || tValue.isEmpty() || tValue.equals(Config.TAG_UNKNOWN_VALUE)) {
-                    if(i >= Config.STR.size()) {
+                    if(skipEmptySTR || i >= Config.STR.size()) {
                         continue;       // skip empty non-STR tags
                     }
                     tValue = Config.TAG_UNKNOWN_VALUE;

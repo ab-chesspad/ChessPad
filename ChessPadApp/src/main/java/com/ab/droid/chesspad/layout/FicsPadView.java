@@ -91,6 +91,9 @@ class FicsPadView extends ChessPadLayout.CpView {
     @Override
     @SuppressLint("ClickableViewAccessibility")
     public void draw() {
+        super.draw();
+        chessPadLayout.boardView.draw(chessPad);
+
 /*
         getFicsPad().resetKibitzHistory();
         Log.d(DEBUG_TAG, String.format("draw %s", Thread.currentThread().getName()));
@@ -307,10 +310,12 @@ class FicsPadView extends ChessPadLayout.CpView {
         Log.d(DEBUG_TAG, "bottomPlayerClicked()");
     }
 
+/*
     @Override
     void hideAllWidgets() {
         // todo!
     }
+*/
 
     @Override
     public void invalidate() {
@@ -335,7 +340,7 @@ class FicsPadView extends ChessPadLayout.CpView {
             }
             selected = move.getTo();
         }
-        relativeLayoutMain.boardView.setSelected(selected);
+        chessPadLayout.boardView.setSelected(selected);
         this.moveText.setText(moveText);
 
         TextView topPlayer, topPlayerTime, bottomPlayer, bottomPlayerTime;

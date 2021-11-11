@@ -1,3 +1,23 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * replacement for PgnTree as of v0.3
+ * Created by Alexander Bootman on 10/29/17.
+ * Tree is not the right data type for pgn files when we start merging variants
+ */
 package com.ab.pgn;
 
 import java.io.BufferedReader;
@@ -16,11 +36,6 @@ import java.util.ListIterator;
 import java.util.Locale;
 import java.util.Map;
 
-/**
- * replacement for PgnTree as of v0.3
- * Created by Alexander Bootman on 10/29/17.
- * Tree is not the right data type for pgn files when we start merging variants
- */
 public class PgnGraph {
 /*
     private static String DEBUG_MOVE = "Kxh8";
@@ -593,12 +608,6 @@ public class PgnGraph {
         this.modified = modified;
     }
 
-/*
-    public boolean isTraceModified() {
-        return traceModified;
-    }
-*/
-
     public void setPuzzleMode() {
         this.modified =
         this.traceModified = false;
@@ -647,7 +656,7 @@ public class PgnGraph {
         this.pgn = pgn;
     }
 
-    private void prepareToPgn() {
+    void prepareToPgn() {
         if (!this.getInitBoard().equals(new Board())) {
             String fen = getInitBoard().toFEN();
             pgn.setFen(fen);
@@ -808,7 +817,6 @@ public class PgnGraph {
     public boolean okToSetGlyph() {
         return !isInit();
     }
-
 
     public boolean isEnd() {
         Board board = getBoard();

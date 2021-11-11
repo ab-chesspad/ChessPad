@@ -1,3 +1,19 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
 package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
@@ -8,12 +24,12 @@ import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import com.ab.droid.chesspad.ChessPad;
 import com.ab.droid.chesspad.R;
 import com.ab.pgn.Config;
+import com.ab.pgn.Square;
 import com.ab.pgn.lichess.LichessPad;
 
 import java.util.ArrayList;
@@ -27,8 +43,6 @@ import java.util.Locale;
  */
 
 class GameView extends ChessPadLayout.CpView {
-    private final ChessPadLayout chessPadLayout;
-    private final RelativeLayout gameLayout;
     private final HashMap<ChessPad.Command, ChessPadLayout.CpImageButton> imageButtons = new HashMap<>();
 
     private final TextView glyph, move, analysis;
@@ -39,11 +53,6 @@ class GameView extends ChessPadLayout.CpView {
     @SuppressLint("ClickableViewAccessibility")
     GameView(ChessPadLayout chessPadLayout) {
         super(chessPadLayout);
-        this.chessPadLayout = chessPadLayout;
-
-        gameLayout = new RelativeLayout(chessPad);
-        gameLayout.setBackgroundColor(Color.BLACK);
-        chessPadLayout.addView(gameLayout);
 
         // info fields:
         move = createTextView();
@@ -102,37 +111,26 @@ chart.setBackgroundColor(Color.LTGRAY);
         createImageButton(ChessPad.Command.Delete, R.drawable.delete);
     }
 
-    private ChessPadLayout.CpEditText createTextView() {
-        ChessPadLayout.CpEditText view = new ChessPadLayout.CpEditText(chessPad);
-        view.setPadding(0, 0, 0, 0);
-        view.setTextSize(16);
-        view.setTextColor(Color.DKGRAY);
-        gameLayout.addView(view);
-        return view;
-    }
-
     private void createImageButton(ChessPad.Command command, int resource) {
-        ChessPadLayout.CpImageButton cpImageButton = chessPadLayout.createImageButton(gameLayout, command, resource);
+        ChessPadLayout.CpImageButton cpImageButton = chessPadLayout.createImageButton(controlPaneLayout, command, resource);
         imageButtons.put(command, cpImageButton);
     }
 
     @Override
     @SuppressLint("ClickableViewAccessibility")
     public void draw() {
+        super.draw();
+        chessPadLayout.boardView.draw(chessPad);
+
         int x, y, dx, dy;
 
         if (Metrics.isVertical) {
-            x = 0; // xSpacing;
-            y = Metrics.titleHeight + Metrics.ySpacing + Metrics.boardViewSize + Metrics.ySpacing;
             dx = Metrics.buttonSize + Metrics.xSpacing;
             dy = 0;
         } else {
-            x = Metrics.boardViewSize + Metrics.xSpacing;
-            y = Metrics.titleHeight + Metrics.ySpacing;
             dx = 0;
             dy = Metrics.buttonSize + Metrics.ySpacing;
         }
-        chessPadLayout.moveTo(gameLayout, x, y, Metrics.paneWidth, Metrics.paneHeight);
 
         // navigator + reverseBoard
         x = y = 0;
@@ -159,14 +157,14 @@ chart.setBackgroundColor(Color.LTGRAY);
         if (Metrics.isVertical) {
             x = Metrics.paneWidth - Metrics.buttonSize;
         } else {
-            y = Metrics.paneHeight - Metrics.titleHeight - Metrics.buttonSize;
+            y = Metrics.paneHeight - Metrics.buttonSize;
         }
         chessPadLayout.moveTo(imageButtons.get(ChessPad.Command.Flip), x, y, Metrics.buttonSize, Metrics.buttonSize);
 
         // info fields:
         int _paneWidth;
         if (Metrics.isVertical) {
-            x = 0;  // xSpacing;a
+            x = 0;  // xSpacing
             y += Metrics.buttonSize + Metrics.ySpacing;
             _paneWidth = Metrics.paneWidth;
         } else {
@@ -226,27 +224,18 @@ chart.setBackgroundColor(Color.LTGRAY);
     }
 
     @Override
-    void hideAllWidgets() {
-        gameLayout.setVisibility(View.INVISIBLE);
-//        glyph.setVisibility(View.INVISIBLE);
-//        move.setVisibility(View.INVISIBLE);
-//        analysis.setVisibility(View.INVISIBLE);
-//        comment.setVisibility(View.INVISIBLE);
-//        chart.setVisibility(View.INVISIBLE);
-    }
-
-    @Override
     public void invalidate() {
-        gameLayout.setVisibility(View.VISIBLE);
-        relativeLayoutMain.title.setText(chessPad.getPgnGraph().getTitle());
-        if(chessPad.selectedSquare == null) {
+        this.chessPadLayout.title.setText(chessPad.getPgnGraph().getTitle());
+        if (chessPad.mode == ChessPad.Mode.Puzzle) {
+            this.chessPadLayout.boardView.setSelected(new Square());
+        } else if(chessPad.selectedSquare == null) {
             if(chessPad.getPgnGraph().moveLine.size() > 1) {
-                relativeLayoutMain.boardView.setSelected(chessPad.getPgnGraph().getCurrentMove().getTo());
+                this.chessPadLayout.boardView.setSelected(chessPad.getPgnGraph().getCurrentMove().getTo());
             }
         } else {
-            relativeLayoutMain.boardView.setSelected(chessPad.selectedSquare);
+            this.chessPadLayout.boardView.setSelected(chessPad.selectedSquare);
         }
-        relativeLayoutMain.boardView.setHints(chessPad.getHints());
+        this.chessPadLayout.boardView.setHints(chessPad.getHints());
 
         move.setText(chessPad.getPgnGraph().getNumberedMove());
         int g = chessPad.getPgnGraph().getGlyph();
@@ -286,7 +275,7 @@ chart.setBackgroundColor(Color.LTGRAY);
         }
 
         if (chessPad.isNavigationEnabled()) {
-            boolean puzzleMode = chessPad.puzzleMode();
+            boolean puzzleMode = chessPad.isPuzzleMode();
             if (chessPad.isFirstMove()) {
                 imageButtons.get(ChessPad.Command.Start).setImageResource(R.drawable.prev_game);
                 if (puzzleMode) {
@@ -310,7 +299,7 @@ chart.setBackgroundColor(Color.LTGRAY);
                 setButtonEnabled(ChessPad.Command.NextVar, false);
                 imageButtons.get(ChessPad.Command.End).setImageResource(R.drawable.next_game);
                 if (puzzleMode) {
-                    setButtonEnabled(ChessPad.Command.End, chessPad.mode == ChessPad.Mode.LichessPuzzle || chessPad.lastItemIndex() > 1);
+                    setButtonEnabled(ChessPad.Command.End, true);
                 } else {
                     setButtonEnabled(ChessPad.Command.End, chessPad.getPgnGraph().getPgn().getIndex() < chessPad.lastItemIndex());
                 }
@@ -325,7 +314,6 @@ chart.setBackgroundColor(Color.LTGRAY);
                 setButtonEnabled(ChessPad.Command.End, true);
             }
         }
-        relativeLayoutMain.boardView.invalidate();
     }
 
     void setButtonEnabled(ChessPad.Command command, boolean enable) {

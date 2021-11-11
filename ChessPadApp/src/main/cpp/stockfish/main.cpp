@@ -1,8 +1,6 @@
 /*
   Stockfish, a UCI chess playing engine derived from Glaurung 2.1
-  Copyright (C) 2004-2008 Tord Romstad (Glaurung author)
-  Copyright (C) 2008-2015 Marco Costalba, Joona Kiiski, Tord Romstad
-  Copyright (C) 2015-2020 Marco Costalba, Joona Kiiski, Gary Linscott, Tord Romstad
+  Copyright (C) 2004-2021 The Stockfish developers (see AUTHORS file)
 
   Stockfish is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,31 +21,100 @@
 #include "bitboard.h"
 #include "endgame.h"
 #include "position.h"
+#include "psqt.h"
 #include "search.h"
 #include "thread.h"
 #include "tt.h"
 #include "uci.h"
-#include "syzygy/tbprobe.h"
 
-namespace PSQT {
-  void init();
-}
+using namespace Stockfish;
 
-int main(int argc, char* argv[]) {
+Outstream outstream, errstream;
+std::atomic<int> done = 0;
 
-  std::cout << engine_info() << std::endl;
-
+int sf_init() {
+  sync_cout << engine_info() << sync_endl;
   UCI::init(Options);
+  Tune::init();
   PSQT::init();
   Bitboards::init();
   Position::init();
   Bitbases::init();
   Endgames::init();
-  Threads.set(Options["Threads"]);
+  Threads.set(size_t(Options["Threads"]));
   Search::clear(); // After threads are up
-
-  UCI::loop(argc, argv);
-
-  Threads.set(0);
+  Eval::NNUE::init();
+  UCI::init_pos();
   return 0;
 }
+
+void unblock_readers() {
+    done = 1;
+    outstream.finish();
+    errstream.finish();
+}
+
+#ifndef shared_lib
+/// input_reader() waits for a command from stdin and invokes UCI::execute()
+/// Also intercepts EOF from stdin to ensure gracefully exiting if the
+/// GUI dies unexpectedly.
+void input_reader() {
+    std::string cmd;
+    while (getline(std::cin, cmd)) {
+        UCI::execute(cmd);
+        if (cmd == "quit")
+            break;
+    }
+}
+
+static std::mutex mutex_;
+
+void output_reader() {
+    while (!done) {
+        std::string res;
+        int len = outstream.read(res);
+        if (len < 0) {
+            break;
+        }
+        mutex_.lock();
+        std::cout << res;
+        mutex_.unlock();
+    }
+}
+
+void error_reader() {
+    while (!done) {
+        std::string res;
+        int len = errstream.read(res);
+        if (len < 0) {
+            break;
+        }
+        mutex_.lock();
+        std::cerr << res;
+        mutex_.unlock();
+    }
+}
+
+/// When SF is called with some command line arguments, e.g. to
+/// run 'bench', once the command is executed the program stops.
+int main(int argc, char* argv[]) {
+    std::thread output_reader_thread(output_reader);
+    std::thread error_reader_thread(error_reader);
+
+    int res = sf_init();
+
+    if (argc > 1) {
+        std::string cmd;
+        for (int i = 1; i < argc; ++i)
+            cmd += std::string(argv[i]) + " ";
+        UCI::execute(cmd);
+    } else {
+        std::thread input_reader_thread(input_reader);
+        input_reader_thread.join();
+    }
+    unblock_readers();
+    output_reader_thread.join();
+    error_reader_thread.join();
+    return res;
+}
+#endif

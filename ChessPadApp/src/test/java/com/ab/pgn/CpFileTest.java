@@ -1,4 +1,25 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * test pgn operations
+ * Created by Alexander Bootman on 7/30/16.
+ */
 package com.ab.pgn;
+
+import static org.mockito.ArgumentMatchers.startsWith;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -18,12 +39,6 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.startsWith;
-
-/**
- * test pgn operations
- * Created by Alexander Bootman on 7/30/16.
- */
 //@Ignore
 public class CpFileTest extends BaseTest {
     private final int BOOKS1_ZIP_LENGTH = 7286;
@@ -480,7 +495,7 @@ public class CpFileTest extends BaseTest {
         copyTestFile(path.getAbsolutePath(), "exeter_lessons_from_tal.pgn");
         copyTestFile(TEST_TMP_ROOT, "MaxLange-0.pgn");
 
-        Pair<Class, String>[] pairs = new Pair[] {
+        Pair<Class<CpFile>, String>[] pairs = new Pair[] {
             new Pair(CpFile.Dir.class, "."),
             new Pair(CpFile.Dir.class, "dir1"),
             new Pair(CpFile.Dir.class, "dir1/dir2"),
@@ -514,8 +529,8 @@ public class CpFileTest extends BaseTest {
 //                new Pair(CpFile.Item.class, "dir1/dir2/books1.zip/masters/list1.pgn/item/subitem"),   // syntax error
         };
 
-        for (Pair<Class, String> entry : pairs) {
-            Class claz = entry.first;
+        for (Pair<Class<CpFile>, String> entry : pairs) {
+            Class<CpFile> claz = entry.first;
             CpFile cpFile = CpFile.fromFile(new File(TEST_TMP_ROOT + entry.second));
             CpFile parent = cpFile.getParent();
 

@@ -1,3 +1,22 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * base class for all test classes
+ * Created by Alexander Bootman on 8/7/16.
+ */
 package com.ab.pgn;
 
 import org.junit.After;
@@ -20,10 +39,6 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * base class for all test classes
- * Created by Alexander Bootman on 8/7/16.
- */
 public class BaseTest {
     static final boolean DEBUG = false;
 //    static final boolean USE_BIT_STREAMS = Config.USE_BIT_STREAMS;
@@ -32,15 +47,18 @@ public class BaseTest {
     static final int FLAGS_ENPASSANT = 0x020000;
 
     static String prefix = "";
+    static String bookPath = "etc/test/../../src/main/book//combined.book";
     static {
         // in IntelliJ working dir is <project>, in AndroidStudio is is <project>/app
         File testFile = new File("xyz");
         if(testFile.getAbsoluteFile().getParent().endsWith("/ChessPadApp")) {
             prefix = "../";
+            bookPath = "etc/test/../../ChessPadApp/src/main/assets/book/combined.book";
         }
     }
     protected static final String TEST_ROOT = prefix + "etc/test/";
     protected static final String TEST_TMP_ROOT = prefix + "etc/test_tmp/";
+    protected static final String BOOK_PATH = bookPath;
 
     /*
     public static String LOG_FILE_NAME = null;
@@ -72,7 +90,8 @@ public class BaseTest {
         CpFile.setRoot(new File(TEST_ROOT));
     }
 
-    private static boolean deleteDirectory(File directory) {
+    private static void deleteDirectory(File directory) {
+        boolean res;
         if (directory.exists()) {
             File[] files = directory.listFiles();
             if (null != files) {
@@ -80,12 +99,12 @@ public class BaseTest {
                     if (file.isDirectory()) {
                         deleteDirectory(file);
                     } else {
-                        file.delete();
+                        res = file.delete();
                     }
                 }
             }
         }
-        return (directory.delete());
+        res = directory.delete();
     }
 
     void copyDirectory(File sourceLocation, File targetLocation)

@@ -3,7 +3,6 @@ package com.ab.pgn.lichess;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
-import com.ab.pgn.CpFile;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnGraph;
@@ -19,51 +18,39 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Created by Alexander Bootman on 4/4/2020.
  */
 public class LichessPad {
-    private static final boolean DEBUG = true;
-    private static final boolean TEST_HTML = true;
+    public static final String
+        PUZZLE_TAG_ROUND_PREFIX = "id ",
+        PUZZLE_TAG_RATING = "Rating",
+        PUZZLE_TAG_VOTE = "Vote",
+        pub_str_dummy = null;
 
     private static final String
-        //    PUZZLE_MARK = "lichess.puzzle = ",
-        PUZZLE_MARK = "{LichessPuzzle(",    // updated 2020/11/23
-
-        // Lichess JSON keys:
+        // Lichess Json keys:
         LJK_data = "data",
 
-// old tags, obsolete on 2020/12/25
-//        LJK_game_moves = "treeParts",
-//        LJK_puzzle_fen = "fen",
-//        LJK_puzzle_gameId = "gameId",
-//        LJK_puzzle_vote = "vote",
-//        LJK_puzzle_moves = "lines",
-
         LJK_game = "game",
-        LJK_game_id = "id",
-        LJK_game_pgn = "pgn",
+        LJK_game_moves = "treeParts",
         LJK_game_players = "players",
         LJK_game_players_name = "name",
         LJK_game_players_color = "color",
 
         LJK_puzzle = "puzzle",
-        LJK_puzzle_id = "id",
+        LJK_puzzle_fen = "fen",
+        LJK_puzzle_gameId = "gameId",
         LJK_puzzle_rating = "rating",
-        LJK_puzzle_plays = "plays",
-        LJK_puzzle_initial_ply = "initialPly",
-        LJK_puzzle_solution = "solution",
+        LJK_puzzle_id = "id",
+        LJK_puzzle_vote = "vote",
+        LJK_puzzle_moves = "lines",
 
         LJK_user = "user",
         LJK_user_rating = "rating",
         LJK_user_history = "recent",
 
-        PUZZLE_TAG_ROUND_PREFIX = "id ",
-        PUZZLE_TAG_RATING = "Rating",
-        PUZZLE_TAG_VOTE = "Vote",
 //        PUZZLE_TAG_Event = "link ",
         str_dummy = null;
 
@@ -71,15 +58,19 @@ public class LichessPad {
     private static final PgnLogger logger = PgnLogger.getLogger(LichessPad.class);
 
     private LichessMessageConsumer lichessMessageConsumer;
-    LichessClient lichessClient;
+    private LichessClient lichessClient;
     private User user;
-    private volatile List<Pair<String, PgnGraph>> queue = new LinkedList<>();
+    private volatile List<Pair<Integer, PgnGraph>> queue = new LinkedList<>();
     private transient boolean notifyConsumer = false;
 
     public LichessPad(LichessMessageConsumer lichessMessageConsumer) {
         this.lichessMessageConsumer = lichessMessageConsumer;
         lichessClient = new LichessClient();
     }
+
+//    public LichessPad(String user, String password) throws Config.PGNException {
+//        lichessClient = new LichessClient(this, user, password);
+//    }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
@@ -91,8 +82,8 @@ public class LichessPad {
                 user.serialize(writer);
             }
             writer.write(queue.size(), 5);
-            for (Pair<String, PgnGraph> pair : queue) {
-                writer.writeString(pair.first);
+            for (Pair<Integer, PgnGraph> pair : queue) {
+                writer.write(pair.first, 32);
                 pair.second.serializeGraph(writer, 0);
             }
         } catch (IOException e) {
@@ -109,7 +100,7 @@ public class LichessPad {
             queue.clear();     // sanity check
             int size = reader.read(5);
             for (int i = 0; i < size; ++i) {
-                String puzzleId = reader.readString();
+                int puzzleId = reader.read(32);
                 PgnGraph pgnGraph = new PgnGraph(reader, 0, null);
                 queue.add(new Pair<>(puzzleId, pgnGraph));
             }
@@ -143,7 +134,7 @@ public class LichessPad {
 
     public PgnGraph getPuzzle() {
         if (queue.size() > 0) {
-            Pair<String, PgnGraph> pair = queue.remove(0);
+            Pair<Integer, PgnGraph> pair = queue.remove(0);
             return pair.second;
         }
         notifyConsumer = true;
@@ -151,15 +142,12 @@ public class LichessPad {
         return null;
     }
 
-    void fetchPuzzle() {
-//        logger.error("fetchPuzzle()", new Error("fetchPuzzle()"));
+    private void fetchPuzzle() {
         bgCall(() -> {
             String json = null;
             try {
                 json = lichessClient.getPuzzle();
-                if (DEBUG) {
-                    logger.debug(String.format(Locale.US, "json: %s", json));
-                }
+                logger.debug(String.format(Locale.US, "json: %s", json));
                 parse(json);
                 if (notifyConsumer) {
                     lichessMessageConsumer.consume(new LichessMessagePuzzle());
@@ -185,12 +173,7 @@ public class LichessPad {
     }
 
     void parse(String json) throws Config.PGNException {
-        int j = json.indexOf(PUZZLE_MARK);
-        if (j > 0) {
-            json = json.substring(j + PUZZLE_MARK.length());
-        }
-
-        JSONObject jsonObject;
+        JSONObject jsonObject = null;
         try {
             jsonObject = new JSONObject(json);
             if (jsonObject.has(LJK_data)) {
@@ -216,15 +199,11 @@ public class LichessPad {
                 setUser(user);
             }
             JSONObject game = jsonObject.getJSONObject(LJK_game);
-            String pgn = game.getString(LJK_game_pgn);
-            CpFile.Item item = new CpFile.Item(new CpFile.Pgn("dummy"));
-            item.setMoveText(pgn);
-            PgnGraph _puzzle = new PgnGraph(item, null);    // game from the beginning
-            PgnGraph puzzle = new PgnGraph(_puzzle.getBoard());
-//            int lastMoveNum = ((JSONArray) moves).length() - 1;
-//            JSONObject lastMove = ((JSONArray) moves).getJSONObject(lastMoveNum);
-//            String fen = lastMove.getString(LJK_puzzle_fen);
-//            PgnGraph puzzle = new PgnGraph(new Board(fen));
+            JSONArray moves = game.getJSONArray(LJK_game_moves);
+            int lastMoveNum = ((JSONArray) moves).length() - 1;
+            JSONObject lastMove = ((JSONArray) moves).getJSONObject(lastMoveNum);
+            String fen = lastMove.getString(LJK_puzzle_fen);
+            PgnGraph puzzle = new PgnGraph(new Board(fen));
             JSONArray players = game.getJSONArray(LJK_game_players);
             for (int i = 0; i < players.length(); ++i) {
                 JSONObject player = players.getJSONObject(i);
@@ -233,97 +212,59 @@ public class LichessPad {
                 String name = player.getString(LJK_game_players_name);
                 puzzle.getPgn().setTag(color, name);
             }
-            // store puzzle data in tags
-            String gameId = game.getString(LJK_game_id);
-            puzzle.getPgn().setTag(Config.TAG_Event, LichessClient.DOMAIN_URL + "/" + gameId);
 
             JSONObject jsonPuzzle = jsonObject.getJSONObject(LJK_puzzle);
-//            JSONObject moveObj = jsonPuzzle.getJSONObject(LJK_puzzle_moves);
-//            parseMoves(puzzle, moveObj);
-            if (DEBUG) {
-                logger.debug(puzzle.toPgn());
+            Object moveObj = jsonPuzzle.get(LJK_puzzle_moves);
+            while (moveObj instanceof JSONObject) {
+                Object nextMoveObj = null;
+                boolean variation = false;
+                for (Iterator<String> it = ((JSONObject) moveObj).keys(); it.hasNext(); ) {
+                    String move = it.next();
+                    nextMoveObj = ((JSONObject) moveObj).get(move);
+                    if (nextMoveObj.equals("retry")) {
+                        continue;       // skip
+                    }
+                    if (variation) {
+                        puzzle.toPrev();
+                    }
+                    parseMove(puzzle, move);
+                    variation = true;
+                }
+                moveObj = nextMoveObj;
+            }
+//          logger.debug(moveObj.toString()); // win?
+            int firstMoveFlags = puzzle.moveLine.get(1).moveFlags;
+            if ((puzzle.getCurrentMove().moveFlags & Config.FLAGS_BLACK_MOVE) != (firstMoveFlags & Config.FLAGS_BLACK_MOVE)) {
+                puzzle.delCurrentMove();
             }
             // store puzzle data in tags
             puzzle.getPgn().setTag(Config.TAG_Site, LichessClient.DOMAIN);
-
-            String id = jsonPuzzle.getString(LJK_puzzle_id);
+            String gameId = jsonPuzzle.getString(LJK_puzzle_gameId);
+            puzzle.getPgn().setTag(Config.TAG_Event, LichessClient.DOMAIN_URL + "/" + gameId);
+            int id = jsonPuzzle.getInt(LJK_puzzle_id);
             puzzle.getPgn().setTag(Config.TAG_Round, PUZZLE_TAG_ROUND_PREFIX + id);
-
-            if (TEST_HTML) {
-                Pattern p = Pattern.compile("\\{\"game\":\\{\"id\":\"(.*?)\",.*?,\"solution\":\\[\"(.*?)\"],");
-                Matcher m = p.matcher(json);
-                if (m.find()) {
-//                    String g1 = m.group(1);
-                    String g2 = m.group(2);
-                    logger.debug(String.format("%s --> \"%s\"", id, g2));
-                }
-            }
-
             int rating = jsonPuzzle.getInt(LJK_puzzle_rating);
             puzzle.getPgn().setTag(PUZZLE_TAG_RATING, "" + rating);
-
-            int initialPly = jsonPuzzle.getInt(LJK_puzzle_initial_ply);     // ignored
-
-            JSONArray solutionArray = jsonPuzzle.getJSONArray(LJK_puzzle_solution);
-            parseMoves(puzzle, solutionArray);
-
-//            int vote = jsonPuzzle.getInt(LJK_puzzle_vote);
-//            puzzle.getPgn().setTag(PUZZLE_TAG_VOTE, "" + vote);
-
+            int vote = jsonPuzzle.getInt(LJK_puzzle_vote);
+            puzzle.getPgn().setTag(PUZZLE_TAG_VOTE, "" + vote);
             addToQueue(id, puzzle);
-            if (DEBUG) {
-                logger.debug(puzzle.toString());
-            }
         } catch (JSONException e) {
             throw new Config.PGNException(e);
         }
     }
 
-    private void parseMoves(PgnGraph puzzle, JSONArray solutionArray) throws Config.PGNException, JSONException {
-        for (int i = 0; i < solutionArray.length(); ++i) {
-            String move = solutionArray.getString(i);
-            if (DEBUG) {
-                logger.debug(String.format("move %s", move));
-            }
-            parseMove(puzzle, move);
-        }
-    }
-
-    // old format
-    private void parseMoves(PgnGraph puzzle, JSONObject moveObj) throws Config.PGNException, JSONException {
-        Object nextMoveObj = null;
-        boolean variation = false;
-        for (Iterator<String> it = moveObj.keys(); it.hasNext(); ) {
-            String move = it.next();
-            nextMoveObj = moveObj.get(move);
-            if (nextMoveObj.equals("retry")) {
-                continue;       // skip, why has lichess these moves anyway?
-            }
-            if (variation) {
-                puzzle.toPrev();
-            }
-            if (nextMoveObj.equals("win")) {
-                if (puzzle.moveLine.size() > 1) {
-                    if ((puzzle.getCurrentMove().moveFlags & Config.FLAGS_BLACK_MOVE) == (puzzle.getInitBoard().getFlags() & Config.FLAGS_BLACK_MOVE)) {
-                        break;      // ignore unnecessary move
-                    }
-                }
-            }
-            parseMove(puzzle, move);
-            variation = true;
-            if (nextMoveObj instanceof JSONObject) {
-                int moveLen = puzzle.moveLine.size();
-                parseMoves(puzzle, (JSONObject)nextMoveObj);
-                while (puzzle.moveLine.size() > moveLen) {
-                    puzzle.toPrev();
-                }
+    private void addToQueue(int puzzleId, PgnGraph puzzle) {
+        for (Pair<Integer, PgnGraph> pair : queue) {
+            if(pair.first == puzzleId) {
+                return;
             }
         }
+        queue.add(new Pair<>(puzzleId, puzzle));
     }
 
-    private void parseMove(PgnGraph puzzle, String move) throws Config.PGNException {
+    // parse lichess moves e.g. b6c5 e2g4 h3g4 d1g4 f2f1q
+    public static void parseMove(PgnGraph puzzle, String move) throws Config.PGNException {
         Board board = puzzle.getBoard();
-//        logger.debug(String.format("\n%s%s", board.toString(), move));
         Move puzzleMove = board.newMove();
         puzzleMove.setFrom(new Square(move.substring(0, 2)));
         puzzleMove.setTo(new Square(move.substring(2, 4)));
@@ -338,17 +279,8 @@ public class LichessPad {
         }
     }
 
-    private void addToQueue(String puzzleId, PgnGraph puzzle) {
-        for (Pair<String, PgnGraph> pair : queue) {
-            if(pair.first == puzzleId) {
-                return;
-            }
-        }
-        queue.add(new Pair<>(puzzleId, puzzle));
-    }
-
     public void recordResult(PgnGraph puzzle, int result) {
-        String _puzzleId = "";
+        int _puzzleId = -1;
         String idTag = puzzle.getPgn().getTag(Config.TAG_Round);
         boolean tagOk = true;
         // protect puzzleId from user update?
@@ -356,32 +288,23 @@ public class LichessPad {
             logger.error("Cannot record result, no 'Round' tag for puzzle");
             tagOk = false;
         } else {
-//            try {
-//                _puzzleId = Integer.valueOf(idTag.substring(PUZZLE_TAG_ROUND_PREFIX.length()));
-//            } catch (Exception e) {
-//                logger.error(String.format(Locale.US, "Cannot record result, 'Round' tag for puzzle corrupted, %s", idTag));
-//                tagOk = false;
-//            }
-            _puzzleId = idTag.substring(PUZZLE_TAG_ROUND_PREFIX.length());
+            try {
+                _puzzleId = Integer.valueOf(idTag.substring(PUZZLE_TAG_ROUND_PREFIX.length()));
+            } catch (Exception e) {
+                logger.error(String.format(Locale.US, "Cannot record result, 'Round' tag for puzzle corrupted, %s", idTag));
+                tagOk = false;
+            }
         }
 
         if (tagOk) {
-            final String puzzleId = _puzzleId;
+            final int puzzleId = _puzzleId;
             bgCall(() -> {
                 try {
                     lichessClient.recordResult(puzzleId, result);
-                    synchronized (this) {
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
-                    }
+                    fetchPuzzle();
                 } catch (IOException e) {
                     logger.error(e);
-                    lichessMessageConsumer.error(new LichessMessageRecordPuzzleError());
                 }
-                fetchPuzzle();
             });
         } else {
             fetchPuzzle();
@@ -485,8 +408,8 @@ public class LichessPad {
     }
 
     public static class LichessSettings {
-        private String username;
-        private String password;
+        private  String username;
+        private  String password;
 
         public void serialize(BitStream.Writer writer) throws Config.PGNException {
             try {
@@ -540,8 +463,6 @@ public class LichessPad {
     public static class LichessMessageLoginError extends LichessMessage {}
 
     public static class LichessMessagePuzzleError extends LichessMessage {}
-
-    public static class LichessMessageRecordPuzzleError extends LichessMessage {}
 
     public interface LichessMessageConsumer {
         void consume(LichessMessage message);

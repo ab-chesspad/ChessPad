@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.ab.droid.chesspad"
-    android:versionCode="4"
+    android:versionCode="5"
     android:versionName="1.1">
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature android:name="android.hardware.usb.accessory"/>
 
@@ -19,10 +18,12 @@
         android:hardwareAccelerated="false"
         android:largeHeap="true"
         >
+<!--        android:extractNativeLibs="true"-->
         <activity android:name=".ChessPad"
             android:descendantFocusability="beforeDescendants"
             android:windowSoftInputMode="adjustPan"
             android:configChanges="keyboardHidden|orientation|screenSize"
+            android:exported="true"
             android:hardwareAccelerated="false"
             >
             <intent-filter>

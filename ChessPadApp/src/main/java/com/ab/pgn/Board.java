@@ -1,3 +1,23 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+* Chess _board with pieces, validation
+        * PgnGraph vertex
+        * Created by Alexander Bootman on 8/6/16.
+        */
 package com.ab.pgn;
 
 import java.io.DataInputStream;
@@ -8,11 +28,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.StringTokenizer;
 
-/**
- * Chess _board with pieces, validation
- * PgnGraph vertex
- * Created by Alexander Bootman on 8/6/16.
- */
 public class Board {
     public static boolean DEBUG = false;
     private final static PgnLogger logger = PgnLogger.getLogger(Board.class);
@@ -527,7 +542,11 @@ public class Board {
 
         if (st.hasMoreTokens()) {
             // this is the next move number!
-            int plyNum = 2 * (Integer.parseInt(st.nextToken()) - 1);
+            int fullMoveNum = Integer.parseInt(st.nextToken());
+            if (fullMoveNum < 1) {
+                fullMoveNum = 1;    // fix for invalid fen, e.g. 4kb1r/p2n1ppp/4q3/4p1B1/4P3/1Q6/PPP2PPP/2KR4 w k - 1 0
+            }
+            int plyNum = 2 * (fullMoveNum - 1);
             if ((flags & Config.FLAGS_BLACK_MOVE) != 0) {
                 ++plyNum;
             }

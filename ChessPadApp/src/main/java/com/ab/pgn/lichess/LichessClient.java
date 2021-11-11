@@ -12,8 +12,9 @@ import java.net.HttpCookie;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.Charset;
-import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.zip.DeflaterInputStream;
 import java.util.zip.GZIPInputStream;
@@ -26,17 +27,16 @@ import java.util.zip.GZIPInputStream;
 public class LichessClient {
     private static final boolean DEBUG = false;
 
-    static final String
-//*
+    public static final String
         DOMAIN = "lichess.org",
-/*/
-        DOMAIN = "lichess.dev",
-//*/
+//        DOMAIN = "lichess.dev",
+        pub_str_dummy = null;
+
+    static final String
         DOMAIN_URL = "https://" + DOMAIN,
         LOGIN_URL = DOMAIN_URL + "/login",
         LOGOUT_URL = DOMAIN_URL + "/logout",
-        TRAINING_URL_REQUEST = DOMAIN_URL + "/training/mix",
-        TRAINING_URL_COMPLETE = DOMAIN_URL + "/training/complete/mix/",
+        TRAINING_URL = DOMAIN_URL + "/training/",
 
         SESSION_COOKIE_MARK = "sessionId=",
 
@@ -50,15 +50,17 @@ public class LichessClient {
 
     private static final PgnLogger logger = PgnLogger.getLogger(LichessClient.class);
 
-//    private static long seed = new Date().getTime();
+    private static long seed = new Date().getTime();
     private volatile HttpCookie sessionCookie;
 
     private void initDebug() {
         final String cookieText =
-            "lila2=df8540e31ed3ec39ccbc34fd06f038d8a6474e48-sessionId=DQWtGaRBGxtoTA5RupPrUB&sid=2VzaUcSpCcGhj0bt4l5xP3"
+            "lila2=728594dab8e0725d99287d916430c87c323ffb25-sessionId=h3yhhgJedOyGZfSgnkxCdq"
+//                "lila2=df8540e31ed3ec39ccbc34fd06f038d8a6474e48-sessionId=DQWtGaRBGxtoTA5RupPrUB&sid=2VzaUcSpCcGhj0bt4l5xP3"
+//            + "; Max-Age=315360000; Expires=Fri, 12 Apr 2030 20:34:22 GMT; Path=/; Domain=lichess.org; Secure; HTTPOnly"
             ;
 // uncomment for debug mode:
-//         parseCookie(cookieText);
+         parseCookie(cookieText);
     }
 
     public LichessClient(String user, String password) throws Config.PGNException {
@@ -212,9 +214,7 @@ public class LichessClient {
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setConnectTimeout(CONNECT_TIMEOUT_MSEC);
         try {
-            if (DEBUG) {
-                logger.debug(String.format("fetch %s", url.toString()));
-            }
+            logger.debug(String.format("fetch %s", url.toString()));
             for (String prop : requestProperties) {
                 String[] parts = prop.split(": ");
                 if (DEBUG) {
@@ -261,10 +261,6 @@ public class LichessClient {
                     logger.debug(line);
                 }
             }
-        } catch (Exception e) {
-            for (Map.Entry<String, List<String>> entry : conn.getHeaderFields().entrySet()) {
-                logger.debug("Key = " + entry.getKey() + ", Value = " + entry.getValue());
-            }
         } finally {
             conn.disconnect();
         }
@@ -272,15 +268,14 @@ public class LichessClient {
         return new String(sb);
     }
 
-    public String getPuzzle(String puzzleId) throws IOException {
-        URL url = new URL(TRAINING_URL_REQUEST + "/" + puzzleId);
+    public String getPuzzle(int puzzleId) throws IOException {
+        URL url = new URL(TRAINING_URL + puzzleId);
         return fetchPuzzle(url);
     }
 
     // get next puzzle
     public String getPuzzle() throws IOException {
-//        URL url = new URL(TRAINING_URL + "new?_=" + (++seed));
-        URL url = new URL(TRAINING_URL_REQUEST);
+        URL url = new URL(TRAINING_URL + "new?_=" + (++seed));
         return fetchPuzzle(url);
     }
 
@@ -289,78 +284,34 @@ public class LichessClient {
      * @param puzzleId
      * @param result 1 for success, 0 for failure
      */
-    public void recordResult(String puzzleId, int result) throws IOException {
-        logger.debug(String.format("record %s", puzzleId));
-
-        final SimpleDateFormat gmtDateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss 'GMT'");
-        gmtDateFormat.setTimeZone(java.util.TimeZone.getTimeZone("GMT"));
-
+    public void recordResult(int puzzleId, int result) throws IOException {
         final String[] requestProperties = {
             "Authority: " + DOMAIN,
             "Scheme: https",
-//            "Accept: */*",
-            "accept: application/vnd.lichess.v5+json",
-            "Accept-Encoding: gzip, deflate",
+            "Accept: */*",
+            "Accept-Encoding: gzip, deflate, br",
             "Accept-Language: en-US,en;q=0.9",
             "Content-Type: application/x-www-form-urlencoded; charset=UTF-8",
-//            "content-type: multipart/form-data; boundary=----WebKitFormBoundary6KV7wz1PUIhe39x6",
             "Origin: " + DOMAIN_URL,
-            "referer: " + TRAINING_URL_REQUEST,
-//            "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.80 Safari/537.36",
-            "user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36",
-
-                // new:
-//        "Referrer Policy: strict-origin-when-cross-origin",
-//        "content-encoding: identity",
-//        "content-type: application/json",
-//        "date: " + gmtDateFormat.format(new Date()),
-//        "expect-ct: max-age=31536000, enforce",
-
-
-//        server: nginx
-//        strict-transport-security: max-age=31536000; includeSubDomains; preload
-//        x-frame-options: DENY
-//        :authority: lichess.org
-//:method: POST
-//        :path: /training/complete/mix/73TlC
-//        :scheme: https
-//        accept: application/vnd.lichess.v5+json
-//        accept-encoding: gzip, deflate, br
-//        accept-language: en-US,en;q=0.9,ru;q=0.8
-//        cache-control: max-age=0
-//        content-length: 135
-//        content-type: multipart/form-data; boundary=----WebKitFormBoundary6KV7wz1PUIhe39x6
-//        cookie: lila2=0fc5b264ee1c6c7dacad2838615cd67dbec4dfb2-sessionId=H4TGaR4AxJ87EhcrzR5fF3&sid=8y3oqSPjAv7bInzki6d965
-//        origin: https://lichess.org
-//        referer: https://lichess.org/training/mix
-//        sec-ch-ua: "Google Chrome";v="87", " Not;A Brand";v="99", "Chromium";v="87"
-//        sec-ch-ua-mobile: ?0
-//        sec-fetch-dest: empty
-//        sec-fetch-mode: cors
-//        sec-fetch-site: same-origin
-//        user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36
-//        x-requested-with: XMLHttpRequest
-
-
+            "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.80 Safari/537.36",
         };
         String postData = "win=" + result;
         byte[] postDataBytes = postData.getBytes("UTF-8");
 
-        URL url = new URL(TRAINING_URL_COMPLETE + puzzleId);
+        URL url = new URL(String.format(Locale.US, TRAINING_URL + "%d/round2", puzzleId));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         try {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Length", String.valueOf(postDataBytes.length));
-//            conn.setRequestProperty("referer", TRAINING_URL + puzzleId);
+            conn.setRequestProperty("referer", TRAINING_URL + puzzleId);
             if (sessionCookie != null) {
                 String newCookie = sessionCookie.getName() + "=" + sessionCookie.getValue();
                 conn.setRequestProperty("cookie", newCookie);
             }
             for (String prop : requestProperties) {
                 String[] parts = prop.split(": ");
-                if (DEBUG)
-                {
-                    logger.debug(String.format("request %s: %s", parts[0], parts[1]));
+                if (DEBUG) {
+                    logger.debug(String.format("%s: %s", parts[0], parts[1]));
                 }
                 conn.setRequestProperty(parts[0], parts[1]);
             }
@@ -368,15 +319,14 @@ public class LichessClient {
             conn.getOutputStream().write(postDataBytes);
             conn.getOutputStream().close();
 
-            if (DEBUG)
-            {
+            if (DEBUG) {
                 for (Map.Entry<String, List<String>> entry : conn.getHeaderFields().entrySet()) {
                     logger.debug("Key = " + entry.getKey() + ", Value = " + entry.getValue());
                 }
             }
             String res = conn.getResponseMessage();
             if (DEBUG) {
-                logger.debug(String.format("recordResult %s", res));
+                logger.debug(res);
             }
         } finally {
             conn.disconnect();
@@ -406,9 +356,7 @@ public class LichessClient {
         };
 
         StringBuilder sb = new StringBuilder();
-        URL url = new URL(TRAINING_URL_REQUEST + String.format("batch?nb=10"));
-//        URL url = new URL(TRAINING_URL + String.format("batch?nb=10&after=80307"));
-//        URL url = new URL(TRAINING_URL + String.format("batch?new=%s&nb=10", ++seed));
+        URL url = new URL(TRAINING_URL + "batch?nb=10&after=60463");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         conn.setConnectTimeout(CONNECT_TIMEOUT_MSEC);

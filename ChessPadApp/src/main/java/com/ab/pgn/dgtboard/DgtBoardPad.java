@@ -1,3 +1,21 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * Created by Alexander Bootman on 1/27/19.
+*/
 package com.ab.pgn.dgtboard;
 
 import com.ab.pgn.BitStream;
@@ -21,13 +39,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Locale;
 
-/**
- *
- * Created by Alexander Bootman on 1/27/19.
- */
-
 public class DgtBoardPad {
-    public static boolean DEBUG = false;        // accessed from Cli
+    public static boolean DEBUG = false;        // changed in Cli
     private static final int BOARD_UPDATE_TIMEOUT_MSEC = 1000;
 
     private static final int
@@ -58,6 +71,7 @@ public class DgtBoardPad {
     private Square expectedPromotion;
     private Move incompleteMove = null;
     private String errorMsg;
+    private boolean flipped;
 
     public DgtBoardPad(DgtBoardIO dgtBoardIO, String outputDir, CpEventObserver cpEventObserver) {
         this.outputDir = outputDir;
@@ -159,27 +173,35 @@ public class DgtBoardPad {
         logger.debug(String.format("updateBoard: status:%s", boardStatus.toString()));
         this.boardStatus = boardStatus;
         int msgId;
-        if(boardStatus == BoardStatus.SetupMess) {
+        if (boardStatus == BoardStatus.SetupMess) {
             newSetup(false);
             dgtBoardWatcher.dumpBoardLoopStart(BOARD_UPDATE_TIMEOUT_MSEC);
 //            dgtBoardWatcher.requestBoardDump();
             msgId = Config.MSG_DGT_BOARD_SETUP_MESS;
         } else {
             dgtBoardWatcher.dumpBoardLoopStop();
-            if(preserveGame && searchPgnGraph(setup.getBoard()) == BoardStatus.Game) {
+            if (preserveGame && searchPgnGraph(setup.getBoard()) == BoardStatus.Game) {
                 resetChunks();
             } else {
                 newGame();
             }
             msgId = Config.MSG_DGT_BOARD_GAME;
         }
-        if(cpEventObserver != null) {
+        if (cpEventObserver != null) {
             cpEventObserver.update((byte) msgId);
         }
     }
 
     public BoardStatus getBoardStatus() {
         return boardStatus;
+    }
+
+    public boolean isFlipped() {
+        return flipped;
+    }
+
+    public void setFlipped(boolean flipped) {
+        this.flipped = flipped;
     }
 
     public Setup getSetup() {
