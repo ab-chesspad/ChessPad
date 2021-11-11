@@ -11,7 +11,7 @@
         <sourceJavaVersion>1.8</sourceJavaVersion>
         <targetJavaVersion>1.8</targetJavaVersion>
         <maven.compiler.version>2.3.2</maven.compiler.version>
-        <junit.version>4.12</junit.version>
+        <junit.version>4.13.1</junit.version>
     </properties>
 
     <build>
