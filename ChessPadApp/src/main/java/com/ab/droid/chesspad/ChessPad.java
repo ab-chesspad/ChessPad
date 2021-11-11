@@ -24,7 +24,6 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
-import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -35,7 +34,6 @@ import android.view.KeyEvent;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.pm.PackageInfoCompat;
 
@@ -54,9 +52,6 @@ import com.ab.pgn.PgnGraph;
 import com.ab.pgn.Setup;
 import com.ab.pgn.Square;
 import com.ab.pgn.dgtboard.DgtBoardPad;
-import com.ab.pgn.fics.FicsPad;
-import com.ab.pgn.fics.chat.InboundMessage;
-import com.ab.pgn.lichess.LichessPad;
 import com.ab.pgn.uci.UCI;
 
 import java.io.File;
@@ -81,9 +76,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     private static final boolean DEBUG_DGT_BOARD = false;
     private static final boolean SAVE_UPDATED_PUZZLES = false;
 
-    public static int MAX_STOCKFISH_VERSION = 28;
-    public final boolean NEW_FEATURE_LICHESS = false;   // Lichess code is not fully tested, need to fix crash report from 4/11/2020 21:45
-    public static final boolean NEW_FEATURE_FICS = false;     // fics software is buggy and seems not too popular
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private static final String
@@ -120,8 +112,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         Merge(++i),
         EditTags(++i),
         FlipBoard(++i),
-
-        Send2Fics(++i),
         ;
 
         private final int value;
@@ -151,9 +141,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         Puzzle(++j),
         Setup(++j),
         DgtGame(++j),
-        LichessPuzzle(++j),
-
-        FicsConnection(++j),
         ;
 
         private final int value;
@@ -188,16 +175,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         About,
         StartDgtGame,
         StopDgtGame,
-        LichessPuzzle,
-        LichessLogin,
-        LichessLogout,
-
-        ConnectToFics,
-        CloseFicsConnection,
-        FicsMate,
-        FicsTactics,
-        FicsStudy,
-        FicsEndgame,
     }
 
     private static String defaultDirectory;
@@ -208,12 +185,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     public Square selectedSquare;
     transient public String versionName;
     transient public ChessPadLayout chessPadLayout;
-    public LichessPad lichessPad;
     public boolean doAnalysis;
-
-    private FicsPad ficsPad;
-    private final FicsPad.FicsSettings ficsSettings = new FicsPad.FicsSettings();
-    private final LichessPad.LichessSettings lichessSettings = new LichessPad.LichessSettings();
 
     private PgnGraph pgnGraph;
     private int animationTimeout = 1000;      // config?
@@ -240,9 +212,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     private boolean dgtBoardOpen = false;
     private boolean dgtBoardAccessible = DEBUG_DGT_BOARD;
 
-    transient private AlertDialog msgPopup;
-    private String ficsCommand;
-    private MediaPlayer dingPlayer;
+//    private MediaPlayer dingPlayer;
     private PuzzleData puzzleData;
 
     transient private String intentFileName = null;
@@ -335,10 +305,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             }
         });
         dgtBoardPad = new DgtBoardPad(dgtBoardInterface, getDefaultDirectory(), getCpEventObserver());
-        if(NEW_FEATURE_FICS) {
-            // problem with androidx.appcompat:appcompat:1.0.2
-            dingPlayer = MediaPlayer.create(this, R.raw.ding);
-        }
+//        if(NEW_FEATURE_FICS) {
+//            // problem with androidx.appcompat:appcompat:1.0.2
+//            dingPlayer = MediaPlayer.create(this, R.raw.ding);
+//        }
 
         try (InputStream is = this.getAssets().open(BOOK_ASSET_NAME)) {
             int length = is.available();
@@ -392,56 +362,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             Log.e(DEBUG_TAG, e.getMessage(), e);
         }
         Log.d(DEBUG_TAG, "engine launched");
-        if (NEW_FEATURE_LICHESS) {
-            lichessPad = new LichessPad(new LichessPad.LichessMessageConsumer() {
-                @Override
-                public void consume(LichessPad.LichessMessage message) {
-                    if (message instanceof LichessPad.LichessMessageLoginOk) {
-                        sendMessage(Config.MSG_NOTIFICATION, getResources().getString(R.string.msg_login_ok));
-                    } else if (message instanceof LichessPad.LichessMessagePuzzle) {
-                        sendMessage(Config.MSG_LICHESS_PUZZLE_READY, null);
-                    }
-                }
-
-                @Override
-                public void error(LichessPad.LichessMessage message) {
-                    int res = -1;
-                    switch (message.getClass().getSimpleName()) {
-                        case "LichessMessageNetworkError":
-                            res = R.string.err_network;
-                            break;
-
-                        case "LichessMessageLoginError":
-                            res = R.string.err_login;
-                            break;
-
-                        case "LichessMessagePuzzleError":
-                            res = R.string.err_puzzle;
-                            break;
-
-                        case "LichessMessageRecordPuzzleError":
-                            res = R.string.err_record_puzzle;
-                            break;
-                    }
-                    String msg;
-                    if (res > 0) {
-                        msg = getResources().getString(res);
-                    } else {
-                        msg = message.toString();
-                    }
-                    sendMessage(Config.MSG_NOTIFICATION, msg);
-                }
-
-                private void sendMessage(int msgId, String message) {
-                    Message msg = bgMessageHandler.obtainMessage();
-                    msg.arg1 = msgId;
-                    msg.obj = message;
-                    bgMessageHandler.sendMessage(msg);
-                }
-            });
-        } else {
-            lichessPad = null;
-        }
     }
 
     // called after onStop()
@@ -728,14 +648,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     }
 
     public boolean isPuzzleMode() {
-        return mode == Mode.Puzzle || mode == Mode.LichessPuzzle;
+        return mode == Mode.Puzzle;
     }
 
     List<MenuItem> getMenuItems() {
-        if (mode == Mode.FicsConnection) {
-            return getFicsMenuItems();
-        }
-
         List<MenuItem> menuItems = new LinkedList<>();
         boolean enabled = true;
         if (mode == Mode.DgtGame) {
@@ -756,17 +672,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         } else if (mode == Mode.Setup) {
             menuItems.add(new MenuItem(MenuCommand.CancelSetup, getResources().getString(R.string.menu_cancel_setup), true));
         }
-        if (NEW_FEATURE_FICS) {
-            menuItems.add(new MenuItem(MenuCommand.ConnectToFics, getResources().getString(R.string.menu_connect_to_fics), enabled));
-        }
-        if (NEW_FEATURE_LICHESS) {
-            menuItems.add(new MenuItem(MenuCommand.LichessPuzzle, getResources().getString(R.string.menu_lichess_puzzle), enabled));
-            if (lichessPad.isUserLoggedIn()) {
-                menuItems.add(new MenuItem(MenuCommand.LichessLogout, getResources().getString(R.string.menu_lichess_logout), enabled));
-            } else {
-                menuItems.add(new MenuItem(MenuCommand.LichessLogin, getResources().getString(R.string.menu_lichess_login), enabled));
-            }
-        }
         if (dgtBoardAccessible) {
             if (mode == Mode.DgtGame) {
                 menuItems.add(new MenuItem(MenuCommand.StopDgtGame, getResources().getString(R.string.menu_stop_dgt_game), true));
@@ -775,19 +680,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             }
         }
 
-        menuItems.add(new MenuItem(MenuCommand.About, getResources().getString(R.string.menu_about)));
-        return menuItems;
-    }
-
-    private List<MenuItem> getFicsMenuItems() {
-        List<MenuItem> menuItems = new LinkedList<>();
-
-        menuItems.add(new MenuItem(MenuCommand.FicsMate, getResources().getString(R.string.menu_fics_mate)));
-        menuItems.add(new MenuItem(MenuCommand.FicsTactics, getResources().getString(R.string.menu_tactics)));
-        menuItems.add(new MenuItem(MenuCommand.FicsStudy, getResources().getString(R.string.menu_study)));
-        menuItems.add(new MenuItem(MenuCommand.FicsEndgame, getResources().getString(R.string.menu_endgame)));
-
-        menuItems.add(new MenuItem(MenuCommand.CloseFicsConnection, getResources().getString(R.string.menu_close_fics_connection), true));
         menuItems.add(new MenuItem(MenuCommand.About, getResources().getString(R.string.menu_about)));
         return menuItems;
     }
@@ -843,18 +735,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 writer.write(1, 1);
                 selectedSquare.serialize(writer);
             }
-            if(ficsPad != null) {
-                writer.write(1, 1);
-                ficsPad.serialize(writer, versionCode);
-                writer.writeString(ficsCommand);
-            } else {
-                writer.write(0, 1);
-            }
-            ficsSettings.serialize(writer);
-            if (NEW_FEATURE_LICHESS) {
-                lichessPad.serialize(writer);
-            }
-            lichessSettings.serialize(writer);
             writer.write(doAnalysis ? 1 : 0, 1);
             puzzleData.serialize(writer);
             popups.serialize(writer);
@@ -875,11 +755,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 } else if(mode == Mode.DgtGame) {
                     mode = Mode.Game;   // do not launch DGT board connection automatically
                 }
-                if(NEW_FEATURE_FICS) {
-                    if(mode == Mode.FicsConnection) {
-                        mode = Mode.Game;
-                    }
-                }
                 dgtBoardPad.unserialize(reader);
                 if (reader.read(1) == 1) {
                     nextPgnFile = (CpFile.Item) CpFile.unserialize(reader);
@@ -889,15 +764,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 if (reader.read(1) == 1) {
                     selectedSquare = new Square(reader);
                 }
-                if (reader.read(1) == 1) {
-                    ficsPad = new FicsPad(reader, versionCode);
-                    ficsCommand = reader.readString();
-                }
-                ficsSettings.unserialize(reader);
-                if (NEW_FEATURE_LICHESS) {
-                    lichessPad.unserialize(reader);
-                }
-                lichessSettings.unserialize(reader);
                 doAnalysis = reader.read(1) == 1;
                 puzzleData.unserialize(reader);
                 popups.unserialize(reader);
@@ -1037,12 +903,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                         stopAnalysis();
                         if (mode == Mode.Puzzle) {
                             toNextGame(currentItem.getParent(), puzzleData.getNextIndex());
-                        } else if (mode == Mode.LichessPuzzle) {
-                            try {
-                                setPgnGraph(null);
-                            } catch (Config.PGNException e) {
-                                Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                            }
                         }
                     } else {    //  if (mode == Mode.Game) {
                         if(pgnGraph.isEnd()) {
@@ -1141,13 +1001,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 chessPadLayout.invalidate();
                 break;
 
-            case Send2Fics:
-                if (ficsPad != null) {
-                    ficsPad.send();
-                }
-                chessPadLayout.invalidate();
-                break;
-
         }
     }
 
@@ -1171,16 +1024,12 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     public void completePromotion(Move promotionMove) {
         getPgnGraph().validateUserMove(promotionMove);  // validate check
         addMove(promotionMove);
-        if(mode == Mode.FicsConnection) {
-            ficsPad.send(promotionMove.toString());
-        }
     }
 
     public List<Pair<String, String>> getTags() {
         switch (mode) {
             case Game:
             case Puzzle:
-            case LichessPuzzle:
                 return pgnGraph.getPgn().getTags();
 
             case Setup:
@@ -1189,8 +1038,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             case DgtGame:
                 return dgtBoardPad.getTags();
 
-            case FicsConnection:
-                return ficsPad.getPgnGraph().getPgn().getTags();
         }
         return null;    // should never happen
     }
@@ -1199,7 +1046,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         switch (mode) {
             case Game:
             case Puzzle:
-            case LichessPuzzle:
                 pgnGraph.setTags(tags);
                 break;
 
@@ -1315,56 +1161,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 stopDgtMode();
                 break;
 
-            case LichessLogin:
-                popups.launchDialog(Popups.DialogType.LichessLogin);
-                break;
-
-            case LichessLogout:
-                lichessPad.logout();
-                chessPadLayout.invalidate();
-                break;
-
-            case LichessPuzzle:
-//                if (puzzleMode()) {
-//                    pgnGraph.setModified(false);
-//                }
-                try {
-                    mode = Mode.LichessPuzzle;
-                    setPgnGraph(null);
-                } catch (Config.PGNException e) {
-                    Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                }
-                break;
-
-            case ConnectToFics:
-                try {
-                    nextMode = Mode.FicsConnection;
-                    setPgnGraph(null);
-                } catch (Config.PGNException e) {
-                    Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                }
-                break;
-
-            case CloseFicsConnection:
-                closeFicsConnection();
-                break;
-
-            case FicsMate:
-                selectPuzzlebotOptions(FicsPad.COMMAND_GET_MATE);
-                break;
-
-            case FicsTactics:
-                selectPuzzlebotOptions(FicsPad.COMMAND_TACTICS);
-                break;
-
-            case FicsStudy:
-                selectPuzzlebotOptions(FicsPad.COMMAND_STUDY);
-                break;
-
-            case FicsEndgame:
-                this.ficsCommand = FicsPad.COMMAND_ENDGAME;
-                popups.launchDialog(Popups.DialogType.SelectEndgamebotOptions);
-                break;
         }
 
     }
@@ -1422,84 +1218,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         chessPadLayout.redraw();
     }
 
-    void lichessLogin(String username, String password) {
-        Log.d(DEBUG_TAG, "lichessLogin()");
-        lichessSettings.setUsername(username);
-        lichessSettings.setPassword(password);
-        lichessPad.login(lichessSettings);
-    }
-
-    LichessPad.LichessSettings getLichessSettings() {
-        return lichessSettings;
-    }
-
-    public FicsPad.FicsSettings getFicsSettings() {
-        return ficsSettings;
-    }
-
-    void openFicsConnection() {
-        Log.d(DEBUG_TAG, "openFicsConnection()");
-        ficsPad = new FicsPad(ficsSettings, (inboundMessage) -> {
-            Log.d(DEBUG_TAG, String.format("ficsConnection, %s", inboundMessage.toString()));
-            if(inboundMessage.getMessageType() == InboundMessage.MessageType.Ready) {
-                mode = Mode.FicsConnection;
-                oldFlipped = flipped;
-                if(msgPopup != null) {
-                    msgPopup.dismiss();
-                    msgPopup = null;
-                }
-            }
-            Message msg = bgMessageHandler.obtainMessage();
-            msg.arg1 = inboundMessage.getMessageType().getValue();
-            bgMessageHandler.sendMessage(msg);
-        });
-        ficsLoginLaunched();
-    }
-
-    private void launchFicsMenu() {
-        onButtonClick(Command.Menu);
-    }
-
-    private void closeFicsConnection() {
-        Log.d(DEBUG_TAG, "closeFicsConnection()");
-        mode = Mode.Game;
-        flipped = oldFlipped;
-        if(ficsPad != null && ficsPad.isConnected()) {
-            ficsPad.close();
-        }
-        ficsPad = null;
-        chessPadLayout.redraw();
-    }
-
-    private void ficsLoginLaunched() {
-        msgPopup = new AlertDialog.Builder(this).create();
-        msgPopup.setMessage(getResources().getString(R.string.msg_connecting));
-        msgPopup.show();
-    }
-
-    private void selectPuzzlebotOptions(String ficsCommand) {
-        Log.d(DEBUG_TAG, "selectMate()");
-        this.ficsCommand = ficsCommand;
-        popups.launchDialog(Popups.DialogType.SelectPuzzlebotOptions);
-    }
-
-    // puzzlebot
-    void setCommandParam(int selected) {
-        ficsPad.send(FicsPad.COMMAND_UNEXAMINE);    // in case we are examining a game
-        String param = "";
-        if(selected > 0) {
-            param = "" + selected;
-        }
-        ficsPad.send(ficsCommand, param);
-    }
-
-    // endgamebot
-    void setCommandParam(Pair<String, String> option) {
-        ficsPad.send(FicsPad.COMMAND_UNEXAMINE);    // in case we are examining a game
-        this.ficsCommand = FicsPad.COMMAND_ENDGAME;
-        ficsPad.send(ficsCommand, option.first);
-    }
-
     // after loading a new item or ending setup
     // in Setup on 'setup ok' (null)
     // after ending Append (null)
@@ -1512,12 +1230,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             nextPgnFile = item;
             popups.launchDialog(Popups.DialogType.SaveModified);
         } else {
-            if(nextMode == Mode.FicsConnection) {
-                popups.launchDialog(Popups.DialogType.FicsLogin);
-                nextMode = null;
-                return;
-            }
-
             if (item == null) {
                 if (mode == Mode.Game || mode == Mode.Puzzle) {
                     item = nextPgnFile;
@@ -1530,14 +1242,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             } else if(item != null) {
                 Log.d(DEBUG_TAG, String.format("setPgnGraph loadPgnGraph %s", item));
                 pgnGraph = new PgnGraph(item, null);
-                pgngraphModified = true;
-            } else if (mode == Mode.LichessPuzzle) {
-                nextMode = null;
-                PgnGraph pgnGraph = lichessPad.getPuzzle();
-                if (pgnGraph == null) {
-                    return;
-                }
-                this.pgnGraph = pgnGraph;
                 pgngraphModified = true;
             }
             if(nextMode == Mode.DgtGame) {
@@ -1797,15 +1501,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     public PgnGraph getPgnGraph() {
         PgnGraph pgnGraph;
         switch(mode) {
-            case LichessPuzzle:
             case Game:
             case Setup:
             case Puzzle:
                 pgnGraph = this.pgnGraph;
-                break;
-
-            case FicsConnection:
-                pgnGraph = this.ficsPad.getPgnGraph();
                 break;
 
             case DgtGame:
@@ -2053,13 +1752,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             }
             if(msgId == Config.MSG_NOTIFICATION) {
                 Toast.makeText(activity, msg.obj.toString(), Toast.LENGTH_LONG).show();
-            } else if (msgId == Config.MSG_LICHESS_PUZZLE_READY) {
-                try {
-                    activity.setPgnGraph(null);
-                } catch (Config.PGNException e) {
-                    Log.e(activity.DEBUG_TAG, e.getLocalizedMessage());
-                    e.printStackTrace();
-                }
             } else if (msgId == Config.MSG_PUZZLE_ADVANCE) {
                 try {
                     Thread.sleep(PUZZLE_MOVE_DELAY_MSEC);
@@ -2081,23 +1773,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             } else if(msgId == Config.MSG_DGT_BOARD_SETUP_MESS || msgId == Config.MSG_DGT_BOARD_GAME) {
                 activity.chessPadLayout.redraw();
             } else if( msgId <= Config.MSG_DGT_BOARD_LAST ) {
-                activity.chessPadLayout.invalidate();
-            } else if( msgId == InboundMessage.MessageType.Ready.getValue() ) {
-                activity.chessPadLayout.redraw();
-                activity.launchFicsMenu();
-            } else if( msgId == InboundMessage.MessageType.Closed.getValue() ) {
-                if (activity.mode == Mode.FicsConnection) {
-                    activity.closeFicsConnection();
-                    Toast.makeText(activity, R.string.msg_connection_lost, Toast.LENGTH_LONG).show();
-                }
-            } else if( msgId == InboundMessage.MessageType.G1Game.getValue() ) {
-                activity.flipped = (activity.ficsPad.getPgnGraph().getInitBoard().getFlags() & Config.FLAGS_BLACK_MOVE) != 0;
-                if(activity.ficsPad.heMoved()) {
-                    activity.dingPlayer.start();
-                }
-                activity.chessPadLayout.invalidate();
-            } else if( msgId <= InboundMessage.MessageType.Info.getValue() ) {
-                // todo for fics
                 activity.chessPadLayout.invalidate();
             } else {
                 activity.chessPadLayout.invalidate();

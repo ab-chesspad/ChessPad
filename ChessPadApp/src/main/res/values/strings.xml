@@ -45,16 +45,6 @@
     <string name="menu_start_dgt_game">Start Dgt Board Mode</string>
     <string name="menu_stop_dgt_game">Stop Dgt Board Mode</string>
     <string name="menu_about">About</string>
-    <string name="menu_lichess_puzzle">Lichess Puzzles</string>
-    <string name="menu_lichess_login">Lichess Login</string>
-    <string name="menu_lichess_logout">Lichess Logout</string>
-
-    <string name="menu_connect_to_fics">Connect to FICS</string>
-    <string name="menu_close_fics_connection">Close FICS connection</string>
-    <string name="menu_fics_mate">Mate Puzzle</string>
-    <string name="menu_tactics">Tactics</string>
-    <string name="menu_study">Study</string>
-    <string name="menu_endgame">Endgame</string>
 
     <string name="label_en_pass">En passant: </string>
     <string name="label_halfmove_clock">Halfmove clock: </string>
@@ -73,40 +63,6 @@
 
     <string name="lookup_button_description">Lookup for folder/file</string>
     <string name="dgt_status_game">Recording...</string>
-
-    <!--FICS resources:-->
-    <string name="msg_connection_lost">Connection lost, try to reconnect</string>
-    <string name="msg_connecting">Connecting, please wait...</string>
-    <string name="hint_username">username</string>
-    <string name="hint_password">password</string>
-    <string name="login_as_guest">Login as guest</string>
-    <string name="login">Login</string>
-    <string name="hint_from_server">Messages from FICS</string>
-    <string name="hint_send_to_fics">Send to FICS</string>
-
-    <string-array name="puzzlebot_options">
-        <item>Any</item>
-        <item>In 1 Move</item>
-        <item>In 2 Moves</item>
-        <item>In 3 Moves</item>
-        <item>In 4 and More Moves</item>
-    </string-array>
-
-    <string-array name="endgamebot_options">
-        <item>kpk - K, P vs. K</item>
-        <item>kbnk - K, B, N vs. K</item>
-        <item>kbbk - K, B, B vs. K</item>
-        <item>kqk - K, Q vs. K</item>
-        <item>krpkr - K, R, P vs. K, R</item>
-        <item>krk - K, R vs. K</item>
-        <item>kqkr - K, Q vs. K, R</item>
-        <item>kppkp - K, P, P vs. K, P</item>
-        <item>kpkp - K, P vs. K, P</item>
-        <item>kqpkq - K, Q, P vs. K, Q</item>
-        <item>knnkp - K, N, N vs. K, P</item>
-        <item>kppkpp - K, P, P vs. K, P, P</item>
-        <item>kqqkqr - K, Q, Q vs. K, Q, R</item>
-    </string-array>
 
     <string-array name="setup_errs">
         <item>0 Setup OK</item>

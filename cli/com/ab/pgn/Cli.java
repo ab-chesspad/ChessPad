@@ -2,8 +2,6 @@ package com.ab.pgn;
 
 import com.ab.pgn.dgtboard.DgtBoardInterface;
 import com.ab.pgn.dgtboard.DgtBoardPad;
-import com.ab.pgn.fics.FicsPad;
-import com.ab.pgn.fics.chat.InboundMessage;
 
 import java.io.*;
 import java.util.LinkedList;
@@ -20,15 +18,12 @@ public class Cli {
     public static boolean doPrint = true;
     // fics software is buggy and seems not too popular
 
-    public final static String FICS_LOG_FILE_NAME = "log/fics.log";
-
     enum command {
         none,
         help,
         list,
         merge,
         dgtboard,
-//        fics,     // fics software is buggy and seems not too popular
         total,
     }
 
@@ -38,7 +33,6 @@ public class Cli {
         "list",
         "merge",
         "dgtboard",
-//        "fics",   // fics software is buggy and seems not too popular
     };
 
     private final PgnLogger logger = PgnLogger.getLogger(this.getClass(), true);
@@ -83,11 +77,6 @@ public class Cli {
             case dgtboard :
                 cli.doDgtBoard(args);
                 break;
-
-// fics software is buggy and seems not too popular
-//            case fics :
-//                cli.doFICS(args);
-//                break;
 
             case none:
             case help:
@@ -267,73 +256,4 @@ public class Cli {
         }
     }
 
-    // fics software is buggy and seems not too popular
-//    private void doFICS(String[] args) throws IOException {
-//        String user = "guest";
-//        String password = "";
-////        if (args.length < 2) {
-////            System.out.println("invalid/missing parameters");
-////            mainHelp();
-////            return;
-////        }
-//
-//        if (args.length == 3) {
-//            user = args[1];
-//            password = args[2];
-//        } else  if (args.length != 1) {
-//            System.out.println("invalid/missing parameters");
-//            mainHelp();
-//            return;
-//        }
-//
-//        System.out.println(String.format("Running FICS with DEBUG=%b", DEBUG));
-//        final int[] count = {0};
-//        PgnLogger.setFile(FICS_LOG_FILE_NAME);
-//        FicsPad ficsPad = new FicsPad(user, password, new FicsPad.InboundMessageConsumer() {
-//            @Override
-//            public void consume(InboundMessage.Info inboundMessage) {
-//                logger.debug(inboundMessage.toString());
-//                // todo!
-//            }
-//        });
-//        System.out.println("\nEnter FICS command or 'bye' to finish:");
-//
-//        while (!ficsPad.isConnected()) {
-//            try {
-//                Thread.sleep(1000);
-//            } catch (InterruptedException e) {
-//                // ignore
-//            }
-//        }
-//
-//        final String[] commands = {
-////            "tell puzzlebot gt3",
-////            "tell puzzlebot solve",
-////            "tell endgamebot help"
-////            "tell endgamebot play 8/k7/8/8/8/6Q1/8/1K6 --"
-////            "tell endgamebot play kqk"
-//                "games"
-//        };
-//        for (String command : commands) {
-////            ficsPad.send(String.format(command, i));
-//            ficsPad.send(command);
-//        }
-//
-//        byte[] commandBuffer = new byte[256];
-//        while (ficsPad.isConnected()) {
-//            if (System.in.available() > 0) {
-//                int len = System.in.read(commandBuffer);
-//                String command = new String(commandBuffer, 0, len).trim();
-//                ficsPad.send(command);
-//            }
-//            try {
-//                Thread.sleep(1000);
-//            } catch (InterruptedException e) {
-//                break;
-//            }
-//        }
-//        ficsPad.close();
-//        PgnLogger.setFile(null);
-//        System.out.println("Done");
-//    }
-}
+F}

@@ -70,7 +70,6 @@ public class ChessPadLayout implements ProgressBarHolder {
     private final GameView gameView;
     private final SetupView setupView;
     private final DgtBoardView dgtBoardView;
-    private final FicsPadView ficsPadView;
 
     public ChessPadLayout(ChessPad chessPad) {
         this.chessPad = chessPad;
@@ -91,11 +90,6 @@ public class ChessPadLayout implements ProgressBarHolder {
         gameView = new GameView(this);
         setupView = new SetupView(this);
         dgtBoardView = new DgtBoardView(this);
-        if (ChessPad.NEW_FEATURE_FICS) {
-            ficsPadView = new FicsPadView(this);
-        } else {
-            ficsPadView = null;
-        }
 
         cpView = gameView;
     }
@@ -129,7 +123,6 @@ public class ChessPadLayout implements ProgressBarHolder {
         moveTo(boardView, xb, yb, Metrics.boardViewSize, Metrics.boardViewSize);
 
         switch (chessPad.getMode()) {
-            case LichessPuzzle:
             case Game:
             case Puzzle:
                 cpView = gameView;
@@ -141,10 +134,6 @@ public class ChessPadLayout implements ProgressBarHolder {
 
             case DgtGame:
                 cpView = dgtBoardView;
-                break;
-
-            case FicsConnection:
-                cpView = ficsPadView;
                 break;
 
         }

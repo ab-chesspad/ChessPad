@@ -97,7 +97,7 @@ public class Config {
         dummy_int = 0;
 
     public static final byte
-        // messages from Dgt Board and FICS
+        // messages from Dgt Board
         MSG_NOTHING = 0,
         MSG_DGT_BOARD_SETUP_MESS = 1,
         MSG_DGT_BOARD_GAME = MSG_DGT_BOARD_SETUP_MESS + 1,
@@ -109,12 +109,10 @@ public class Config {
         MSG_DGT_BOARD_LAST = 0x13,      // DGT_VERSION
 
         MSG_REFRESH_SCREEN = MSG_DGT_BOARD_LAST + 1,
-        MSG_LICHESS_PUZZLE_READY = MSG_REFRESH_SCREEN + 1,
-        MSG_PUZZLE_ADVANCE = MSG_LICHESS_PUZZLE_READY + 1,
+        MSG_PUZZLE_ADVANCE = MSG_REFRESH_SCREEN + 1,
         MSG_PUZZLE_TAKE_BACK = MSG_PUZZLE_ADVANCE + 1,
 
         MSG_NOTIFICATION = MSG_PUZZLE_TAKE_BACK + 1,
-        MSG_FICS_FIRST = MSG_NOTIFICATION + 1,
 
         dummy_byte = 0;
 
@@ -154,9 +152,6 @@ public class Config {
         BOOK_COMMENT_STRING_TAG = "~",      // hopefully this char does not occur in opening books
 
         CP_DATE_FORMAT = "yyyy-MM-dd",
-
-        FICS_UNKNOWN_RATING = "++++",
-        FICS_NO_MOVE = "none",
 
         dummy_str = null;
 

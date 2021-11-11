@@ -114,9 +114,6 @@ public class PuzzleData {
             if (chessPad.mode == ChessPad.Mode.Puzzle) {
                 ++totalFailed;
                 msg = R.string.msg_puzzle_failure_with_statistics;
-            } else if (chessPad.mode == ChessPad.Mode.LichessPuzzle) {
-                msg = R.string.msg_puzzle_failure;
-                chessPad.lichessPad.recordResult(chessPad.getPgnGraph(), 0);
             } // else?
             Toast.makeText(chessPad, statisticsToString(msg), Toast.LENGTH_LONG).show();
             failed = true;
@@ -141,9 +138,6 @@ public class PuzzleData {
                 if (chessPad.mode == ChessPad.Mode.Puzzle) {
                     ++totalSolved;
                     msg = R.string.msg_puzzle_success_with_statistics;
-                } else if (chessPad.mode == ChessPad.Mode.LichessPuzzle) {
-                    msg = R.string.msg_puzzle_success;
-                    chessPad.lichessPad.recordResult(chessPad.getPgnGraph(), 1);
                 }
                 Toast.makeText(chessPad, statisticsToString(msg), Toast.LENGTH_LONG).show();
                 solved = true;

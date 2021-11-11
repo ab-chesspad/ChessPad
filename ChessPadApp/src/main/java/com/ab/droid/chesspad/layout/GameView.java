@@ -30,11 +30,8 @@ import com.ab.droid.chesspad.ChessPad;
 import com.ab.droid.chesspad.R;
 import com.ab.pgn.Config;
 import com.ab.pgn.Square;
-import com.ab.pgn.lichess.LichessPad;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -47,7 +44,6 @@ class GameView extends ChessPadLayout.CpView {
 
     private final TextView glyph, move, analysis;
     private final ChessPadLayout.CpEditText comment;
-    private final LichessChartView chart;
 
 
     @SuppressLint("ClickableViewAccessibility")
@@ -90,9 +86,6 @@ class GameView extends ChessPadLayout.CpView {
                 chessPad.setComment(editable.toString());
             }
         });
-
-        chart = new LichessChartView(chessPad);
-chart.setBackgroundColor(Color.LTGRAY);
 
         analysis = createTextView();
         analysis.setFocusable(false);
@@ -187,9 +180,7 @@ chart.setBackgroundColor(Color.LTGRAY);
         y += dy;
 
         w = Metrics.maxMoveWidth / 2;
-        if (chessPad.mode != ChessPad.Mode.LichessPuzzle) {
-            chessPadLayout.moveTo(glyph, x1, y, w, Metrics.titleHeight);
-        }
+        chessPadLayout.moveTo(glyph, x1, y, w, Metrics.titleHeight);
 
         x1 += w;
         dx = (Metrics.paneWidth - x1) / 2 - Metrics.buttonSize;
@@ -199,11 +190,7 @@ chart.setBackgroundColor(Color.LTGRAY);
 
         y += Metrics.titleHeight + Metrics.ySpacing;
         int h = Metrics.paneHeight - y;
-        if (chessPad.mode == ChessPad.Mode.LichessPuzzle) {
-            chessPadLayout.moveTo(chart, x, y, Metrics.paneWidth, h);
-        } else {
-            chessPadLayout.moveTo(comment, x, y, Metrics.paneWidth, h);
-        }
+        chessPadLayout.moveTo(comment, x, y, Metrics.paneWidth, h);
 
         int ah;
         if (Metrics.isVertical) {
@@ -255,24 +242,7 @@ chart.setBackgroundColor(Color.LTGRAY);
             setButtonEnabled(ChessPad.Command.Analysis, chessPad.isAnalysisOk());
         }
 
-        if (chessPad.mode == ChessPad.Mode.LichessPuzzle) {
-            LichessPad.User user;
-            if ((user = chessPad.lichessPad.getUser()) == null) {
-                chart.setVisibility(View.INVISIBLE);
-            } else {
-                chart.setVisibility(View.VISIBLE);
-                List<Double> values = new ArrayList<>();
-                if (user.history.length > 0) {
-                    for (LichessPad.Attempt attempt : user.history) {
-                        values.add((double) attempt.priorRating);
-                    }
-                }
-                values.add((double) user.rating);
-                chart.setValues(values);
-            }
-        } else {
-            comment.setText(chessPad.getPgnGraph().getComment());
-        }
+        comment.setText(chessPad.getPgnGraph().getComment());
 
         if (chessPad.isNavigationEnabled()) {
             boolean puzzleMode = chessPad.isPuzzleMode();

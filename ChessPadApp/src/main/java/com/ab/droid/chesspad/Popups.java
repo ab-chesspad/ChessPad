@@ -25,14 +25,12 @@ import android.graphics.Typeface;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.WebView;
 import android.widget.Button;
-import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -80,11 +78,6 @@ public class Popups {
         Merge(++j),
         Tags(++j),
         SaveModified(++j),
-        LichessLogin(++j),
-
-        FicsLogin(++j),
-        SelectPuzzlebotOptions(++j),
-        SelectEndgamebotOptions(++j),
         ;
 
         private final int value;
@@ -124,8 +117,6 @@ public class Popups {
     private static final String endgamebotOptionsStringSep = " - ";
 
     private final List<String> glyphs;
-    private final List<String> puzzlebotOptions;
-    private final List<Pair<String, String>> endgamebotOptions;
 
     private boolean fileListShown = false;
     Move promotionMove;
@@ -143,13 +134,6 @@ public class Popups {
         appendData = new MergeData();
         mergeData = new MergeData();
         glyphs = Arrays.asList(getResources().getStringArray(R.array.glyphs));
-        puzzlebotOptions = Arrays.asList(getResources().getStringArray(R.array.puzzlebot_options));
-        endgamebotOptions = new ArrayList<>();
-        String[] options = getResources().getStringArray(R.array.endgamebot_options);
-        for(String option : options) {
-            String[] parts = option.split(endgamebotOptionsStringSep);
-            endgamebotOptions.add(new Pair<>(parts[0], parts[1]));
-        }
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
@@ -344,32 +328,6 @@ public class Popups {
                 });       // 1st one is main line
                 break;
 
-            case LichessLogin:
-                lichessLogin();
-                break;
-
-            case FicsLogin:
-                ficsLogin();
-                break;
-
-            case SelectPuzzlebotOptions:
-                launchDialog(dialogType, new TextArrayAdapter(puzzlebotOptions, 0) {
-                    @Override
-                    protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
-                        super.setRowViewHolder(rowViewHolder, position);
-                    }
-                });
-                break;
-
-            case SelectEndgamebotOptions:
-                launchDialog(dialogType, new EndgameOptionsAdapter(endgamebotOptions) {
-                    @Override
-                    protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
-                        super.setRowViewHolder(rowViewHolder, position);
-                    }
-                });
-                break;
-
         }
 
         if(currentAlertDialog != null) {
@@ -460,16 +418,6 @@ public class Popups {
             case Menu:
                 dismissDlg();
                 chessPad.executeMenuCommand(((ChessPad.MenuItem) selectedValue).getCommand());
-                break;
-
-            case SelectPuzzlebotOptions:
-                dismissDlg();
-                chessPad.setCommandParam(selected);
-                break;
-
-            case SelectEndgamebotOptions:
-                dismissDlg();
-                chessPad.setCommandParam(endgamebotOptions.get(selected));
                 break;
 
             case Load:
@@ -571,11 +519,6 @@ public class Popups {
             currentAlertDialog.dismiss();
         }
         currentAlertDialog = null;
-        if(chessPad.mode == ChessPad.Mode.FicsConnection) {
-            if(this.dialogType == DialogType.FicsLogin) {
-                chessPad.mode = ChessPad.Mode.Game;
-            }
-        }
         this.dialogType = DialogType.None;
     }
 
@@ -1042,67 +985,6 @@ public class Popups {
 
         currentAlertDialog = dialog;
         dialog.show();
-    }
-
-    private void ficsLogin() {
-        if (currentAlertDialog != null) {
-            return;
-        }
-        AlertDialog.Builder builder = new AlertDialog.Builder(ChessPad.getContext());
-        LayoutInflater inflater = ChessPad.getInstance().getLayoutInflater();
-        View view = inflater.inflate(R.layout.fics_login, null);
-        final EditText usernameEditText = view.findViewById(R.id.username);
-        final EditText passwordEditText = view.findViewById(R.id.password);
-
-        builder.setView(view)
-                .setPositiveButton(R.string.login, (dialog, id) -> {
-                    dismissDlg();
-                    chessPad.getFicsSettings().setUsername(usernameEditText.getText().toString());
-                    chessPad.getFicsSettings().setPassword(passwordEditText.getText().toString());
-                    chessPad.openFicsConnection();
-                })
-                .setNegativeButton(R.string.cancel, (dialogInterface, id) -> dismissDlg());
-
-        currentAlertDialog = builder.create();
-
-        boolean ficsLoginAsGuest = chessPad.getFicsSettings().isLoginAsGuest();
-        usernameEditText.setEnabled(!ficsLoginAsGuest);
-        usernameEditText.setText(chessPad.getFicsSettings().getUsername());
-        passwordEditText.setEnabled(!ficsLoginAsGuest);
-        passwordEditText.setText(chessPad.getFicsSettings().getUsername());
-        CheckBox checkBox = view.findViewById(R.id.login_as_guest);
-        checkBox.setChecked(ficsLoginAsGuest);
-        checkBox.setOnClickListener((v) -> {
-            boolean _ficsLoginAsGuest = !chessPad.getFicsSettings().isLoginAsGuest();
-            chessPad.getFicsSettings().setLoginAsGuest(_ficsLoginAsGuest);
-            usernameEditText.setEnabled(!_ficsLoginAsGuest);
-            passwordEditText.setEnabled(!_ficsLoginAsGuest);
-        });
-        currentAlertDialog.show();
-    }
-
-    private void lichessLogin() {
-        if (currentAlertDialog != null) {
-            return;
-        }
-        AlertDialog.Builder builder = new AlertDialog.Builder(ChessPad.getContext());
-        LayoutInflater inflater = ChessPad.getInstance().getLayoutInflater();
-        View view = inflater.inflate(R.layout.lichess_login, null);
-        final EditText usernameEditText = view.findViewById(R.id.username);
-        final EditText passwordEditText = view.findViewById(R.id.password);
-
-        builder.setView(view)
-                .setPositiveButton(R.string.login, (dialog, id) -> {
-                    dismissDlg();
-                    chessPad.lichessLogin(usernameEditText.getText().toString(), passwordEditText.getText().toString());
-                })
-                .setNegativeButton(R.string.cancel, (dialogInterface, id) -> dismissDlg());
-
-        currentAlertDialog = builder.create();
-
-        usernameEditText.setText(chessPad.getLichessSettings().getUsername());
-        passwordEditText.setText(chessPad.getLichessSettings().getPassword());
-        currentAlertDialog.show();
     }
 
     private PgnFileListAdapter getPgnFileListAdapter(CpFile parentItem, int initSelection) {
