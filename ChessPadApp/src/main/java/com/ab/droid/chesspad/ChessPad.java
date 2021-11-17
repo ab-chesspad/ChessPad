@@ -82,6 +82,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         STATUS_FILE_NAME = ".ChessPad.state",
         CURRENT_PGN_NAME = File.separator + ".ChessPad.current",
         DEFAULT_DIRECTORY = "ChessPad",
+//DEFAULT_DIRECTORY = "Download",
         BOOK_ASSET_NAME = "book/combined.book",
         str_dummy = null;
 
@@ -252,13 +253,16 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
         puzzleData = new PuzzleData(this);
         popups = new Popups(this);
+        setupDirs();
         // let root be /
 //        File r = getContext().getExternalFilesDir(null);
+/*
         File root = Environment.getExternalStorageDirectory();
         CpFile.setRoot(root);
         File dir = new File(getDefaultDirectory());
         dir.mkdirs();
         currentPath = new CpFile.Dir(DEFAULT_DIRECTORY);
+*/
 
         try {
             PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
@@ -593,6 +597,21 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 */
                 break;
         }
+    }
+
+    private void setupDirs() {
+/*
+        if (!PermissionUtils.checkStoragePermission(this)) {
+            currentPath = null;
+            return;
+        }
+*/
+
+        File root = Environment.getExternalStorageDirectory();
+        CpFile.setRoot(root);
+        File dir = new File(getDefaultDirectory());
+        dir.mkdirs();
+        currentPath = new CpFile.Dir(DEFAULT_DIRECTORY);
     }
 
     public Mode getMode() {
