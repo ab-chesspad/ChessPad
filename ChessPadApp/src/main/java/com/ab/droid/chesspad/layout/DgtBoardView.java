@@ -13,7 +13,9 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ *
+ * Created by Alexander Bootman on 1/15/19.
+ */
 package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
@@ -41,11 +43,6 @@ import com.ab.pgn.Square;
 import com.ab.pgn.dgtboard.DgtBoardPad;
 
 import java.util.Locale;
-
-/**
- *
- * Created by Alexander Bootman on 1/15/19.
- */
 
 public class DgtBoardView extends SetupView {
     public static boolean DEBUG = false;

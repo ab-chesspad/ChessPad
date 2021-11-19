@@ -13,13 +13,11 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-package com.ab.droid.chesspad.layout;
 
-/**
  * screen metrics to calculate widget sizes
  * Created by Alexander Bootman on 11/27/16.
  */
+package com.ab.droid.chesspad.layout;
 
 public class Metrics {
     public static int screenWidth;

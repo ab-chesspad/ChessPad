@@ -13,7 +13,9 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ *
+ * Created by Alexander Bootman on 11/27/16.
+ */
 package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
@@ -33,11 +35,6 @@ import com.ab.pgn.Square;
 
 import java.util.HashMap;
 import java.util.Locale;
-
-/**
- *
- * Created by Alexander Bootman on 11/27/16.
- */
 
 class GameView extends ChessPadLayout.CpView {
     private final HashMap<ChessPad.Command, ChessPadLayout.CpImageButton> imageButtons = new HashMap<>();

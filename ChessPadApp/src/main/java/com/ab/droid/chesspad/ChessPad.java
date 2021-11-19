@@ -13,7 +13,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+
+ * main activity
+ * Created by Alexander Bootman on 8/20/16.
+ */
 package com.ab.droid.chesspad;
 
 import android.content.ComponentCallbacks2;
@@ -67,10 +70,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
-/**
- * main activity
- * Created by Alexander Bootman on 8/20/16.
- */
 public class ChessPad extends AppCompatActivity implements BoardHolder, ComponentCallbacks2 {
     private static final boolean DEBUG = false;
     private static final boolean DEBUG_DGT_BOARD = false;
@@ -82,7 +81,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         STATUS_FILE_NAME = ".ChessPad.state",
         CURRENT_PGN_NAME = File.separator + ".ChessPad.current",
         DEFAULT_DIRECTORY = "ChessPad",
-//DEFAULT_DIRECTORY = "Download",
         BOOK_ASSET_NAME = "book/combined.book",
         str_dummy = null;
 
@@ -254,15 +252,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         puzzleData = new PuzzleData(this);
         popups = new Popups(this);
         setupDirs();
-        // let root be /
-//        File r = getContext().getExternalFilesDir(null);
-/*
-        File root = Environment.getExternalStorageDirectory();
-        CpFile.setRoot(root);
-        File dir = new File(getDefaultDirectory());
-        dir.mkdirs();
-        currentPath = new CpFile.Dir(DEFAULT_DIRECTORY);
-*/
 
         try {
             PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
@@ -322,7 +311,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             Toast.makeText(ChessPad.this, e.getMessage() + "\n" + "Opening book failed to open", Toast.LENGTH_LONG).show();
         }
 
-        final File engineWorkDir = new File("");
         try {
             uci = new UCI(new UCI.EngineWatcher() {
                 @Override
@@ -600,7 +588,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     }
 
     private void setupDirs() {
-/*
+/* todo: update for SDK 31
         if (!PermissionUtils.checkStoragePermission(this)) {
             currentPath = null;
             return;

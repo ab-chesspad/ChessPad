@@ -13,7 +13,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+
+ * visual board
+ * Created by Alexander Bootman on 8/20/16.
+ */
 package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
@@ -42,10 +45,6 @@ import com.ab.pgn.Square;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * visual board
- * Created by Alexander Bootman on 8/20/16.
- */
 public class BoardView extends View {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
     private final static boolean DEBUG = false;    // todo: config

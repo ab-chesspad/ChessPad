@@ -13,7 +13,9 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ *
+ * Created by Alexander Bootman on 11/27/16.
+ */
 package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
@@ -32,11 +34,6 @@ import com.ab.pgn.Board;
 import com.ab.pgn.Config;
 import com.ab.pgn.Setup;
 import com.ab.pgn.Square;
-
-/**
- *
- * Created by Alexander Bootman on 11/27/16.
- */
 
 public class SetupView extends ChessPadLayout.CpView {
     final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();

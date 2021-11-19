@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="ProjectModuleManager">
-    <modules>
-      <module fileurl="file://$PROJECT_DIR$/ChessPad.iml" filepath="$PROJECT_DIR$/ChessPad.iml" group="ChessPad" />
-      <module fileurl="file://$PROJECT_DIR$/ChessPadApp/ChessPadApp.iml" filepath="$PROJECT_DIR$/ChessPadApp/ChessPadApp.iml" group="ChessPad/ChessPadApp" />
-    </modules>
-  </component>
-</project>
