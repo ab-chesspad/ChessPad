@@ -196,7 +196,6 @@ void Search::clear() {
   Tablebases::init(Options["SyzygyPath"]); // Free mapped files
 }
 
-
 /// MainThread::search() is started when the program receives the UCI 'go'
 /// command. It searches from the root position and outputs the "bestmove".
 
@@ -394,6 +393,7 @@ void Thread::search() {
           while (true)
           {
               Depth adjustedDepth = std::max(1, rootDepth - failedHighCnt - searchAgainCounter);
+              stack_depth = 0;
               bestValue = Stockfish::search<Root>(rootPos, ss, alpha, beta, adjustedDepth, false);
 
               // Bring the best move to the front. It is critical that sorting
@@ -542,6 +542,12 @@ namespace {
 
     Thread* thisThread = pos.this_thread();
 
+    // todo: check the limit and find the way to calculate it correctly
+    if (++thisThread->stack_depth >= 70) {
+        --thisThread->stack_depth;
+        return VALUE_ZERO;
+    }
+
     // Step 0. Limit search explosion
     if (   ss->ply > 10
         && search_explosion(thisThread) == MUST_CALM_DOWN
@@ -560,13 +566,17 @@ namespace {
         && pos.has_game_cycle(ss->ply))
     {
         alpha = value_draw(pos.this_thread());
-        if (alpha >= beta)
+        if (alpha >= beta) {
+            --thisThread->stack_depth;
             return alpha;
+        }
     }
 
     // Dive into quiescence search when the depth reaches zero
-    if (depth <= 0)
+    if (depth <= 0) {
+        --thisThread->stack_depth;
         return qsearch<PvNode ? PV : NonPV>(pos, ss, alpha, beta);
+    }
 
     assert(-VALUE_INFINITE <= alpha && alpha < beta && beta <= VALUE_INFINITE);
     assert(PvNode || (alpha == beta - 1));
@@ -609,9 +619,11 @@ namespace {
         // Step 2. Check for aborted search and immediate draw
         if (   Threads.stop.load(std::memory_order_relaxed)
             || pos.is_draw(ss->ply)
-            || ss->ply >= MAX_PLY)
+            || ss->ply >= MAX_PLY) {
+            --thisThread->stack_depth;
             return (ss->ply >= MAX_PLY && !ss->inCheck) ? evaluate(pos)
                                                         : value_draw(pos.this_thread());
+        }
 
         // Step 3. Mate distance pruning. Even if we mate at the next move our score
         // would be at best mate_in(ss->ply+1), but if alpha is already bigger because
@@ -621,8 +633,10 @@ namespace {
         // mate. In this case return a fail-high score.
         alpha = std::max(mated_in(ss->ply), alpha);
         beta = std::min(mate_in(ss->ply+1), beta);
-        if (alpha >= beta)
+        if (alpha >= beta) {
+            --thisThread->stack_depth;
             return alpha;
+        }
     }
     else
         thisThread->rootDelta = beta - alpha;
@@ -700,8 +714,10 @@ namespace {
 
         // Partial workaround for the graph history interaction problem
         // For high rule50 counts don't produce transposition table cutoffs.
-        if (pos.rule50_count() < 90)
+        if (pos.rule50_count() < 90) {
+            --thisThread->stack_depth;
             return ttValue;
+        }
     }
 
     // Step 5. Tablebases probe
@@ -742,6 +758,7 @@ namespace {
                               std::min(MAX_PLY - 1, depth + 6),
                               MOVE_NONE, VALUE_NONE);
 
+                    --thisThread->stack_depth;
                     return value;
                 }
 
@@ -814,8 +831,10 @@ namespace {
     if (   !PvNode
         &&  depth < 9
         &&  eval - futility_margin(depth, improving) >= beta
-        &&  eval < 15000) // 50% larger than VALUE_KNOWN_WIN, but smaller than TB wins.
+        &&  eval < 15000) { // 50% larger than VALUE_KNOWN_WIN, but smaller than TB wins.
+        --thisThread->stack_depth;
         return eval;
+    }
 
     // Step 8. Null move search with verification search (~40 Elo)
     if (   !PvNode
@@ -848,8 +867,10 @@ namespace {
             if (nullValue >= VALUE_TB_WIN_IN_MAX_PLY)
                 nullValue = beta;
 
-            if (thisThread->nmpMinPly || (abs(beta) < VALUE_KNOWN_WIN && depth < 14))
+            if (thisThread->nmpMinPly || (abs(beta) < VALUE_KNOWN_WIN && depth < 14)) {
+                --thisThread->stack_depth;
                 return nullValue;
+            }
 
             assert(!thisThread->nmpMinPly); // Recursive verification is not allowed
 
@@ -862,8 +883,10 @@ namespace {
 
             thisThread->nmpMinPly = 0;
 
-            if (v >= beta)
+            if (v >= beta) {
+                --thisThread->stack_depth;
                 return nullValue;
+            }
         }
     }
 
@@ -924,6 +947,7 @@ namespace {
                         tte->save(posKey, value_to_tt(value, ss->ply), ttPv,
                             BOUND_LOWER,
                             depth - 3, move, ss->staticEval);
+                    --thisThread->stack_depth;
                     return value;
                 }
             }
@@ -956,8 +980,10 @@ moves_loop: // When in check, search starts here
         && ttValue >= probCutBeta
         && abs(ttValue) <= VALUE_KNOWN_WIN
         && abs(beta) <= VALUE_KNOWN_WIN
-       )
+       ) {
+        --thisThread->stack_depth;
         return probCutBeta;
+    }
 
 
     const PieceToHistory* contHist[] = { (ss-1)->continuationHistory, (ss-2)->continuationHistory,
@@ -1107,8 +1133,10 @@ moves_loop: // When in check, search starts here
           // search without the ttMove. So we assume this expected Cut-node is not singular,
           // that multiple moves fail high, and we can prune the whole subtree by returning
           // a soft bound.
-          else if (singularBeta >= beta)
+          else if (singularBeta >= beta) {
+              --thisThread->stack_depth;
               return singularBeta;
+          }
 
           // If the eval of ttMove is greater than beta, we reduce it (negative extension)
           else if (ttValue >= beta)
@@ -1271,8 +1299,10 @@ moves_loop: // When in check, search starts here
       // Finished searching the move. If a stop occurred, the return value of
       // the search cannot be trusted, and we return immediately without
       // updating best move, PV and TT.
-      if (Threads.stop.load(std::memory_order_relaxed))
+      if (Threads.stop.load(std::memory_order_relaxed)) {
+          --thisThread->stack_depth;
           return VALUE_ZERO;
+      }
 
       if (rootNode)
       {
@@ -1393,6 +1423,7 @@ moves_loop: // When in check, search starts here
 
     assert(bestValue > -VALUE_INFINITE && bestValue < VALUE_INFINITE);
 
+    --thisThread->stack_depth;
     return bestValue;
   }
 
