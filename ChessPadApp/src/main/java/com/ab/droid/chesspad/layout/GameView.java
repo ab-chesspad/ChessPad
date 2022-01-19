@@ -53,6 +53,7 @@ class GameView extends ChessPadLayout.CpView {
         move.setSingleLine();
         move.setBackgroundColor(Color.WHITE);
         move.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        move.setFocusable(false);
 
         glyph = createTextView();
         glyph.setSingleLine();
@@ -64,7 +65,8 @@ class GameView extends ChessPadLayout.CpView {
             // true if the event was handled and should not be given further down to other views.
             return true;
         });
-        glyph.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+//        glyph.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        glyph.setFocusable(false);
 
         comment = createTextView();
         comment.setBackgroundColor(Color.GREEN);
@@ -229,7 +231,7 @@ class GameView extends ChessPadLayout.CpView {
             glyph.setText(String.format(Locale.getDefault(), "%s%d", Config.PGN_GLYPH, g));
         }
 
-        if(chessPad.doAnalysis) {
+        if (chessPad.doAnalysis) {
             analysis.setVisibility(View.VISIBLE);
             analysis.setText(chessPad.getAnalysisMessage());
             imageButtons.get(ChessPad.Command.Analysis).setImageResource(R.drawable.noanalysis);
@@ -248,7 +250,7 @@ class GameView extends ChessPadLayout.CpView {
                 if (puzzleMode) {
                     setButtonEnabled(ChessPad.Command.Start, false);
                 } else {
-                    setButtonEnabled(ChessPad.Command.Start, chessPad.getPgnGraph().getPgn().getIndex() > 0);
+                    setButtonEnabled(ChessPad.Command.Start, chessPad.getPgnGraph().getPgnItemIndex() > 0);
                 }
                 setButtonEnabled(ChessPad.Command.Prev, false);
                 setButtonEnabled(ChessPad.Command.PrevVar, false);
@@ -268,7 +270,7 @@ class GameView extends ChessPadLayout.CpView {
                 if (puzzleMode) {
                     setButtonEnabled(ChessPad.Command.End, true);
                 } else {
-                    setButtonEnabled(ChessPad.Command.End, chessPad.getPgnGraph().getPgn().getIndex() < chessPad.lastItemIndex());
+                    setButtonEnabled(ChessPad.Command.End, chessPad.getPgnGraph().getPgnItemIndex() < chessPad.lastItemIndex());
                 }
             } else {
                 setButtonEnabled(ChessPad.Command.Next, true);

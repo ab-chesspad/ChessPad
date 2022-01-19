@@ -19,12 +19,6 @@
  */
 package com.ab.pgn;
 
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -36,8 +30,13 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
+
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Board.class, BitStream.Reader.class, ByteArrayInputStream.class})
@@ -46,7 +45,7 @@ public class BoardTest extends BaseTest {
     public final ExpectedException expectedEx = ExpectedException.none();
 
     @Test
-    public void testBoard() {
+    public void testBoard() throws Config.PGNException {
         int[][] pieces = Board.init;
         Board board = new Board(pieces);
         for(int i = 0; i < pieces.length; ++i) {
@@ -55,6 +54,25 @@ public class BoardTest extends BaseTest {
                         pieces[j][i], board.getPiece(i, j));
             }
         }
+
+        Map<Pack, Board> positions = new HashMap<>();
+        board.setMove(null);
+        int[] packData = board.pack();
+        positions.put(new Pack(packData), board);
+
+        Assert.assertFalse(board.getVisited());
+//        board.setVisited(true);
+//        Assert.assertTrue(board.wasVisited());
+//
+//        Pack p = new Pack(board.pack());
+//        positions.put(p, board);
+
+        for (Board b : positions.values()) {
+            b.setVisited(false);
+        }
+
+        board = positions.get(new Pack(packData));
+        Assert.assertFalse(board.getVisited());
     }
 
     @Test

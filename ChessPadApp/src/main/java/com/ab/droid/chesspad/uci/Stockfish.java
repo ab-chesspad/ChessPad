@@ -32,7 +32,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 public class Stockfish extends com.ab.pgn.uci.Stockfish {
-    private Context context;
+    private final Context context;
     private File nnueFile = null;
 
     public Stockfish(Context context) {

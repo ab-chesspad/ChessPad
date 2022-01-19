@@ -14,6 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+ * communicates with DGT board, translates data to anf from ChessPad
  * Created by Alexander Bootman on 1/27/19.
 */
 package com.ab.pgn.dgtboard;
@@ -44,7 +45,7 @@ public class DgtBoardPad {
     private static final int BOARD_UPDATE_TIMEOUT_MSEC = 1000;
 
     private static final int
-        LOCAL_VERSION_CODE = 0,
+        LOCAL_VERSION_CODE = 1,
         dummy_int = 0;
 
     public enum BoardStatus {
@@ -90,7 +91,7 @@ public class DgtBoardPad {
     }
 
     private void _resume() {
-        if(pgnGraph == null) {
+        if (pgnGraph == null) {
             pgnGraph = new PgnGraph();
         }
         newSetup(true);
@@ -99,7 +100,7 @@ public class DgtBoardPad {
     public void stop() {
         dgtBoardWatcher.stop();
         appendGame();
-        if(!recordedGames.isEmpty()) {
+        if (!recordedGames.isEmpty()) {
             String fname = String.format("rec-%s.pgn", new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(new Date()));
             File f = new File(new File(outputDir), fname);
             try {
@@ -126,7 +127,7 @@ public class DgtBoardPad {
             setup.serialize(writer);
             pgnGraph.serializeGraph(writer, LOCAL_VERSION_CODE);
             pgnGraph.serializeMoveLine(writer, LOCAL_VERSION_CODE);
-            if(invertedBoard) {
+            if (invertedBoard) {
                 writer.write(1, 1);
             } else {
                 writer.write(0, 1);
@@ -139,7 +140,7 @@ public class DgtBoardPad {
     public void unserialize(BitStream.Reader reader) throws Config.PGNException {
         try {
             recordedGames = reader.readString();    // assuming it is < 64K long!
-            if(recordedGames == null) {
+            if (recordedGames == null) {
                 recordedGames = "";
             }
             setup = new Setup(reader);
@@ -213,29 +214,29 @@ public class DgtBoardPad {
     }
 
     public Board getBoard() {
-        if(boardStatus == BoardStatus.SetupMess) {
+        if (boardStatus == BoardStatus.SetupMess) {
             return setup.getBoard();
         }
         return pgnGraph.getBoard();
     }
 
-    public List<Pair<String, String>> getTags() {
-        if(boardStatus == BoardStatus.SetupMess) {
-            return setup.getTags();
+    public List<Pair<String, String>> cloneTags() {
+        if (boardStatus == BoardStatus.SetupMess) {
+            return setup.cloneTags();
         }
-        return pgnGraph.getPgn().getTags();
+        return pgnGraph.getPgnItem().cloneTags();
     }
 
     public void setTags(List<Pair<String, String>> tags) {
-        if(boardStatus == BoardStatus.SetupMess) {
+        if (boardStatus == BoardStatus.SetupMess) {
             setup.setTags(tags);
         } else {
-            pgnGraph.getPgn().setTags(tags);
+            pgnGraph.getPgnItem().setTags(tags);
         }
     }
 
     public List<String> getMovesText() {
-        if(boardStatus == BoardStatus.SetupMess) {
+        if (boardStatus == BoardStatus.SetupMess) {
             return new LinkedList<>();
         }
         return pgnGraph.getMovesText();
@@ -251,30 +252,30 @@ public class DgtBoardPad {
 
     private synchronized void updatePad(DgtBoardWatcher.BoardMessage boardMessage) {
         errorMsg = null;
-        if(boardMessage.equals(oldBoardMessage)) {
+        if (boardMessage.equals(oldBoardMessage)) {
             // DGT board occasionally ignores commands (or caches the results?) so we may want to send each command twice.
             // To fix the case when the board returns both messages, we ignore the second one if it is identical.
             return;
         }
         oldBoardMessage = boardMessage;
-        if(boardMessage instanceof DgtBoardWatcher.BoardMessageInfo) {
+        if (boardMessage instanceof DgtBoardWatcher.BoardMessageInfo) {
             logger.debug(String.format("updatePad: 0x%s, %s", Integer.toHexString(boardMessage.getMsgId() & 0x0ff), ((DgtBoardWatcher.BoardMessageInfo) boardMessage).text));
-        } else if(boardMessage instanceof DgtBoardWatcher.BoardMessagePosition) {
+        } else if (boardMessage instanceof DgtBoardWatcher.BoardMessagePosition) {
             updateBoard(((DgtBoardWatcher.BoardMessagePosition)boardMessage).board);
-        } else if(boardMessage instanceof DgtBoardWatcher.BoardMessageMoveChunk) {
+        } else if (boardMessage instanceof DgtBoardWatcher.BoardMessageMoveChunk) {
             acceptMoveChunk((DgtBoardWatcher.BoardMessageMoveChunk) boardMessage);
         }
-        if(cpEventObserver != null) {
+        if (cpEventObserver != null) {
             cpEventObserver.update(boardMessage.getMsgId());
         }
     }
 
     private void updateBoard(Board board) {
-        if(boardStatus == BoardStatus.Game) {
+        if (boardStatus == BoardStatus.Game) {
             return;     // ignore
         }
         Board invertedBoard = board.invert();
-        if(this.invertedBoard) {
+        if (this.invertedBoard) {
             setup.setBoardPosition(invertedBoard);
             invertedBoard = board;
             board = setup.getBoard();
@@ -282,29 +283,29 @@ public class DgtBoardPad {
             setup.setBoardPosition(board);
         }
 
-        if(board.samePosition(initBoard)) {
+        if (board.samePosition(initBoard)) {
             toInit();
             return;
         }
-        if(invertedBoard.samePosition(initBoard)) {
+        if (invertedBoard.samePosition(initBoard)) {
             turnBoard();
             toInit();
             return;
         }
 
-        if(boardStatus == BoardStatus.Game) {
+        if (boardStatus == BoardStatus.Game) {
             return;
         }
 
         // search for previous occurrences:
         BoardStatus boardStatus = searchPgnGraph(board);
-        if(boardStatus == BoardStatus.SetupMess) {
+        if (boardStatus == BoardStatus.SetupMess) {
             boardStatus = searchPgnGraph(invertedBoard);
-            if(boardStatus == BoardStatus.Game) {
+            if (boardStatus == BoardStatus.Game) {
                 turnBoard();
             }
         }
-        if(boardStatus != this.boardStatus) {
+        if (boardStatus != this.boardStatus) {
             setBoardStatus(boardStatus, true);
         }
     }
@@ -316,7 +317,7 @@ public class DgtBoardPad {
     private BoardStatus searchPgnGraph(Board searchBoard) {
         BoardStatus boardStatus = BoardStatus.SetupMess;
         int index = pgnGraph.moveLine.size();
-        if(index <= 1) {
+        if (index <= 1) {
             return boardStatus;
         }
         Move move = null;
@@ -324,32 +325,32 @@ public class DgtBoardPad {
         while(li.hasPrevious()) {
             move = li.previous();
             Board board = pgnGraph.getBoard(move);
-            if(board.samePosition(pgnGraph.getInitBoard())) {
+            if (board.samePosition(pgnGraph.getInitBoard())) {
                 // sanity check, should not be here
                 logger.error(String.format("%s\n%s", move, board));
                 break;
             }
-            if(DEBUG) {
+            if (DEBUG) {
                 logger.debug(String.format("checking %s\n%s", move, board));
             }
-            if(searchBoard.samePosition(board)) {
+            if (searchBoard.samePosition(board)) {
                 boardStatus = BoardStatus.Game;
                 move = null;
                 break;
             }
 
             move = board.findMove(searchBoard);
-            if(move != null) {
+            if (move != null) {
                 boardStatus = BoardStatus.Game;
                 break;
             }
             --index;
         }
 
-        if(boardStatus == BoardStatus.Game) {
+        if (boardStatus == BoardStatus.Game) {
             pgnGraph.moveLine.subList(index, pgnGraph.moveLine.size()).clear();
         }
-        if(move != null) {
+        if (move != null) {
             addMove(move);
         }
 
@@ -365,14 +366,14 @@ public class DgtBoardPad {
 
     private synchronized void newSetup(boolean increment) {
         setup = new Setup(pgnGraph);
-        if(pgnGraph.hasMoves()) {
+        if (pgnGraph.hasMoves()) {
             increment = true;
         }
 
-        if(increment) {
+        if (increment) {
             List<Pair<String, String>> tags = new LinkedList<>();
             String save = null;
-            List<Pair<String, String>> pgnTags = pgnGraph.getPgn().getTags();
+            List<Pair<String, String>> pgnTags = pgnGraph.getPgnItem().cloneTags();
             for(Pair<String, String> tag : pgnTags) {
                 switch (tag.first) {
                     case Config.TAG_Round:
@@ -427,9 +428,9 @@ public class DgtBoardPad {
     }
 
     private void appendGame() {
-        String fullPgn = pgnGraph.toString(true);
-        if(!fullPgn.isEmpty()) {
-            recordedGames += new String(pgnGraph.getPgn().tagsToString(true, true)) + "\n\n" + fullPgn + "\n";
+        String fullPgn = pgnGraph.toPgn(true);
+        if (!fullPgn.isEmpty()) {
+            recordedGames += new String(pgnGraph.getPgnItem().tagsToString(true, true)) + "\n\n" + fullPgn + "\n";
             logger.debug(String.format("recordedGames:\n%s", recordedGames));
         }
     }
@@ -519,20 +520,20 @@ public class DgtBoardPad {
             6.2.4. king on
 
         */
-        if(boardStatus == BoardStatus.SetupMess) {
+        if (boardStatus == BoardStatus.SetupMess) {
 //            requestBoardDump();
             return;     // ignore
         }
 
-        if(invertedBoard) {
+        if (invertedBoard) {
             moveChunk.square.setX(7 - moveChunk.square.getX());
             moveChunk.square.setY(7 - moveChunk.square.getY());
         }
-        if(DEBUG) {
+        if (DEBUG) {
             logger.debug(moveChunk.square.toString() + " " + piece2String(moveChunk.piece));
         }
         // boardStatus == BoardStatus.Gage, recording:
-        if(expectedPromotion != null) {
+        if (expectedPromotion != null) {
             if (moveChunk.square.equals(expectedPromotion) && moveChunk.piece != Config.EMPTY) {
                 int color;
                 if (expectedPromotion.getY() == 7) {
@@ -552,12 +553,12 @@ public class DgtBoardPad {
             return;
         }
 
-        if(moveChunk.equals(expectedChunk)) {
+        if (moveChunk.equals(expectedChunk)) {
             addMove(incompleteMove);
             return;
         }
         chunks.add(moveChunk);
-        if(chunks.size() >= 2) {
+        if (chunks.size() >= 2) {
             createMove();
         }
     }
@@ -565,7 +566,7 @@ public class DgtBoardPad {
     private void createMove() {
         String msg = "";
         String sep = "";
-        if(DEBUG) {
+        if (DEBUG) {
             msg = "createMove() ";
             sep = "";
         }
@@ -577,18 +578,18 @@ public class DgtBoardPad {
         DgtBoardWatcher.BoardMessageMoveChunk emptyChunk = null;
         DgtBoardWatcher.BoardMessageMoveChunk anyEmptyChunk = null;
         for(DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
-            if(DEBUG) {
+            if (DEBUG) {
                 msg += sep + chunk.toString();
                 if (chunk.piece == Config.EMPTY) {
                     msg += String.format("(%c)", Config.FEN_PIECES.charAt(pgnGraph.getBoard().getPiece(chunk.square)));
                 }
                 sep = ", ";
             }
-            if(chunk.piece == Config.EMPTY) {
+            if (chunk.piece == Config.EMPTY) {
                 ++piecesOff;
                 int piece = board.getPiece(chunk.square);
                 anyEmptyChunk = chunk;
-                if((board.getFlags() & Config.FLAGS_BLACK_MOVE) == (piece & Config.PIECE_COLOR)) {
+                if ((board.getFlags() & Config.FLAGS_BLACK_MOVE) == (piece & Config.PIECE_COLOR)) {
                     emptyChunk = chunk;
                     oldPiece = piece;
                 }
@@ -598,19 +599,19 @@ public class DgtBoardPad {
             }
         }
 
-        if(piecesOn == 0) {
+        if (piecesOn == 0) {
             if (DEBUG) {
                 logger.debug(msg);
             }
             return;
-        } else if(piecesOn > 1) {
+        } else if (piecesOn > 1) {
             setBoardStatus(BoardStatus.SetupMess, true);
             if (DEBUG) {
                 logger.debug(msg);
             }
             return;
-        } else if(piecesOff == 1) {
-            if(oldPiece == pieceChunk.piece && pieceChunk.square.equals(emptyChunk.square)) {
+        } else if (piecesOff == 1) {
+            if (oldPiece == pieceChunk.piece && pieceChunk.square.equals(emptyChunk.square)) {
                 if (DEBUG) {
                     logger.debug(msg + " adjust?");
                 }
@@ -619,14 +620,14 @@ public class DgtBoardPad {
             }
         }
 
-        if(piecesOff >= 3) {
+        if (piecesOff >= 3) {
             setBoardStatus(BoardStatus.SetupMess, true);
             msg += " -> err";
             logger.debug(msg);
             return;
         }
 
-        if((pieceChunk.piece & Config.PIECE_COLOR) != (board.getFlags() & Config.FLAGS_BLACK_MOVE) &&
+        if ((pieceChunk.piece & Config.PIECE_COLOR) != (board.getFlags() & Config.FLAGS_BLACK_MOVE) &&
                 (pieceChunk.piece & ~Config.PIECE_COLOR) == Config.KING && anyEmptyChunk.square.getX() == 4 && (pieceChunk.square.getX() == 2 || pieceChunk.square.getX() == 6)) {
             // check castling started with Rook
             int y;
@@ -658,14 +659,14 @@ public class DgtBoardPad {
         }
 
         Move move = board.newMove();
-        if(oldPiece == pieceChunk.piece ||
+        if (oldPiece == pieceChunk.piece ||
                 oldPiece == Config.WHITE_PAWN && pieceChunk.square.getY() == 7 ||
                 oldPiece == Config.BLACK_PAWN && pieceChunk.square.getY() == 0
                 ) {
             if (oldPiece != pieceChunk.piece) {
                 move.setPiecePromoted(pieceChunk.piece);
             }
-        } else if((oldPiece & ~Config.PIECE_COLOR) == Config.KING && (pieceChunk.piece & ~Config.PIECE_COLOR) == Config.ROOK) {
+        } else if ((oldPiece & ~Config.PIECE_COLOR) == Config.KING && (pieceChunk.piece & ~Config.PIECE_COLOR) == Config.ROOK) {
             // todo: verify!
         } else {
             msg += " -> ??";
@@ -677,23 +678,23 @@ public class DgtBoardPad {
         move.setTo(pieceChunk.square);
 
         for(DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
-            if(chunk.piece != Config.EMPTY) {
+            if (chunk.piece != Config.EMPTY) {
                 continue;
             }
             move.setFrom(chunk.square);
             if (pgnGraph.validateUserMove(move)) {
-                if((move.moveFlags & Config.FLAGS_CASTLE) != 0) {
+                if ((move.moveFlags & Config.FLAGS_CASTLE) != 0) {
                     incompleteMove = move;
                     setChunksForCastling(move);
                 } else if (board.isEnPassant(move)) {
-                    if(setChunksForEnpassant(move)) {
+                    if (setChunksForEnpassant(move)) {
                         incompleteMove = move;
                     } else {
                         addMove(move);
                         incompleteMove = null;
                     }
-                } else if(move.isPromotion()) {
-                    if(oldPiece != pieceChunk.piece) {
+                } else if (move.isPromotion()) {
+                    if (oldPiece != pieceChunk.piece) {
                         addMove(move);
                         incompleteMove = null;
                     } else {
@@ -704,7 +705,7 @@ public class DgtBoardPad {
                     addMove(move);
                     incompleteMove = null;
                 }
-                if(DEBUG) {
+                if (DEBUG) {
                     msg += " -> " + move.toString(true);
                     if (incompleteMove != null) {
                         msg += " incompl";
@@ -720,12 +721,12 @@ public class DgtBoardPad {
     private void setChunksForCastling(Move move) {
         int x;
         int piece;
-        if(move.getPiece() == Config.WHITE_KING) {
+        if (move.getPiece() == Config.WHITE_KING) {
             piece = Config.WHITE_ROOK;
         } else {
             piece = Config.BLACK_ROOK;
         }
-        if(move.getTo().x == 6) {
+        if (move.getTo().x == 6) {
             x = 5;  // 0-0
         } else {
             x = 3;  // 0-0-0
@@ -736,8 +737,8 @@ public class DgtBoardPad {
 
     private boolean setChunksForEnpassant(Move move) {
         DgtBoardWatcher.BoardMessageMoveChunk expectedChunk = new DgtBoardWatcher.BoardMessageMoveChunk(move.getTo().x, move.getFrom().y, Config.EMPTY);
-        for(DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
-            if(chunk.equals(expectedChunk)) {
+        for (DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
+            if (chunk.equals(expectedChunk)) {
                 return false;   // no chunks expected, move is complete
             }
         }

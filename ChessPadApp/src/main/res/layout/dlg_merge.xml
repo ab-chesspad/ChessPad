@@ -30,7 +30,7 @@
             android:layout_weight="1"
             android:layout_marginTop="-5dp"
             android:gravity="center"
-            android:inputType="textMultiLine"
+            android:inputType="textNoSuggestions|textMultiLine"
             android:importantForAutofill="no"
             android:hint="@string/hint_file_name"
             />

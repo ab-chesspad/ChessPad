@@ -14,8 +14,14 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+* Opening book for UCI engine
+* many repeating comments (opening names) stored in commentStrings, the move comments
+* in a special format refer to this array
+* Created by Alexander Bootman on 8/6/19.
  */
 package com.ab.pgn;
+
+import com.ab.pgn.io.CpFile;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -26,10 +32,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Book extends PgnGraph {
     private String[] commentStrings;            // all comment strings, moves contain references on them
@@ -43,13 +46,12 @@ public class Book extends PgnGraph {
         f.getParentFile().mkdirs();
         try (OutputStream outputStream = new FileOutputStream(f);
              PrintStream ps = new PrintStream(outputStream)) {
-            int size = 0;
-            if(commentStrings == null) {
+            if (commentStrings == null) {
                 ps.println(0);
             } else {
-                size = commentStrings.length;
+                int size = commentStrings.length;
                 ps.println(size);
-                for(int indx = 0; indx < size; ++indx) {
+                for (int indx = 0; indx < size; ++indx) {
                     ps.println(commentStrings[indx]);
                 }
             }
@@ -99,7 +101,7 @@ public class Book extends PgnGraph {
     }
 
     public List<Move> getMoves(Board board) {
-        Pack key = null;
+        Pack key;
         try {
             key = new Pack(board.pack());
         } catch (Config.PGNException e) {
@@ -107,22 +109,22 @@ public class Book extends PgnGraph {
             return null;
         }
         board = positions.get(key);
-        Move move = null;
-        if(board == null || (move = board.getMove()) == null) {
+        Move move;
+        if (board == null || (move = board.getMove()) == null) {
             return null;
         }
         List<Move> moves = new LinkedList<>();
         do {
             moves.add(move);
             move = move.getVariation();
-        } while(move != null);
+        } while (move != null);
         return moves;
     }
 
     public static class Builder {
         public static void build(String ecoPgnFile, String additionalTextFile, String resultFile) throws Config.PGNException {
-            CpFile.Pgn pgn = new CpFile.Pgn(ecoPgnFile);
-            MergeData mergeData = new MergeData(pgn);
+            CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.CpParent.fromPath(ecoPgnFile);
+            MergeData mergeData = new MergeData(pgnFile);
 
             Book book = new Book();
             book.merge(mergeData, null);
@@ -139,10 +141,10 @@ public class Book extends PgnGraph {
                  BufferedReader br = new BufferedReader(fr)) {
                 while((line = br.readLine()) != null) {
                     line = line.trim();
-                    if(line.isEmpty()) {
+                    if (line.isEmpty()) {
                         continue;
                     }
-                    if(line.startsWith("#")) {
+                    if (line.startsWith("#")) {
                         title = line;
                         continue;
                     }
@@ -176,7 +178,7 @@ public class Book extends PgnGraph {
                     ecoBoard = nextBoard.clone();
                     book.positions.put(new Pack(move.packData), ecoBoard);
                     Move prevMove = prevBoard.getMove();
-                    if(prevMove == null) {
+                    if (prevMove == null) {
                         prevBoard.setMove(move);
                     } else {
                         move.setVariation(prevMove.getVariation());     // add new move as variation
@@ -192,7 +194,7 @@ public class Book extends PgnGraph {
                             m = m.getVariation();
                         }
                         // m == null when the position results with moves transposition
-                        if(m != null) {
+                        if (m != null) {
                             commonComment = m.comment;
                         }
                     }
@@ -206,13 +208,13 @@ public class Book extends PgnGraph {
             final Map<String, Integer> commentStrings;  // all comment strings, moves contain references on them
             String commonComment;
 
-            MergeData(CpFile target) {
-                super((target));
+            MergeData(CpFile.PgnFile pgnFile) {
+                super(pgnFile);
                 commentStrings = new HashMap<>();
             }
 
             @Override
-            public PgnGraph.MergeState onNewItem(CpFile.Item item) {
+            public PgnGraph.MergeState onNewItem(CpFile.PgnItem item) {
                 StringBuilder sb = new StringBuilder();
                 List<Pair<String, String>> tags = item.getTags();
                 for (Pair<String, String> tag : tags) {
@@ -228,7 +230,7 @@ public class Book extends PgnGraph {
                     }
                     sb.append(Config.BOOK_COMMENT_STRING_TAG).append(index);
                 }
-                if(sb.length() > 0) {
+                if (sb.length() > 0) {
                     commonComment = new String(sb);
                 } else {
                     commonComment = null;

@@ -56,7 +56,7 @@ public class UCI {
 
     protected static final int ANALYSIS_SKILL_LEVEL = 20;
 
-    private UCIImpl uciImpl;
+    private final UCIImpl uciImpl;
 
     /**
      * Engine state.
@@ -69,7 +69,7 @@ public class UCI {
     }
 
     protected State state = State.INIT;
-    private EngineWatcher engineWatcher;
+    private final EngineWatcher engineWatcher;
     private Thread stdInThread;
     private Thread stdErrThread;
     private boolean isBlackMove;

@@ -35,9 +35,9 @@ public class Stockfish implements UCI.UCIImpl {
     private native void _quit();
 
     protected final String
-            nnueFileOption = "evalfile",
-            useNNUEOption = "use nnue",
-            dummy_str = null;
+        nnueFileOption = "evalfile",
+        useNNUEOption = "use nnue",
+        dummy_str = null;
 
     public void loadLibrary() {
         System.loadLibrary("stockfish");

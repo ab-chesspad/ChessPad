@@ -5,10 +5,6 @@
     <string name="err_tag_name_exists">Tag already exists</string>
     <string name="err_moves_ignored">moves can be invalid</string>
     <string name="err_not_solution">This is not a solution</string>
-    <string name="err_network">Connection error, check your phone network connection.</string>
-    <string name="err_login">Login error, check user name and password.</string>
-    <string name="err_puzzle">Puzzle download error.</string>
-    <string name="err_record_puzzle">Cannot record puzzle result, try again.</string>
 
     <string name="alert_pgn_path_label">Full Path to Pgn File:</string>
     <string name="alert_merge_start_label">Start:</string>
@@ -21,7 +17,6 @@
     <string name="yes">Yes</string>
     <string name="no">No</string>
 
-    <string name="msg_login_ok">Login successful.</string>
     <string name="msg_save">Do you want to save your changes to the opened game?</string>
     <string name="msg_del_move">Do you want to delete this and the following moves?</string>
     <string name="msg_del_game">Do you want to remove irreversibly the whole game from pgn file?</string>
@@ -30,10 +25,8 @@
     <string name="msg_stalemate">stalemate</string>
     <string name="msg_merge_count">Merged %d game(s)</string>
     <string name="msg_puzzle_keep_solving">Great! Keep good job.</string>
-    <string name="msg_puzzle_success">Success!</string>
-    <string name="msg_puzzle_success_with_statistics">Success!\nopened %s\nsolved %s, %.2f%%</string>
-    <string name="msg_puzzle_failure">Failure.</string>
-    <string name="msg_puzzle_failure_with_statistics">Failure.\nopened %s\nsolved %s, %.2f%%</string>
+    <string name="msg_puzzle_success">Success!\nopened %s\nsolved %s, %.2f%%</string>
+    <string name="msg_puzzle_failure">Failure.\nopened %s\nsolved %s, %.2f%%</string>
     <string name="menu_load">Load</string>
     <string name="menu_puzzle">Open Puzzles</string>
     <string name="menu_merge">Merge</string>
@@ -51,7 +44,7 @@
     <string name="label_move_num">Move number: </string>
 
     <string name="crash_cannot_save">Cannot write file. \nTry to select different directory.</string>
-    <string name="crash_cannot_load">Cannot load pgn</string>
+    <string name="crash_cannot_load">Cannot load pgn file</string>
     <string name="crash_cannot_list">Cannot list items</string>
 
     <string name="hint_file_name">File Name</string>

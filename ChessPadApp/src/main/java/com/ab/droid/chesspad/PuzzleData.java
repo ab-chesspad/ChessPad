@@ -13,21 +13,24 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * keep puzzle statistics
+ * Created by Alexander Bootman on 1/18/19.
+
 */
 package com.ab.droid.chesspad;
 
+import android.content.Context;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Config;
-import com.ab.pgn.CpFile;
 import com.ab.pgn.PgnGraph;
-import com.ab.pgn.Util;
+import com.ab.pgn.io.CpFile;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Random;
@@ -46,7 +49,7 @@ public class PuzzleData {
     transient private final Random random = new Random(System.currentTimeMillis());
     //        transient private final Random random = new Random(1);    // debug
     private final ChessPad chessPad;
-    private CpFile.Pgn pgn;
+    private CpFile.PgnFile pgnFile;
     private int totalPuzzles = Integer.MAX_VALUE;
     private int totalOpened;
     private int totalSolved;
@@ -61,25 +64,22 @@ public class PuzzleData {
         this.chessPad = chessPad;
     }
 
-    public void setPgn(CpFile.Pgn pgn) {
-        init(pgn);
+    public void setPgn(CpFile.PgnFile pgnFile) {
+        init(pgnFile);
     }
 
-    private void init(CpFile.Pgn pgn) {
-        if (this.pgn != null && !this.pgn.differs(pgn) || this.pgn == null && pgn == null) {
-            this.pgn = pgn;
+    private void init(CpFile.PgnFile pgnFile) {
+        if (this.pgnFile != null && !this.pgnFile.differs(pgnFile) || this.pgnFile == null && pgnFile == null) {
+            this.pgnFile = pgnFile;
             return;
         }
 
-        boolean doSave = this.pgn != null && this.pgn.differs(pgn);
+        boolean doSave = this.pgnFile != null && this.pgnFile.differs(pgnFile);
         if (doSave) {
             save();
         }
-        this.pgn = pgn;
+        this.pgnFile = pgnFile;
         load();
-        if (pgn != null && pgn.getTotalChildren() == -1 && totalPuzzles != Integer.MAX_VALUE) {
-            pgn.setTotalChildren(totalPuzzles);
-        }
         newPuzzle(false);
     }
 
@@ -113,7 +113,7 @@ public class PuzzleData {
             int msg = 0;
             if (chessPad.mode == ChessPad.Mode.Puzzle) {
                 ++totalFailed;
-                msg = R.string.msg_puzzle_failure_with_statistics;
+                msg = R.string.msg_puzzle_failure;
             } // else?
             Toast.makeText(chessPad, statisticsToString(msg), Toast.LENGTH_LONG).show();
             failed = true;
@@ -137,7 +137,7 @@ public class PuzzleData {
                 int msg = 0;
                 if (chessPad.mode == ChessPad.Mode.Puzzle) {
                     ++totalSolved;
-                    msg = R.string.msg_puzzle_success_with_statistics;
+                    msg = R.string.msg_puzzle_success;
                 }
                 Toast.makeText(chessPad, statisticsToString(msg), Toast.LENGTH_LONG).show();
                 solved = true;
@@ -146,13 +146,15 @@ public class PuzzleData {
     }
 
     public void setTotalPuzzles() {
-        totalPuzzles = pgn.getTotalChildren();
+        if (pgnFile != null) {
+            totalPuzzles = pgnFile.getTotalChildren();
+        }
     }
 
     public  int getNextIndex() {
         int totalPuzzles = this.totalPuzzles;
-        if (pgn != null && totalPuzzles == Integer.MAX_VALUE) {
-            totalPuzzles = pgn.getLength() / MIN_PUZZLE_TEXT_LENGTH;
+        if (pgnFile != null && totalPuzzles == Integer.MAX_VALUE) {
+            totalPuzzles = pgnFile.getLength() / MIN_PUZZLE_TEXT_LENGTH;
         }
         if( totalPuzzles <= 0) {
             totalPuzzles = 1;
@@ -170,22 +172,20 @@ public class PuzzleData {
 
     private void load() {
         totalPuzzles = Integer.MAX_VALUE;
-        if (pgn != null) {
-            File puzzleInfoFile = getPuzzleInfoFile(pgn);
-            long puzzleInfoTimestamp = puzzleInfoFile.lastModified();
-            long pgnTimestamp = pgn.lastModified();
-            if (puzzleInfoTimestamp > pgnTimestamp) {
-                try (FileInputStream fis = new FileInputStream(puzzleInfoFile)) {
-                    totalPuzzles = Util.readInt(fis);
+        if (pgnFile != null) {
+            try (DataInputStream dis = new DataInputStream(chessPad.openFileInput(puzzleInfoName(pgnFile)))) {
+                long timeStamp = dis.readLong();
+                long pgnFileTimestamp = pgnFile.lastModified();
+                if (timeStamp == pgnFileTimestamp) {
+                    totalPuzzles = dis.readInt();
                     Log.d(DEBUG_TAG, String.format("from file totalPuzzles=%s", totalPuzzles));
-                    totalOpened = Util.readInt(fis);
-                    totalSolved = Util.readInt(fis);
-                    totalFailed = Util.readInt(fis);
-                    currentIndex = Util.readInt(fis);
-                    pgn.setTotalChildren(totalPuzzles);     // check on -1?
-                } catch (IOException e) {
-                    Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
+                    totalOpened = dis.readInt();
+                    totalSolved = dis.readInt();
+                    totalFailed = dis.readInt();
+                    currentIndex = dis.readInt();
                 }
+            } catch (IOException e) {
+                Log.w(DEBUG_TAG, e.getLocalizedMessage());
             }
         }
 
@@ -203,36 +203,35 @@ public class PuzzleData {
     }
 
     private void save() {
-        if (pgn == null) {
+        if (pgnFile == null) {
             return;
         }
-        File puzzleInfoFile = getPuzzleInfoFile(pgn);
-        try (FileOutputStream fos = new FileOutputStream(puzzleInfoFile)) {
-            Util.writeInt(fos, totalPuzzles);
-            Util.writeInt(fos, totalOpened);
-            Util.writeInt(fos, totalSolved);
-            Util.writeInt(fos, totalFailed);
-            Util.writeInt(fos, currentIndex);
+        try (DataOutputStream dos = new DataOutputStream(chessPad.openFileOutput(puzzleInfoName(pgnFile), Context.MODE_PRIVATE))) {
+            long pgnFileTimestamp = pgnFile.lastModified();
+            dos.writeLong(pgnFileTimestamp);
+            dos.writeInt(totalPuzzles);
+            dos.writeInt(totalOpened);
+            dos.writeInt(totalSolved);
+            dos.writeInt(totalFailed);
+            dos.writeInt(currentIndex);
         } catch (IOException e) {
             Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
         }
         clear();
     }
 
-    private File getPuzzleInfoFile(CpFile pgn) {
-        String path = pgn.getAbsolutePath().substring(CpFile.getRootPath().length() + 1);
+    private String puzzleInfoName(CpFile.PgnFile pgnFile) {
+        String path = pgnFile.getAbsolutePath();
         path = path.replaceAll("/", "_");
         int i = path.lastIndexOf(".");
-        String puzzleInfoPath = (path.substring(0, i) + PUZZLE_INFO_EXT);
-//        return new File(CpFile.getRootPath() + File.separator + ChessPad.getDefaultDirectory(), puzzleInfoPath);
-        return new File(ChessPad.getDefaultDirectory(), puzzleInfoPath);
+        return (path.substring(0, i) + PUZZLE_INFO_EXT);
     }
 
     void unserialize(BitStream.Reader reader) throws Config.PGNException {
         try {
             if (reader.read(1) == 1) {
                 String path = reader.readString();
-                pgn = (CpFile.Pgn)CpFile.fromFile(new File(path));
+                pgnFile = (CpFile.PgnFile)CpFile.CpParent.fromPath(path);
             }
             totalPuzzles = reader.read(32);
             if (totalPuzzles < 0) {
@@ -253,11 +252,11 @@ public class PuzzleData {
 
     void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
-            if(pgn == null) {
+            if(pgnFile == null) {
                 writer.write(0, 1);
             } else {
                 writer.write(1, 1);
-                writer.writeString(pgn.getAbsolutePath());
+                writer.writeString(pgnFile.getAbsolutePath());
             }
             writer.write(totalPuzzles, 32);
             writer.write(totalOpened, 32);

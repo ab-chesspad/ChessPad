@@ -51,8 +51,8 @@ class DgtBoardWatcher {
     }
 
     private final PgnLogger logger = PgnLogger.getLogger(this.getClass());
-    private DgtBoardIO dgtBoardIO;
-    private BoardMessageConsumer boardMessageConsumer;
+    private final DgtBoardIO dgtBoardIO;
+    private final BoardMessageConsumer boardMessageConsumer;
     private ReadThread readThread;
     private WriteThread writeThread;
     private boolean passMessages;

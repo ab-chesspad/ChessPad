@@ -14,10 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * Setup data
+ * data for position setup
  * Created by Alexander Bootman on 11/26/16.
  */
 package com.ab.pgn;
+
+import com.ab.pgn.io.CpFile;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -34,26 +36,18 @@ public class Setup {
     public Setup(PgnGraph pgnGraph) {
         this.board = pgnGraph.getBoard().clone();
         this.board.setMove(null);
-        this.tags = pgnGraph.getPgn().getTags();
-        int index = ((CpFile.Pgn)pgnGraph.getPgn().getParent()).getTagIndex(Config.TAG_Round);
-        int round = 1;
-        try {
-            round = Integer.valueOf(this.tags.get(index).second);
-        } catch (Exception e) {
-            // ignore
-        }
-        this.tags.set(index, new Pair<>(Config.TAG_Round, "" + round));
+        this.tags = pgnGraph.getPgnItem().cloneTags();
         setEnPass();
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         serializeSetupBoard(writer);
-        CpFile.serializeTagList(writer, tags);
+        CpFile.PgnItem.serializeTagList(writer, tags);
     }
 
     public Setup(BitStream.Reader reader) throws Config.PGNException {
         this.board = unserializeSetupBoard(reader);
-        this.tags = CpFile.unserializeTagList(reader);
+        this.tags = CpFile.PgnItem.unserializeTagList(reader);
         setEnPass();
     }
 
@@ -118,27 +112,26 @@ public class Setup {
         validate();
     }
 
-    public List<Pair<String, String>> getTags() {
-        return tags;
-    }
-
     public String getTitleText() {
-        return CpFile.getTitle(tags);
+        return CpFile.PgnItem.titleTagsToString(tags);
     }
 
     public PgnGraph toPgnGraph() throws Config.PGNException {
         validate();
-        if(errNum != 0) {
+        if (errNum != 0) {
             logger.error(String.format("Setup error %s\n%s", errNum, board.toString()));
             return new PgnGraph();
         }
         PgnGraph pgnGraph = new PgnGraph(board);
-        pgnGraph.getPgn().setTags(tags);
         Board initBoard = pgnGraph.getInitBoard();
-        if(!initBoard.equals(new Board())) {
-            pgnGraph.getPgn().setFen(initBoard.toFEN());
+        if (!initBoard.equals(new Board())) {
+            pgnGraph.getPgnItem().setFen(initBoard.toFEN());
         }
         return pgnGraph;
+    }
+
+    public List<Pair<String, String>> cloneTags() {
+        return CpFile.PgnItem.cloneTags(tags);      // preserve tags, so editing can be cancelled
     }
 
     public void setTags(List<Pair<String, String>> tags) {
@@ -178,7 +171,7 @@ public class Setup {
     public void setEnPass(String enPass) {
         this.enPass = enPass;
         Square sq = new Square();
-        if(enPass != null && enPass.length() == 2) {
+        if (enPass != null && enPass.length() == 2) {
             sq = new Square(enPass);
         }
         if (sq.getX() == -1) {
@@ -192,5 +185,4 @@ public class Setup {
     public String getEnPass() {
         return enPass;
     }
-
 }

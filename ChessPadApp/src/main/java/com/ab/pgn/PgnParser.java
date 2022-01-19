@@ -18,6 +18,8 @@
  */
 package com.ab.pgn;
 
+import com.ab.pgn.io.CpFile;
+
 import java.util.Locale;
 import java.util.StringTokenizer;
 
@@ -26,8 +28,8 @@ class PgnParser {
     private static final boolean COMMENTS_USE_MATCHING_BRACES = false;
 
     private static final String
-            DELIMITERS = "[ \t\n]\\." + Config.COMMENT_OPEN + Config.VARIANT_OPEN + Config.VARIANT_CLOSE + Config.PGN_OLD_GLYPHS,
-            dummy_str = null;
+        DELIMITERS = "[ \t\n]\\." + Config.COMMENT_OPEN + Config.VARIANT_OPEN + Config.VARIANT_CLOSE + Config.PGN_OLD_GLYPHS,
+        dummy_str = null;
 
 
     static void parseMoves(String moveText, MoveTextHandler moveTextHandler, CpFile.ProgressObserver progressObserver) throws Config.PGNException {

@@ -47,7 +47,7 @@ public abstract class BitStream implements Closeable {
         }
 
         public void reset() {
-            if(os instanceof ByteArrayOutputStream) {
+            if (os instanceof ByteArrayOutputStream) {
                 os = new ByteArrayOutputStream();
                 bitIndex = 0;
 //            } else {
@@ -58,7 +58,7 @@ public abstract class BitStream implements Closeable {
 
         public void write(int _val, int writeBits) throws IOException {
             bitCount += writeBits;
-            if(writeBits <= 0) {
+            if (writeBits <= 0) {
                 throw new IOException("BitStream.write number of bits must be > 0");
             }
             long mask = (1L << writeBits) - 1;
@@ -78,7 +78,7 @@ public abstract class BitStream implements Closeable {
 
         @Override
         public void flush() throws IOException {
-            if(bitIndex > 0) {
+            if (bitIndex > 0) {
                 os.write(bits);
             }
             bitIndex = 0;
@@ -88,18 +88,18 @@ public abstract class BitStream implements Closeable {
         // assuming string.length < 64K byte long
         // to speed up we just write string bytes to os
         public void writeString(String val) throws IOException {
-            if(val == null) {
+            if (val == null) {
                 write(0, 16);
                 return;
             }
             byte[] bytes = val.getBytes();
             int length = bytes.length;
-            if(length > 0x0ffff) {
+            if (length > 0x0ffff) {
                 // throw exception?
                 length = 0x0ffff;
             }
             write(length, 16);
-            if(length > 0) {
+            if (length > 0) {
                 flush();
                 os.write(bytes, 0, length);
                 bitCount = ((bitCount + 7) / 8 + bytes.length) * 8;
@@ -109,18 +109,18 @@ public abstract class BitStream implements Closeable {
         // assuming list.size() < 64K byte long
         public void writeList(List<String> list) throws IOException {
             int length = list.size();
-            if(length > 0x0ffff) {
+            if (length > 0x0ffff) {
                 // throw exception?
                 length = 0x0ffff;
             }
             write(length, 16);
-            for(String item : list) {
+            for (String item : list) {
                 writeString(item);
             }
         }
 
         public byte[] getBits() throws IOException {
-            if(os instanceof ByteArrayOutputStream) {
+            if (os instanceof ByteArrayOutputStream) {
                 flush();
                 return ((ByteArrayOutputStream)os).toByteArray();
             }
@@ -181,9 +181,9 @@ public abstract class BitStream implements Closeable {
 
             bitCount += readBits;
             int totalLen = 0;
-            while(readBits > 0) {
-                if(bitIndex > 7) {
-                    if(is.read(bits) < 0) {
+            while (readBits > 0) {
+                if (bitIndex > 7) {
+                    if (is.read(bits) < 0) {
                         throw new IOException("Reading beyond input BitStream eof");
                     }
                     bitIndex = 0;
@@ -206,11 +206,11 @@ public abstract class BitStream implements Closeable {
         public String readString() throws IOException {
             int len = read(16);
             byte[] bytes = new byte[len];
-            if(len == 0) {
+            if (len == 0) {
                 return null;        // distinguish between null & empty string?
             }
             int readBytes = is.read(bytes);
-            if(readBytes != len) {
+            if (readBytes != len) {
                 throw new IOException(String.format("Read %s bytes, expected %s", readBytes, len));
             }
             bitCount = ((bitCount + 7) / 8 + bytes.length) * 8;
@@ -222,10 +222,10 @@ public abstract class BitStream implements Closeable {
         public void readList(List<String> list) throws IOException {
             // clear list?
             int len = read(16);
-            if(len == 0) {
+            if (len == 0) {
                 return;
             }
-            for(int i = 0; i < len; ++i) {
+            for (int i = 0; i < len; ++i) {
                 list.add(readString());
             }
         }

@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * pack data holder
+ * pack data holder to use in HashMap
  * Created by Alexander Bootman on 8/6/16.
  */
 package com.ab.pgn;
@@ -26,8 +26,8 @@ class Pack {
     private static final int[] equalityMask = new int[Board.PACK_SIZE];
     private int numberOfPieces = -1;
     static {
-        for(int i = 0; i < Board.PACK_SIZE; ++i) {
-            if(i == 2) {
+        for (int i = 0; i < Board.PACK_SIZE; ++i) {
+            if (i == 2) {
                 equalityMask[i] = ~Board.MOVE_NUMBER_MASK;
             } else {
                 equalityMask[i] = -1;
@@ -66,7 +66,7 @@ class Pack {
     }
 
     int getNumberOfPieces() {
-        if(numberOfPieces < 0) {
+        if (numberOfPieces < 0) {
             numberOfPieces = getNumberOfPieces(ints);
         }
         return numberOfPieces;
@@ -75,7 +75,7 @@ class Pack {
     private static int getNumberOfPieces(int[] ints) {
         long bits = ((long)ints[1] << 32) | ((long)ints[0] & 0x0ffffffffL);
         int pieces = 0;
-        while(bits != 0) {
+        while (bits != 0) {
             ++pieces;
             bits &= bits - 1;
         }

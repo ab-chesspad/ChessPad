@@ -13,6 +13,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * For Android version 5.0.2, Lollipop, API level 21:
+ * if the device is attached before the program has been launched, inputStream and outputStream
+ * become unusable, e.g. java.io.IOException: write failed: ENODEV (No such device)
 */
 package com.ab.droid.chesspad;
 
@@ -37,12 +41,6 @@ import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-
-/**
- * For Android version 5.0.2, Lollipop, API level 21:
- * if the device is attached before the program has been launched, inputStream and outputStream
- * become unusable, e.g. java.io.IOException: write failed: ENODEV (No such device)
- */
 
 public class DgtBoardInterface extends DgtBoardIO {
     private static final boolean DEBUG = false;
@@ -144,7 +142,7 @@ public class DgtBoardInterface extends DgtBoardIO {
 
 		write(DgtBoardProtocol.DGT_END_DEBUG_MODE);
         write(DgtBoardProtocol.DGT_SEND_RESET);
-        if(REPEAT_COMMAND_AFTER_MSEC == 0) {
+        if (REPEAT_COMMAND_AFTER_MSEC == 0) {
             // sometimes does not work well
             try {
                 Thread.sleep(100);
@@ -161,7 +159,7 @@ public class DgtBoardInterface extends DgtBoardIO {
         byte[] data = new byte[1];
         data[0] = command;
         write(data);
-        if(REPEAT_COMMAND_AFTER_MSEC > 0) {
+        if (REPEAT_COMMAND_AFTER_MSEC > 0) {
             try {
                 Thread.sleep(REPEAT_COMMAND_AFTER_MSEC);
             } catch (InterruptedException e) {
@@ -185,13 +183,13 @@ public class DgtBoardInterface extends DgtBoardIO {
 
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException {
-        if(inputStream == null) {
-            if(DEBUG) {
+        if (inputStream == null) {
+            if (DEBUG) {
                 Log.d(DEBUG_TAG, "inputStream == null, return 0 bytes");
             }
             return 0;   // reading before opening DgtBoardInterface
         }
-        if(buffer.length < 3) {
+        if (buffer.length < 3) {
             Log.d(DEBUG_TAG, "buffer too short, return 0 bytes");
             return 0;   // buffer too short
         }
@@ -204,14 +202,14 @@ public class DgtBoardInterface extends DgtBoardIO {
             catch (InterruptedException e) {
                 // ignore
             }
-            if(inputStream == null) {
-                if(DEBUG) {
+            if (inputStream == null) {
+                if (DEBUG) {
                     Log.d(DEBUG_TAG, "inputStream == null, return 0 bytes 1");
                 }
                 return 0;   // closed when adapter detached
             }
             readCount = inputStream.read(buffer, offset, length);
-            if(DEBUG) {
+            if (DEBUG) {
                 Log.d(DEBUG_TAG, String.format("read %s bytes", readCount));
             }
         }
@@ -256,7 +254,7 @@ public class DgtBoardInterface extends DgtBoardIO {
 	}
 
     private void setAccessory(UsbAccessory accessory) {
-        if(statusObserver != null) {
+        if (statusObserver != null) {
             statusObserver.isAccessible(true);
         }
     }
@@ -266,7 +264,7 @@ public class DgtBoardInterface extends DgtBoardIO {
         UsbAccessory accessory = getAccessory();
         Log.d(DEBUG_TAG, String.format("open %s", accessory));
         fileDescriptor = usbManager.openAccessory(accessory);
-        if(fileDescriptor == null){
+        if (fileDescriptor == null){
             throw  new IOException(String.format("%s does not open", accessory.toString()));
         }
         FileDescriptor fd = fileDescriptor.getFileDescriptor();
@@ -280,7 +278,7 @@ public class DgtBoardInterface extends DgtBoardIO {
         }
         config();
         init();
-        if(statusObserver != null) {
+        if (statusObserver != null) {
             statusObserver.isOpen(true);
         }
     }
@@ -311,7 +309,7 @@ public class DgtBoardInterface extends DgtBoardIO {
         } catch (Exception e) {
             // ignore, nothing to do
         }
-        if(statusObserver != null) {
+        if (statusObserver != null) {
             statusObserver.isOpen(false);
             statusObserver.isAccessible(false);
         }

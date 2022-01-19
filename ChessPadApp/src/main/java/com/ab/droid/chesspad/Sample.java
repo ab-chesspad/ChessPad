@@ -13,17 +13,19 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+
+ * create sample file to show CP features
+ * Created by Alexander Bootman on 8/28/16.
+ */
+
 package com.ab.droid.chesspad;
+
+import com.ab.pgn.io.CpFile;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-/**
- * sample
- * Created by Alexander Bootman on 8/28/16.
- */
 class Sample {
     void createPgnTest() {
         String pgn =
@@ -113,7 +115,7 @@ class Sample {
             ""
             ;
 
-        File f = new File(new File(ChessPad.getDefaultDirectory()), "sample.pgn");
+        File f = CpFile.newFile(ChessPad.getDefaultDirectory(), "sample.pgn");
         try (FileOutputStream fos = new FileOutputStream(f)) {
             byte[] buf = pgn.getBytes("UTF-8");
             fos.write(buf, 0, buf.length);

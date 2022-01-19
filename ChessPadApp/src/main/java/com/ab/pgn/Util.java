@@ -18,12 +18,6 @@
  */
 package com.ab.pgn;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-
 public class Util {
     // bitstore methods:
     public static int setBits(int bitStorage, int value, int mask, int offset) {
@@ -147,45 +141,5 @@ public class Util {
             }
 
         }
-    }
-
-    public static void writeString(DataOutputStream dos, String str) throws IOException {
-        if(!Config.USE_BIT_STREAMS) {
-            byte[] b = str.getBytes();
-            dos.writeInt(b.length);
-            dos.write(b);
-        }
-    }
-
-    public static String readString(DataInputStream dis) throws IOException {
-        if(Config.USE_BIT_STREAMS) {
-            return null;
-        } else {
-            int len = dis.readInt();
-            byte[] b = new byte[len];
-            int l = dis.read(b);
-            if (len != l) {
-                throw new RuntimeException(String.format("%d != %d", len, l));
-            }
-            return new String(b);
-        }
-    }
-
-    public static void writeInt(FileOutputStream fos, int value) throws IOException {
-        for(int i = 0; i < 4; ++i) {
-            fos.write(value & 0x0ff);
-            value >>= 8;
-        }
-    }
-
-    public static int readInt(FileInputStream fis) throws IOException {
-        int value = 0;
-        int power = 0;
-        for(int i = 0; i < 4; ++i) {
-            int v = fis.read() << power;
-            value |= v;
-            power += 8;
-        }
-        return value;
     }
 }

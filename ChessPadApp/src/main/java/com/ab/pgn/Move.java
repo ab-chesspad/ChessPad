@@ -15,12 +15,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  * move - PgnGraph edge, stored in Board - PgnGraph vertex
+ * todo: optimize serialization
  * Created by Alexander Bootman on 8/6/16.
  */
 package com.ab.pgn;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 
 public class Move {
@@ -45,10 +44,12 @@ public class Move {
         MOVEDATA_TOTAL_LEN = PIECE_OFFSET + PIECE_LENGTH,
         MOVEDATA_MASK = (1 << MOVEDATA_TOTAL_LEN) - 1,
 
+    // there is never a next move todo: cleanup flags!
         HAS_NEXT_MOVE_OFFSET = MOVEDATA_TOTAL_LEN,
         HAS_VARIATION_OFFSET = HAS_NEXT_MOVE_OFFSET + 1,
         HAS_COMMENT_OFFSET = HAS_VARIATION_OFFSET + 1,
 
+    // there is a variation when variation != null todo: cleanup flags!
         HAS_NEXT_MOVE = 1 << HAS_NEXT_MOVE_OFFSET,
         HAS_VARIATION = 1 << HAS_VARIATION_OFFSET,
         HAS_COMMENT = 1 << HAS_COMMENT_OFFSET,
@@ -180,7 +181,7 @@ public class Move {
     }
 
     int getPiecePromoted() {
-        if(!isPromotion()) {
+        if (!isPromotion()) {
             return Config.EMPTY;
         }
         int bits = Util.getValue(moveData, PIECE_PROMOTED_MASK, PIECE_PROMOTED_OFFSET);
@@ -202,7 +203,7 @@ public class Move {
 
     public int getPiece() {
         int bits = Util.getValue(moveData, PIECE_MASK, PIECE_OFFSET);
-        if(bits == 0) {
+        if (bits == 0) {
             return Config.EMPTY;
         }
         return (bits << 1) + (moveFlags & Config.BLACK);
@@ -211,25 +212,6 @@ public class Move {
     public void setPiece(int piece) {
         int bits = piece >> 1;
         moveData = Util.setValue(moveData, bits, PIECE_MASK, PIECE_OFFSET);
-    }
-
-    // flags contain HAS_NEXT_MOVE and HAS_VARIATION
-    public void serialize(DataOutputStream os, int flags) throws Config.PGNException {
-        if(!Config.USE_BIT_STREAMS) {
-            try {
-                int moveData = this.moveData | flags;
-                if (comment != null) {
-                    moveData |= HAS_COMMENT;
-                }
-                os.writeInt(moveData);
-                os.write(moveFlags >> 6);
-                if (comment != null) {
-                    Util.writeString(os, comment);
-                }
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
     }
 
     boolean hasVariation() {
@@ -247,29 +229,6 @@ public class Move {
     public boolean isPromotion() {
         return getPiece() == Config.WHITE_PAWN && getTo().getY() == Config.BOARD_SIZE - 1 ||
                 getPiece() == Config.BLACK_PAWN && getTo().getY() == 0;
-    }
-
-    public Move(DataInputStream is, Board previousBoard) throws Config.PGNException {
-        if(!Config.USE_BIT_STREAMS) {
-            try {
-                this.moveData = is.readInt();
-                int v = is.read();
-                moveFlags = v << 6;
-
-                if (previousBoard != null) {
-                    moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
-                    setPiece(previousBoard.getPiece(getFrom()));
-                    if (previousBoard.getPiece(getTo()) != Config.EMPTY || previousBoard.isEnPassant(this)) {
-                        moveFlags |= Config.FLAGS_CAPTURE;
-                    }
-                }
-                if ((moveData & HAS_COMMENT) != 0) {
-                    this.comment = Util.readString(is);
-                }
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
     }
 
     private int promotedToSerialized(int piece) {
@@ -290,7 +249,7 @@ public class Move {
             getTo().serialize(writer);
             // serialize flags from FLAGS_ENPASSANT_OK to FLAGS_STALEMATE
             writer.write(moveFlags >> 6, 8);
-            if(isPromotion()) {
+            if (isPromotion()) {
                 writer.write(promotedToSerialized(getPiecePromoted()), 2);
             }
             if (getGlyph() == 0) {
@@ -308,7 +267,7 @@ public class Move {
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
-        if(serializePack) {
+        if (serializePack) {
             new Pack(this.packData).serialize(writer);
         }
     }
@@ -322,14 +281,14 @@ public class Move {
             setFrom(new Square(reader));
             setTo(new Square(reader));
             moveFlags = reader.read(8) << 6;
-            if(previousBoard != null) {
+            if (previousBoard != null) {
                 moveFlags |= previousBoard.getFlags() & Config.FLAGS_BLACK_MOVE;
                 setPiece(previousBoard.getPiece(getFrom()));
-                if(previousBoard.getPiece(getTo()) != Config.EMPTY || previousBoard.isEnPassant(this)) {
+                if (previousBoard.getPiece(getTo()) != Config.EMPTY || previousBoard.isEnPassant(this)) {
                     moveFlags |= Config.FLAGS_CAPTURE;
                 }
             }
-            if(isPromotion()) {
+            if (isPromotion()) {
                 setPiecePromoted(serializedToPromoted(reader.read(2), moveFlags));
             }
             if (reader.read(1) == 1) {
@@ -338,7 +297,7 @@ public class Move {
             if (reader.read(1) == 1) {
                 comment = reader.readString();
             }
-            if(unserializePack) {
+            if (unserializePack) {
                 Pack pack = new Pack(reader);
                 packData = pack.getPackData();
             }
@@ -349,19 +308,19 @@ public class Move {
 
     // cannot do full check with flags because it is called in PgnGraph.addMove
     public boolean isSameAs(Move that) {
-        if(that == null) {
+        if (that == null) {
             return false;
         }
-        if((this.moveFlags & Config.FLAGS_NULL_MOVE) != 0 || (that.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
+        if ((this.moveFlags & Config.FLAGS_NULL_MOVE) != 0 || (that.moveFlags & Config.FLAGS_NULL_MOVE) != 0) {
             return (this.moveFlags & Config.FLAGS_NULL_MOVE) == (that.moveFlags & Config.FLAGS_NULL_MOVE);
         }
-        if(this.getPiece() != that.getPiece()) {
+        if (this.getPiece() != that.getPiece()) {
             return false;
         }
-        if(this.getPiecePromoted() != that.getPiecePromoted()) {
+        if (this.getPiecePromoted() != that.getPiecePromoted()) {
             return false;
         }
-        if(!this.getFrom().equals(that.getFrom())) {
+        if (!this.getFrom().equals(that.getFrom())) {
             return false;
         }
         return this.getTo().equals(that.getTo());
@@ -385,10 +344,10 @@ public class Move {
 
     public String toCommentedString() {
         String res =  toString(false);
-        if(getGlyph() > 0) {
+        if (getGlyph() > 0) {
             res += "$" + getGlyph() + " ";
         }
-        if(comment != null) {
+        if (comment != null) {
             res += String.format("{%s}", comment);
         }
         return res;

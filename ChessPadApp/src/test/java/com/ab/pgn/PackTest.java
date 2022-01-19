@@ -19,16 +19,20 @@
  */
 package com.ab.pgn;
 
-import static org.mockito.ArgumentMatchers.startsWith;
-
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.startsWith;
+
+import android.content.Context;
 
 public class PackTest extends BaseTest {
 
@@ -139,19 +143,4 @@ public class PackTest extends BaseTest {
         expectedEx.expectMessage("Invalid position to pack:");
         int[] pack = invalid.pack();
     }
-
-    @Test
-    public void testUtil() throws IOException {
-        final String TEST_FILE_NAME = "xx.cpbmp";
-        int[] values = {1, 0x0ff, 0x07ee, 0xab0000, 0xabcdef, 0xffffff00};
-        for(int v : values) {
-            FileOutputStream fos = new FileOutputStream(TEST_TMP_ROOT + TEST_FILE_NAME);
-            Util.writeInt(fos, v);
-            fos.close();
-            FileInputStream fis = new FileInputStream(TEST_TMP_ROOT + TEST_FILE_NAME);
-            int val = Util.readInt(fis);
-            Assert.assertEquals(String.format("written 0x%04x != read 0x%04x", v, val), v, val);
-        }
-    }
-
 }

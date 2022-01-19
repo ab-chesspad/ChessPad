@@ -15,13 +15,11 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 * Chess _board with pieces, validation
-        * PgnGraph vertex
-        * Created by Alexander Bootman on 8/6/16.
-        */
+* PgnGraph vertex
+* Created by Alexander Bootman on 8/6/16.
+*/
 package com.ab.pgn;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.LinkedList;
@@ -47,7 +45,7 @@ public class Board {
         BOARD_DATA_PACK_LENGTH = BK_Y_OFFSET + COORD_LENGTH,    // 22
 
         // using in toPgn
-        VERTEX_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,           // 22
+        VERTEX_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,         // 22
         VERTEX_VISITED_LENGTH = 1,
         VERTEX_VISITED_MASK = 0x1,
 
@@ -109,36 +107,10 @@ public class Board {
         copyBoard(pieces);
     }
 
-    public void serialize(DataOutputStream os) throws Config.PGNException {
-        if(!Config.USE_BIT_STREAMS) {
-            pack(os);
-        }
-    }
-
-    // not used
-    public Board(DataInputStream is) throws Config.PGNException {
-        ySize =
-        xSize = Config.BOARD_SIZE;
-        if(!Config.USE_BIT_STREAMS) {
-            Board tmp = unpack(is);
-            tmp.validate(null);
-            copy(tmp);
-        }
-    }
-
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
             pack(writer);
             writer.write(this.boardCounts, BOARD_COUNTS_PACK_LENGTH);
-        } catch (IOException e) {
-            throw new Config.PGNException(e);
-        }
-    }
-
-    public void unserialize(BitStream.Reader reader) throws Config.PGNException {
-        try {
-            this.boardData = reader.read(BOARD_DATA_PACK_LENGTH);
-            this.boardCounts = reader.read(BOARD_COUNTS_PACK_LENGTH);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -360,9 +332,10 @@ public class Board {
     void setVisited(boolean visited) {
         int flag = visited ? 1 : 0;
         boardData = Util.setValue(boardData, flag, VERTEX_VISITED_MASK, VERTEX_VISITED_OFFSET);
+//System.out.printf("%08x\n", boardData);
     }
 
-    boolean wasVisited() {
+    boolean getVisited() {
         return Util.getValue(boardData, VERTEX_VISITED_MASK, VERTEX_VISITED_OFFSET) == 1;
     }
 
@@ -724,7 +697,7 @@ public class Board {
         }
 
         int flags = this.getFlags() & Config.INIT_POSITION_FLAGS & ~getPositionFlags();
-        if(DEBUG) {
+        if (DEBUG) {
             logger.debug(String.format("validateSetup board flags=0x%s, positionFlags=0x%s, res=0x%s", Integer.toHexString(getFlags()),
                     Integer.toHexString(getPositionFlags()), flags));
         }
@@ -1200,7 +1173,7 @@ public class Board {
         for (int i = 0; i < Config.BOARD_SIZE; ++i) {
             for (int j = 0; j < Config.BOARD_SIZE; ++j) {
                 int piece = tmp.getPiece(i, j);
-                if(piece == Config.EMPTY || (piece & Config.BLACK) == hisColor) {
+                if (piece == Config.EMPTY || (piece & Config.BLACK) == hisColor) {
                     continue;
                 }
                 Move move = tmp.newMove();
@@ -1231,23 +1204,23 @@ public class Board {
                 }
                 for(int[] probeMove : probeMoves) {
                     int x = i + probeMove[0];
-                    if(x < 0 || x >= Config.BOARD_SIZE) {
+                    if (x < 0 || x >= Config.BOARD_SIZE) {
                         continue;
                     }
                     int y = j + probeMove[1];
-                    if(y < 0 || y >= Config.BOARD_SIZE) {
+                    if (y < 0 || y >= Config.BOARD_SIZE) {
                         continue;
                     }
                     int trgPiece = tmp.getPiece(x, y);
-                    if(trgPiece != Config.EMPTY && (trgPiece & Config.BLACK) == (piece & Config.BLACK)) {
+                    if (trgPiece != Config.EMPTY && (trgPiece & Config.BLACK) == (piece & Config.BLACK)) {
                         continue;
                     }
                     move.setTo(x, y);
                     move.moveFlags = moveFlags;
-                    if(DEBUG) {
+                    if (DEBUG) {
                         logger.debug(String.format("stalemate probe %s\n%s", move.toString(), tmp.toString()));
                     }
-                    if(tmp.validatePgnMove(move, Config.VALIDATE_USER_MOVE)) {
+                    if (tmp.validatePgnMove(move, Config.VALIDATE_USER_MOVE)) {
                         return false;
                     }
                 }
@@ -1276,7 +1249,7 @@ public class Board {
             setPiece(move.getTo(), move.getPiecePromoted());
         }
 
-        if(move.getColorlessPiece() == Config.PAWN && move.getFromX() != move.getToX() && toPiece == Config.EMPTY) {
+        if (move.getColorlessPiece() == Config.PAWN && move.getFromX() != move.getToX() && toPiece == Config.EMPTY) {
             // cannot use isEnPassant(move) because hisPawn is not taken out
             if (move.getToY() == 5) {
                 // white move
@@ -1430,92 +1403,6 @@ public class Board {
         }
     }
 
-    private void pack(DataOutputStream os) throws Config.PGNException {
-        if(!Config.USE_BIT_STREAMS) {
-            try {
-                byte[] b = new byte[Config.BOARD_SIZE];
-                int pieces = 0;
-                List<Integer> values = new LinkedList<>();
-                int val = 0;
-                int factor = 1;
-                for (int j = 0; j < Config.BOARD_SIZE; j++) {
-                    int mask = 1;
-                    int buf = 0;
-                    for (int i = 0; i < Config.BOARD_SIZE; i++) {
-                        int code = this.getPiece(i, j) - PACK_PIECE_ADJUSTMENT;
-                        if (code >= 0) {
-                            // ignoring kings
-                            ++pieces;
-                            buf |= mask;
-                            val += factor * code;
-                            factor *= 10;
-                            if (factor == 1000) {
-                                values.add(val);    // store 3-decimal-digits number
-                                factor = 1;
-                                val = 0;
-                            }
-                        }
-                        mask <<= 1;
-                    }
-                    b[j] = (byte) buf;
-                }
-                os.write(b);
-                if (factor != 1) {
-                    values.add(val);
-                }
-                os.writeInt(this.boardCounts);
-                os.writeInt(this.boardData);
-                for (int v : values) {
-                    os.writeInt(v);
-                }
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
-    }
-
-    private static Board unpack(DataInputStream is) throws Config.PGNException {
-        if(Config.USE_BIT_STREAMS) {
-            return null;
-        } else {
-            try {
-                Board board = new Board();
-                board.toEmpty();
-
-                byte[] pieceBits = new byte[Config.BOARD_SIZE];
-                is.read(pieceBits);
-                board.boardCounts = is.readInt();
-                board.boardData = is.readInt();
-
-                int val = 0;
-                int factor = 3;
-                for (int j = 0; j < Config.BOARD_SIZE; j++) {
-                    int mask = 1;
-                    for (int i = 0; i < Config.BOARD_SIZE; i++) {
-                        if ((pieceBits[j] & mask) != 0) {
-                            if (factor == 3) {
-                                // copy 3-decimal-digits number in 10-bit array
-                                val = is.readInt();
-                                factor = 0;
-                            }
-                            int code = val % 10;
-                            int piece = code + PACK_PIECE_ADJUSTMENT;
-                            board.setPiece(i, j, piece);
-                            val /= 10;
-                            ++factor;
-                        }
-                        mask <<= 1;
-                    }
-                }
-                board.setPiece(board.getWKingX(), board.getWKingY(), Config.WHITE_KING);
-                board.setPiece(board.getBKingX(), board.getBKingY(), Config.BLACK_KING);
-                return board;
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
-    }
-
     void pack(BitStream.Writer writer) throws Config.PGNException {
         try {
             int pieces = 0;
@@ -1612,10 +1499,10 @@ public class Board {
                 int i = Config.BOARD_SIZE - 1 - x;
                 int j = Config.BOARD_SIZE - 1 - y;
                 trg.setPiece(i, j, piece);
-                if(piece == Config.WHITE_KING) {
+                if (piece == Config.WHITE_KING) {
                     trg.setWKing(i, j);
                 }
-                if(piece == Config.BLACK_KING) {
+                if (piece == Config.BLACK_KING) {
                     trg.setBKing(i, j);
                 }
             }
@@ -1627,16 +1514,16 @@ public class Board {
         int res = flags;
         res ^= Config.FLAGS_BLACK_MOVE;
         res &= ~Config.INIT_POSITION_FLAGS;
-        if((flags & Config.FLAGS_W_KING_OK) != 0) {
+        if ((flags & Config.FLAGS_W_KING_OK) != 0) {
             res |= Config.FLAGS_B_KING_OK;
         }
-        if((flags & Config.FLAGS_B_KING_OK) != 0) {
+        if ((flags & Config.FLAGS_B_KING_OK) != 0) {
             res |= Config.FLAGS_W_KING_OK;
         }
-        if((flags & Config.FLAGS_W_QUEEN_OK) != 0) {
+        if ((flags & Config.FLAGS_W_QUEEN_OK) != 0) {
             res |= Config.FLAGS_B_QUEEN_OK;
         }
-        if((flags & Config.FLAGS_B_QUEEN_OK) != 0) {
+        if ((flags & Config.FLAGS_B_QUEEN_OK) != 0) {
             res |= Config.FLAGS_W_QUEEN_OK;
         }
         return res;
@@ -1650,14 +1537,14 @@ public class Board {
         for (int y = 0; y < getYSize(); ++y) {
             int diff = board[y] ^ nextBoard.board[y];
             if (diff != 0) {
-                if(DEBUG) {
+                if (DEBUG) {
                     logger.debug(String.format("y=%s: 0x%s", y, Integer.toHexString(diff)));
                 }
                 for (int i = 0; i < 4; ++i) {
                     if ((diff & 0x0f) != 0) {
                         int x = 2 * i;
                         Square square = new Square(x, y);
-                        if(nextBoard.getPiece(square) == Config.EMPTY) {
+                        if (nextBoard.getPiece(square) == Config.EMPTY) {
                             fromSquares.add(square);
                         } else {
                             toSquares.add(square);
@@ -1666,7 +1553,7 @@ public class Board {
                     if ((diff & 0x0f0) != 0) {
                         int x = 2 * i + 1;
                         Square square = new Square(x, y);
-                        if(nextBoard.getPiece(square) == Config.EMPTY) {
+                        if (nextBoard.getPiece(square) == Config.EMPTY) {
                             fromSquares.add(square);
                         } else {
                             toSquares.add(square);
@@ -1676,12 +1563,12 @@ public class Board {
                 }
             }
         }
-        if(DEBUG) {
+        if (DEBUG) {
             logger.debug(fromSquares);
             logger.debug(toSquares);
         }
         Move move;
-        if(toSquares.size() == 1 && fromSquares.size() == 1) {
+        if (toSquares.size() == 1 && fromSquares.size() == 1) {
             move = newMove();
             move.setFrom(fromSquares.get(0));
             move.setTo(toSquares.get(0));
@@ -1699,7 +1586,7 @@ public class Board {
                     return move;
                 }
             }
-        } else if(fromSquares.size() == 2 && (toSquares.size() == 1 || toSquares.size() == 2)) {
+        } else if (fromSquares.size() == 2 && (toSquares.size() == 1 || toSquares.size() == 2)) {
             for (int i = 0; i < fromSquares.size(); ++i) {
                 Square fromSquare = fromSquares.get(i);
                 for (Square toSquare : toSquares) {
@@ -1720,7 +1607,7 @@ public class Board {
                         // must be capture en passant
                         if ((move.getPiece() & ~Config.PIECE_COLOR) == Config.PAWN) {
                             piece = nextBoard.getPiece(move.getTo());
-                            if((piece & ~Config.PIECE_COLOR) != Config.PAWN) {
+                            if ((piece & ~Config.PIECE_COLOR) != Config.PAWN) {
                                 move.setPiecePromoted(piece);
                             }
                         }

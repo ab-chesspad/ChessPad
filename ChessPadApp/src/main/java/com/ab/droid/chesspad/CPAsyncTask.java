@@ -1,15 +1,28 @@
+/*
+     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * AsyncTask subclass with progress bar
+ * Created by Alexander Bootman on 10/1/17.
+*/
 package com.ab.droid.chesspad;
 
 import android.os.AsyncTask;
 import android.util.Log;
-
 import com.ab.droid.chesspad.layout.ProgressBarHolder;
 import com.ab.pgn.Config;
-
-/**
- * AsyncTask subclass with progress bar
- * Created by Alexander Bootman on 10/1/17.
- */
 
 public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> implements ProgressPublisher {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
@@ -39,13 +52,6 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
             progressBarHolder.showProgressBar(true);
             progressBarHolder.updateProgressBar(oldProgress);
         }
-/*
-        ChessPadLayout.CpProgressBar cpProgressBar;
-        if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
-            cpProgressBar.show(true);
-            cpProgressBar.update(oldProgress);
-        }
-*/
     }
 
     @Override
@@ -54,14 +60,8 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
         if (progressBarHolder != null) {
             progressBarHolder.showProgressBar(false);
         }
-/*
-        ChessPadLayout.CpProgressBar cpProgressBar;
-        if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
-            cpProgressBar.show(false);
-        }
-*/
         try {
-            if(param == null) {
+            if (param == null) {
                 cpExecutor.onPostExecute();
             } else {
                 cpExecutor.onExecuteException(param);
@@ -85,12 +85,6 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     @Override
     protected void onProgressUpdate(Integer... values) {
         super.onProgressUpdate(values);
-/*
-        ChessPadLayout.CpProgressBar cpProgressBar;
-        if(progressBarHolder != null && (cpProgressBar = progressBarHolder.getProgressBar()) != null) {
-            cpProgressBar.update(values[0]);
-        }
-*/
         if (progressBarHolder != null) {
             progressBarHolder.updateProgressBar(values[0]);
         }
@@ -98,9 +92,9 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
 
     @Override
     public void publishProgress(int progress) {
-        if(progress - oldProgress >= 1) {
+        if (progress - oldProgress >= 1) {
             oldProgress = progress;
-            if(progress > 100) {
+            if (progress > 100) {
                 progress = 100;
             }
             super.publishProgress(progress);

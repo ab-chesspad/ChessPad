@@ -13,10 +13,14 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * convenient ArrayAdapter subclass
+ * Created by Alexander Bootman on 8/20/16.
 */
 package com.ab.droid.chesspad;
 
 import android.graphics.Color;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -25,13 +29,17 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.TextView;
 
+import com.ab.pgn.Config;
+
 import java.util.List;
 
-abstract class CPArrayAdapter extends ArrayAdapter {
-    private List<?> values;
+abstract class CPArrayAdapter<T> extends ArrayAdapter<T> {
+    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
+
+    protected List<T> values;
+    protected int selectedIndex;
     private int layoutResource;
     private LayoutInflater layoutInflater;
-    int selectedIndex;
 
     protected abstract void setRowViewHolder(RowViewHolder rowViewHolder, final int position);
     protected abstract void onConvertViewClick(int position);
@@ -41,19 +49,19 @@ abstract class CPArrayAdapter extends ArrayAdapter {
         init(null, -1);
     }
 
-    CPArrayAdapter(List<?> values, int selectedIndex) {
+    CPArrayAdapter(List<T> values, int selectedIndex) {
         super(ChessPad.getContext(), R.layout.list_view_row);
         init(values, selectedIndex);
     }
 
-    void init(List<?> values, int initSelection) {
+    void init(List<T> values, int initSelection) {
         this.values = values;
         this.selectedIndex = initSelection;
         layoutResource = R.layout.list_view_row;
         layoutInflater = LayoutInflater.from(ChessPad.getContext());
     }
 
-    List<?> getValues() {
+    List<T> getValues() {
         return values;
     }
 
@@ -65,7 +73,6 @@ abstract class CPArrayAdapter extends ArrayAdapter {
             convertView.setVisibility(View.VISIBLE);
             rowViewHolder = new RowViewHolder();
             convertView.setTag(rowViewHolder);
-
         } else {
             rowViewHolder = (RowViewHolder) convertView.getTag();
         }
@@ -83,9 +90,9 @@ abstract class CPArrayAdapter extends ArrayAdapter {
         });
         setRowViewHolder(rowViewHolder, position);
         if (position == selectedIndex) {
-            rowViewHolder.valueView.setBackgroundColor(Color.CYAN);
+            rowViewHolder.rowValue.setBackgroundColor(Color.CYAN);
         } else {
-            rowViewHolder.valueView.setBackgroundColor(Color.WHITE);
+            rowViewHolder.rowValue.setBackgroundColor(Color.WHITE);
         }
         return convertView;
     }
@@ -100,36 +107,36 @@ abstract class CPArrayAdapter extends ArrayAdapter {
 
     @Override
     public int getCount() {
-        List<?> values = getValues();
-        if(values == null) {
+        List<T> values = getValues();
+        if (values == null) {
             return 0;       // happens in PgnFileListAdapter
         }
-        return getValues().size();
+        return values.size();
     }
 
-    public Object getItem(int position) {
+    public T getItem(int position) {
         Object item = null;
-        List<?> values = getValues();
+        List<T> values = getValues();
         if (values != null) {
             item = values.get(position);
         }
-        return item;
+        return (T)item;
     }
 
     static class RowViewHolder {
         int index;
-        TextView labelView;
-        TextView valueView;
+        TextView rowLabel;
+        TextView rowValue;
         Button actionButton;
         View convertView;
 
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            if(labelView != null) {
-                sb.append("tag ").append(labelView.getText().toString()).append("=");
+            if(rowLabel != null) {
+                sb.append("tag ").append(rowLabel.getText().toString()).append("=");
             }
-            sb.append(valueView.getText().toString());
+            sb.append(rowValue.getText().toString());
             if(actionButton != null) {
                 sb.append(", ").append(actionButton.isEnabled());
             }

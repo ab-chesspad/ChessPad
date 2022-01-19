@@ -19,46 +19,46 @@
  */
 package com.ab.pgn;
 
+import com.ab.pgn.io.CpFile;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.rules.ExpectedException;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.StringReader;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class BaseTest {
-    static final boolean DEBUG = false;
-//    static final boolean USE_BIT_STREAMS = Config.USE_BIT_STREAMS;
-    static final boolean USE_BIT_STREAMS = true;
+    protected static final boolean DEBUG = true;
+
     static final int FLAGS_PROMOTION = 0x010000;
     static final int FLAGS_ENPASSANT = 0x020000;
 
     static String prefix = "";
-    static String bookPath = "etc/test/../../src/main/book//combined.book";
+    static String bookPath = "../../src/main/book/";
+    static boolean android = false;
     static {
         // in IntelliJ working dir is <project>, in AndroidStudio is is <project>/app
         File testFile = new File("xyz");
         if(testFile.getAbsoluteFile().getParent().endsWith("/ChessPadApp")) {
             prefix = "../";
-            bookPath = "etc/test/../../ChessPadApp/src/main/assets/book/combined.book";
+            bookPath = "../../ChessPadApp/src/main/assets/book/";
+            android = true;
         }
     }
+    protected static final boolean ANDROID_TESTING = android;
     protected static final String TEST_ROOT = prefix + "etc/test/";
     protected static final String TEST_TMP_ROOT = prefix + "etc/test_tmp/";
-    protected static final String BOOK_PATH = bookPath;
 
     /*
     public static String LOG_FILE_NAME = null;
@@ -70,14 +70,14 @@ public class BaseTest {
     static final int ERR = -1;
     static final int TEST_SERIALIZATION_VERSION = 1;
 
-    final PgnLogger logger = PgnLogger.getLogger(this.getClass(), true);
+    protected final PgnLogger logger = PgnLogger.getLogger(this.getClass(), true);
 
     @Rule
     public final ExpectedException expectedEx = ExpectedException.none();
 
     @BeforeClass
     public static void init() {
-        CpFile.setRoot(new File(TEST_ROOT));
+        CpFile.setRoot(TEST_ROOT);
         File tmpTest = new File(TEST_TMP_ROOT);
         deleteDirectory(tmpTest);
         tmpTest.mkdirs();
@@ -87,7 +87,9 @@ public class BaseTest {
 
     @After
     public void restore() {
+/*
         CpFile.setRoot(new File(TEST_ROOT));
+*/
     }
 
     private static void deleteDirectory(File directory) {
@@ -107,15 +109,16 @@ public class BaseTest {
         res = directory.delete();
     }
 
-    void copyDirectory(File sourceLocation, File targetLocation)
-            throws IOException {
+    void fullCopy(File sourceLocation, File targetLocation) throws IOException {
         if (sourceLocation.isDirectory()) {
             if (!targetLocation.exists()) {
-                targetLocation.mkdir();
+                if (!targetLocation.mkdirs()) {
+                    throw new IOException("cannot create " + targetLocation.getAbsolutePath());
+                }
             }
             String[] children = sourceLocation.list();
             for (int i = 0; i < sourceLocation.listFiles().length; i++) {
-                copyDirectory(new File(sourceLocation, children[i]),
+                fullCopy(new File(sourceLocation, children[i]),
                         new File(targetLocation, children[i]));
             }
         } else {
@@ -130,6 +133,20 @@ public class BaseTest {
             in.close();
             out.close();
         }
+    }
+
+    protected File toTempTest(String origFileName) throws IOException {
+        File origFile = new File(TEST_ROOT + origFileName);
+        if (!origFile.exists()) {
+            return null;
+        }
+        File testFile = new File(TEST_TMP_ROOT + origFileName);
+        File parent = testFile.getParentFile();
+        if (!parent.exists() && !parent.mkdirs()) {
+            return null;
+        }
+        fullCopy(origFile, testFile);
+        return testFile;
     }
 
     boolean areEqual(Move m1, Move m2) {
@@ -165,7 +182,7 @@ public class BaseTest {
         return String.format("[%s \"%s\"]\n", MY_TAG, fen);
     }
 
-    boolean areEqual(PgnGraph g1, PgnGraph g2) {
+    public boolean areEqual(PgnGraph g1, PgnGraph g2) {
         // ignore tags
         if(g2.isModified() != g1.isModified()) {
             return false;
@@ -180,11 +197,11 @@ public class BaseTest {
             return false;
         }
 
-        for(Map.Entry<Pack, Board> entry : g2.positions.entrySet()) {
-            entry.getValue().setVisited(false);
+        for (Board board : g2.positions.values()) {
+            board.setVisited(false);
         }
-        for(Map.Entry<Pack, Board> entry : g1.positions.entrySet()) {
-            entry.getValue().setVisited(false);
+        for (Board board : g1.positions.values()) {
+            board.setVisited(false);
         }
         return areEqual(g1, g1.rootMove, g2, g2.rootMove);
     }
@@ -200,8 +217,8 @@ public class BaseTest {
             if(!b2.equals(b1)) {
                 return false;
             }
-            boolean f2 = b2.wasVisited();
-            boolean f1 = b1.wasVisited();
+            boolean f2 = b2.getVisited();
+            boolean f1 = b1.getVisited();
             if(f2 != f1) {
                 return false;
             }
@@ -218,6 +235,24 @@ public class BaseTest {
             m1 = b1.getMove();
         }
         return m1 == m2;    // both nulls
+    }
+
+    int verifyMoveLinesEqual(LinkedList<Move> thisMoveLine, LinkedList<Move> thatMoveLine) {
+        if (thisMoveLine.size() != thatMoveLine.size()) {
+            return -1;
+        }
+
+        int j = 3;
+        if (!areEqual(thisMoveLine.get(j), thatMoveLine.get(j))) {
+            return j + 1;
+        }
+
+        for (int i = 0; i < thisMoveLine.size(); ++i) {
+            if (!areEqual(thisMoveLine.get(i), thatMoveLine.get(i))) {
+                return i + 1;
+            }
+        }
+        return 0;
     }
 
     String invert(String move) {
@@ -297,99 +332,84 @@ public class BaseTest {
         return res;
     }
 
-    List<PgnGraph> parse2PgnGraphs(String pgn) throws Config.PGNException {
+    public List<PgnGraph> parse2PgnGraphs(String pgn) throws Config.PGNException {
         List<PgnGraph> res = new LinkedList<>();
-        BufferedReader br = new BufferedReader(new StringReader(pgn));
-        final List<CpFile> items = new LinkedList<>();
-        CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
-            @Override
-            public boolean handle(CpFile entry, BufferedReader bufferedReader) {
-                items.add(entry);
-                return true;
-            }
+        InputStream is = new ByteArrayInputStream(StandardCharsets.UTF_8.encode(pgn).array());
+//        CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.CpParent.fromPath("dummy.pgn");
+        final List<CpFile.PgnItem> items = CpFile.parsePgnFile(is, true);
 
-            @Override
-            public boolean getMoveText(CpFile entry) {
-                return true;
+        int i = -1;
+        for (CpFile.PgnItem item : items) {
+            if(DEBUG) {
+                logger.debug(item.toString());
             }
-
-            @Override
-            public boolean addOffset(int length, int totalLength) {
+            PgnGraph pgnGraph = new PgnGraph(++i, item, progress -> {
+                logger.debug(String.format("parse2PgnGraphs %s, progress %d%%", item.toString(), progress));
                 return false;
-            }
-
-            @Override
-            public boolean skip(CpFile entry) {
-                return false;
-            }
-        });
-
-        for (CpFile item : items) {
-            logger.debug(item.toString());
-            res.add(new PgnGraph((CpFile.Item) item, null));
+            });
+            res.add(pgnGraph);
         }
         return res;
     }
 
-    private CpFile.Item pgnFromFen(String fen) throws Config.PGNException {
-        String pgn = String.format("[FEN \"%s\"]", fen);
-        BufferedReader br = new BufferedReader(new StringReader(pgn));
-        final List<CpFile> items = new LinkedList<>();
-        CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
-            @Override
-            public boolean handle(CpFile entry, BufferedReader bufferedReader) {
-                items.add(entry);
-                return true;
-            }
-
-            @Override
-            public boolean getMoveText(CpFile entry) {
-                return true;
-            }
-
-            @Override
-            public boolean addOffset(int length, int totalLength) {
-                return false;
-            }
-
-            @Override
-            public boolean skip(CpFile entry) {
-                return false;
-            }
-        });
-        Assert.assertEquals(items.size(), 1);
-        return (CpFile.Item) items.get(0);
+    List<PgnGraph> testParsingFile(String pgnFileName) throws Config.PGNException {
+        Path filePath = Paths.get(TEST_ROOT + pgnFileName);
+        try {
+            String pgn = new String(Files.readAllBytes(filePath), StandardCharsets.UTF_8);
+            return testParsing(pgn);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
-    private void testMove(CpFile.Item item, String moveText, int resultFlags) throws Config.PGNException {
-        item.setMoveText("");
-        PgnGraph pgnGraph = new PgnGraph(item, null);
-        Board initBoard = pgnGraph.getInitBoard();
-        Move move = new Move(initBoard.getFlags() & Config.FLAGS_BLACK_MOVE);
-        Util.parseMove(move, moveText);
-        boolean res = pgnGraph.validateUserMove(move);
-        if(resultFlags == ERR) {
-            Assert.assertFalse(String.format("%s must be error\n%s", moveText, initBoard.toString()), res);
-        } else {
-            Assert.assertTrue(String.format("%s must be ok\n%s", moveText, initBoard.toString()), res);
-            pgnGraph.addMove(move);
-
-            int moveFlags = move.moveFlags & Config.MOVE_FLAGS;
-            int expectedMoveFlags = resultFlags & Config.MOVE_FLAGS;
-            if((expectedMoveFlags & Config.FLAGS_Y_AMBIG) == 0) {
-                moveFlags &= ~Config.FLAGS_Y_AMBIG; // kludgy hack for Util.parseMove
+    List<PgnGraph> testParsing(String pgn) throws Config.PGNException {
+        List<PgnGraph> pgnGraphs = parse2PgnGraphs(pgn);
+        for (PgnGraph pgnGraph : pgnGraphs) {
+            if(DEBUG) {
+                logger.debug(pgnGraph.getInitBoard().toFEN());
+                logger.debug(pgnGraph.getBoard().toFEN());
             }
-            if((expectedMoveFlags & Config.FLAGS_X_AMBIG) == 0) {
-                moveFlags &= ~Config.FLAGS_X_AMBIG; // kludgy hack for Util.parseMove
+            String finalFen = pgnGraph.pgnItem.getTag(MY_TAG);
+            if (finalFen != null) {
+                Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
             }
+            String tags = new String(pgnGraph.getPgnItem().tagsToString(true, false));
+            String resPgn = tags + "\n\n" + pgnGraph.toPgn();     // after that no vertex must be missing
+            if(DEBUG) {
+                System.out.println(resPgn);
+            }
+            Assert.assertEquals(0, pgnGraph.getNumberOfMissingVertices());
 
-            Assert.assertEquals(String.format("%s\n%s\nmove flags 0x%04x != 0x%04x", moveText, initBoard.toString(), moveFlags, expectedMoveFlags),
-                    moveFlags, expectedMoveFlags);
+            // re-parse the resPgn
+            List<PgnGraph> resPgnGraphs = parse2PgnGraphs(resPgn);
+            Assert.assertEquals(1, resPgnGraphs.size());
+            PgnGraph resPgnGraph = resPgnGraphs.get(0);
+            Assert.assertTrue(String.format("diff:\n%s\n%s", resPgn, resPgnGraph.toPgn()), areEqual(pgnGraph, resPgnGraph));
+        }
+
+        for(PgnGraph pgnGraph: pgnGraphs) {
+            testFindMove(pgnGraph);
+        }
+        return pgnGraphs;
+    }
+
+    private void testFindMove(PgnGraph pgnGraph) {
+        ListIterator<Move> li = pgnGraph.moveLine.listIterator(pgnGraph.moveLine.size());
+        Board nextBoard = null;
+        Move nextMove = null;
+        while(li.hasPrevious()) {
+            Move move = li.previous();
             Board board = pgnGraph.getBoard();
-            int positionFlags = board.getFlags() & Config.POSITION_FLAGS;
-            int expectedPositionFlags = (resultFlags ^ Config.FLAGS_BLACK_MOVE) & Config.POSITION_FLAGS;
-            Assert.assertEquals(String.format("%s\n%s\nposition flags 0x%04x != 0x%04x", moveText, board.toString(), positionFlags, expectedPositionFlags),
-                    positionFlags, expectedPositionFlags);
+            System.out.println(String.format("%s\n%s", move, board));
+            if(nextBoard != null) {
+                Move _move = board.findMove(nextBoard);
+                Assert.assertTrue(nextMove.isSameAs(_move));
+            }
+            nextMove = move;
+            nextBoard = board;
+            if(move != pgnGraph.rootMove) {
+                li.remove();
+            }
         }
     }
 

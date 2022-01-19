@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * parsing tests
+ * parsing unit tests
  * Created by Alexander Bootman on 8/6/16.
  */
 package com.ab.pgn;
@@ -29,22 +29,11 @@ import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.ab.pgn.io.CpFile;
+
 //@Ignore
 public class PgnMoveParsingTest extends BaseTest {
     final static String version = Config.version;
-
-    private List<PgnGraph> testParsing(String pgn) throws Config.PGNException {
-        List<PgnGraph> pgnGraphs = parse2PgnGraphs(pgn);
-        for (PgnGraph pgnGraph : pgnGraphs) {
-            logger.debug(pgnGraph.getInitBoard().toFEN());
-            logger.debug(pgnGraph.getBoard().toFEN());
-            String finalFen = pgnGraph.pgn.getTag(MY_TAG);
-            if(!finalFen.equals(Config.TAG_UNKNOWN_VALUE)) {
-                Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
-            }
-        }
-        return pgnGraphs;
-    }
 
     @Test
     public void testAmbig() throws Config.PGNException {
@@ -54,7 +43,7 @@ public class PgnMoveParsingTest extends BaseTest {
             "[Round \"?\"]\n" +
             "[White \"?\"]\n" +
             "[Black \"?\"]\n" +
-            "[Result \"1-0\"]\n" +
+            "[Resujava raw uselt \"1-0\"]\n" +
             "[FEN \"4k3/2R5/8/8/1KR3r1/8/7n/8 w - - 0 1\"]\n" +
             "[Source \"?\"]\n" +
             finalFen2Tag("4k3/8/2R5/8/1KR3r1/8/7n/8 b - - 1 1") +
@@ -265,167 +254,6 @@ public class PgnMoveParsingTest extends BaseTest {
             " uneventful draw.} \n";
 
         testParsing(pgn);
-    }
-
-    @Test
-    public void testUpdateZip() throws Exception {
-        String root = TEST_TMP_ROOT;
-        CpFile.setRoot(new File(root));
-        File testFile = new File(String.format("%stest.zip", root));
-        CpFile.copy(new File(TEST_ROOT + "newyork1924.zip"), testFile);
-        List<CpFile> items = getZipItems(testFile.getAbsolutePath());
-        int count = items.size();
-        int testIndex = 1;
-        if(testIndex >= count) {
-            testIndex = 0;
-        }
-        CpFile.Item item = (CpFile.Item) items.get(testIndex);
-        item.setIndex(-1);      // append
-        item.save(null);            // append with no moveText
-        ++count;
-        List<CpFile> items1 = getZipItems(testFile.getAbsolutePath());
-        Assert.assertEquals(count, items1.size());
-
-        item.setMoveText(null);
-        item.setIndex(0);
-        for(int i = 0; i < count; ++i) {
-            item.save(null);    // delete #0 since moveText is null
-            items1 = getZipItems(testFile.getAbsolutePath());
-            if(i == count - 1) {
-                Assert.assertNull(items1);
-                break;
-            }
-            Assert.assertEquals(count, items1.size() + i + 1);
-        }
-    }
-
-    private List<CpFile> getZipItems(String path) throws Config.PGNException {
-        File test = new File(path);
-        if(!test.exists()) {
-            return null;
-        }
-        CpFile zip = new CpFile.Zip(path);
-        List<CpFile> list = zip.getChildrenNames(null);
-        Assert.assertEquals("Zip file unsuitable for this test, must contain a single pgn file", list.size(), 1);
-        CpFile pgn = list.get(0);
-        return pgn.getChildrenNames(null);
-    }
-
-    @Test
-    public void testUpdatePgn() throws Exception {
-        String root = TEST_TMP_ROOT;
-        CpFile.setRoot(new File(root));
-        File testFile = new File(String.format("%stest.pgn", root));
-        CpFile.copy(new File(TEST_ROOT + "exeter_lessons_from_tal.pgn"), testFile);
-        List<CpFile> items = getCpFiles(testFile.getAbsolutePath());
-        int count = items.size();
-        int testIndex = 1;
-        if(testIndex >= count) {
-            testIndex = 0;
-        }
-        CpFile.Item item = (CpFile.Item) items.get(testIndex);
-        item.setIndex(-1);      // append
-        item.save(null);        // append with no moveText
-        ++count;
-        List<CpFile> items1 = getCpFiles(testFile.getAbsolutePath());
-        Assert.assertEquals(count, items1.size());
-
-        item.setMoveText(null);
-        item.setIndex(0);
-        for(int i = 0; i < count; ++i) {
-//            logger.debug(String.format("delete %s", i));
-            item.save(null);    // delete #0 since moveText is null
-            items1 = getCpFiles(testFile.getAbsolutePath());
-            if(i == count - 1) {
-                Assert.assertNull(items1);
-                break;
-            }
-            Assert.assertEquals(count, items1.size() + i + 1);
-        }
-    }
-
-    private List<CpFile> getCpFiles(String path) throws Config.PGNException {
-        File test = new File(path);
-        if(!test.exists()) {
-            return null;
-        }
-        CpFile pgn = new CpFile.Pgn(path);
-        return pgn.getChildrenNames(null);
-    }
-
-    @Test
-//    @Ignore("Just prints file content")
-    public void testZipSimple() throws Exception {
-        String root = TEST_TMP_ROOT;
-        CpFile.setRoot(new File(root));
-        File testFile = new File(String.format("%s/test.zip", root));
-        CpFile.copy(new File(TEST_ROOT + "adams.zip"), testFile);
-        CpFile zip = new CpFile.Zip(testFile.getAbsolutePath());
-        List<CpFile> list = zip.getChildrenNames(null);
-        for (CpFile pgn : list) {
-            logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<CpFile> items = pgn.getChildrenNames(null);
-            for (CpFile item : items) {
-                logger.debug(item.toString());
-                PgnGraph pgnGraph = new PgnGraph((CpFile.Item) item, null);
-                logger.debug(String.format("[%s \"%s\"]\n", MY_TAG, pgnGraph.getBoard().toFEN()));
-            }
-        }
-    }
-
-    @Test
-//    @Ignore("Just prints file content")
-    public void testPgnAnnotated() throws Exception {
-        String pgn = TEST_ROOT + "exeter_lessons_from_tal.pgn";
-        BufferedReader br = new BufferedReader(new FileReader(pgn));
-        final List<CpFile> items = new LinkedList<>();
-        CpFile.parsePgnFiles(null, br, new CpFile.EntryHandler() {
-            @Override
-            public boolean handle(CpFile entry, BufferedReader bufferedReader) {
-                items.add(entry);
-                return true;
-            }
-
-            @Override
-            public boolean getMoveText(CpFile entry) {
-                return true;
-            }
-
-            @Override
-            public boolean  addOffset(int length, int totalLength) {
-                return false;
-            }
-
-            @Override
-            public boolean skip(CpFile entry) {
-                return false;
-            }
-        });
-
-        for(CpFile item : items) {
-            PgnGraph pgnGraph = new PgnGraph((CpFile.Item)item, null);
-            logger.debug(String.format("[%s \"%s\"]\n", MY_TAG, pgnGraph.getBoard().toFEN()));
-        }
-    }
-
-    @Test
-//    @Ignore("Just prints file content")
-    public void testZipAnnotated() throws Exception {
-        String root = TEST_TMP_ROOT;
-        CpFile.setRoot(new File(root));
-        File testFile = new File(String.format("%s/test.zip", root));
-        CpFile.copy(new File(TEST_ROOT + "newyork1924.zip"), testFile);
-        CpFile zip = new CpFile.Zip(testFile.getAbsolutePath());
-        List<CpFile> list = zip.getChildrenNames(null);
-        for (CpFile pgn : list) {
-            logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
-            List<CpFile> items = pgn.getChildrenNames(null);
-            for (CpFile item : items) {
-                logger.debug(item.toString());
-                PgnGraph pgnGraph = new PgnGraph((CpFile.Item) item, null);
-                logger.debug(String.format("[%s \"%s\"]\n", MY_TAG, pgnGraph.getBoard().toFEN()));
-            }
-        }
     }
 
     @Test

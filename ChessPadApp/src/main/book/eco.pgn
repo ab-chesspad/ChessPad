@@ -6440,12 +6440,6 @@ e4 e5 Nf3 Nc6 d4 exd4 c3 *
 
 [ECO "C44"]
 [Opening "Scotch"]
-[Variation "Sea-cadet mate"]
-
-e4 e5 Nf3 Nc6 d4 exd4 c3 dxc3 Nxc3 d6 Bc4 Bg4 O-O Ne5 Nxe5 Bxd1 Bxf7+ Ke7 Nd5# *
-
-[ECO "C44"]
-[Opening "Scotch"]
 [Variation "Göring gambit"]
 
 e4 e5 Nf3 Nc6 d4 exd4 c3 dxc3 Nxc3 Bb4 *
@@ -6886,7 +6880,7 @@ e4 e5 Nf3 Nc6 Bc4 *
 [ECO "C50"]
 [Opening "Blackburne shilling gambit"]
 
-e4 e5 Nf3 Nc6 Bc4 Nd4 Nxe5 Qg5 Nxf7 Qxg2 Rf1 Qxe4+ Be2 Nf3# *
+e4 e5 Nf3 Nc6 Bc4 Nd4 *
 
 [ECO "C50"]
 [Opening "Rousseau gambit"]

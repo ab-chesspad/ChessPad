@@ -41,10 +41,10 @@ public class Square {
     }
 
     public Square(String sq) {
-        if(sq != null && sq.length() == 2) {
+        if (sq != null && sq.length() == 2) {
             int x = fromX(sq.charAt(0));
             int y = fromY(sq.charAt(1));
-            if( x >= 0 && x < Config.BOARD_SIZE && y >= 0 && y < Config.BOARD_SIZE) {
+            if ( x >= 0 && x < Config.BOARD_SIZE && y >= 0 && y < Config.BOARD_SIZE) {
                 this.x = x;
                 this.y = y;
             }

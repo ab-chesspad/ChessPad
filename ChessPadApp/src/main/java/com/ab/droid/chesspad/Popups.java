@@ -13,6 +13,9 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * various dialogs for ChessPad
+ * Created by Alexander Bootman on 10/30/16.
 */
 package com.ab.droid.chesspad;
 
@@ -43,21 +46,16 @@ import com.ab.droid.chesspad.layout.ChessPadLayout;
 import com.ab.droid.chesspad.layout.Metrics;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Config;
-import com.ab.pgn.CpFile;
+import com.ab.pgn.io.CpFile;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnGraph;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**
- * various dialogs for ChessPad
- * Created by Alexander Bootman on 10/30/16.
- */
 public class Popups {
     private static final boolean DEBUG = false;
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
@@ -108,13 +106,12 @@ public class Popups {
         OkCancel,
     }
 
-    private static final String ADD_TAG_LABEL = "";
+    private static final String DIR_GO_UP_TEXT = "..";
     private final ChessPad chessPad;
 
     private static final List<Integer> wPromotionList = Arrays.asList(R.drawable.qw, R.drawable.rw, R.drawable.bw, R.drawable.nw);
     private static final List<Integer> bPromotionList = Arrays.asList(R.drawable.qb, R.drawable.rb, R.drawable.bb, R.drawable.nb);
     private static final List<Integer> promotionPieces = Arrays.asList(Config.QUEEN, Config.ROOK, Config.BISHOP, Config.KNIGHT);
-    private static final String endgamebotOptionsStringSep = " - ";
 
     private final List<String> glyphs;
 
@@ -151,7 +148,7 @@ public class Popups {
             }
             writer.write(dialogType.getValue(), 4);
             writer.writeString(dialogMsg);
-            CpFile.serializeTagList(writer, editTags);
+            CpFile.PgnItem.serializeTagList(writer, editTags);
             appendData.serialize(writer);
             mergeData.serialize(writer);
         } catch (IOException e) {
@@ -167,13 +164,9 @@ public class Popups {
             }
             this.dialogType = DialogType.value(reader.read(4));
             dialogMsg = reader.readString();
-            if (dialogMsg == null || dialogMsg.isEmpty()) {
-                dialogMsg = null;
-            }
-            editTags = CpFile.unserializeTagList(reader);
+            editTags = CpFile.PgnItem.unserializeTagList(reader);
             appendData = new MergeData(reader);
             mergeData = new MergeData(reader);
-            afterUnserialize();
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -227,12 +220,10 @@ public class Popups {
 
 
     void launchDialog(final DialogType dialogType) {
-        CpFile cpFile;
         switch (dialogType) {
             case Append:
             case Merge:
-            case Puzzle:
-                dlgSelectPgn(dialogType);
+                dlgSelectPgnFile(dialogType);
                 break;
 
             case DeleteYesNo:
@@ -250,22 +241,14 @@ public class Popups {
             case Tags:
                 if (editTags == null) {
                     editTags = chessPad.getTags();
-                    editTags.add(new Pair<>(ADD_TAG_LABEL, ""));
+                    editTags.add(new Pair<>(Config.ADD_TAG_LABEL, ""));
                 }
                 launchTagEditor();
                 break;
 
             case Load:
-                int selectedPgnFile = -1;
-                cpFile = chessPad.getPgnGraph().getPgn();
-                if (cpFile != null) {
-                    try {
-                        selectedPgnFile = cpFile.parentIndex(chessPad.getCurrentPath());
-                    } catch (Config.PGNException e) {
-                        Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                    }
-                }
-                launchDialog(dialogType, getPgnFileListAdapter(chessPad.getCurrentPath(), selectedPgnFile));
+            case Puzzle:
+                dlgSelectPgnItem(dialogType);
                 break;
 
             case Menu:
@@ -275,16 +258,16 @@ public class Popups {
                     protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
                         super.setRowViewHolder(rowViewHolder, position);
                         if (menuItems.get(position).isEnabled()) {
-                            rowViewHolder.valueView.setTextColor(Color.BLACK);
+                            rowViewHolder.rowValue.setTextColor(Color.BLACK);
                         } else {
-                            rowViewHolder.valueView.setTextColor(Color.LTGRAY);
+                            rowViewHolder.rowValue.setTextColor(Color.LTGRAY);
                         }
                     }
 
                     @Override
                     protected void onConvertViewClick(int position) {
                         Log.d(DEBUG_TAG, "TextArrayAdapter.subclass.onConvertViewClick " + position);
-                        if( menuItems.get(position).isEnabled()) {
+                        if ( menuItems.get(position).isEnabled()) {
                             super.onConvertViewClick(position);
                         }
                     }
@@ -304,8 +287,8 @@ public class Popups {
                     @Override
                     protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
                         super.setRowViewHolder(rowViewHolder, position);
-                        rowViewHolder.valueView.setText("");
-                        rowViewHolder.valueView.setCompoundDrawablesWithIntrinsicBounds(promotionList.get(position), 0, 0, 0);
+                        rowViewHolder.rowValue.setText("");
+                        rowViewHolder.rowValue.setCompoundDrawablesWithIntrinsicBounds(promotionList.get(position), 0, 0, 0);
                     }
                 });
                 break;
@@ -323,14 +306,14 @@ public class Popups {
                     @Override
                     protected void setRowViewHolder(RowViewHolder rowViewHolder, final int position) {
                         super.setRowViewHolder(rowViewHolder, position);
-                        rowViewHolder.valueView.setText(((Move)getValues().get(position)).toCommentedString());
+                        rowViewHolder.rowValue.setText(((Move)getValues().get(position)).toCommentedString());
                     }
                 });       // 1st one is main line
                 break;
 
         }
 
-        if(currentAlertDialog != null) {
+        if (currentAlertDialog != null) {
             this.dialogType = dialogType;
             currentAlertDialog.setOnCancelListener((dialog) -> {
                 // When user touches outside of dialog bounds,
@@ -344,14 +327,14 @@ public class Popups {
 
     private void returnFromDialog(DialogType dialogType, Object selectedValue, int selected) {
         this.dialogType = DialogType.None;
-        if(dialogType == DialogType.SaveModified) {
+        if (dialogType == DialogType.SaveModified) {
             switch (selected) {
                 case DialogInterface.BUTTON_POSITIVE:
-                    if(chessPad.isSaveable()) {
-                        chessPad.savePgnGraph(true, () -> chessPad.setPgnGraph(null));
+                    if (chessPad.isSaveable()) {
+                        chessPad.savePgnGraph(true, () -> chessPad.setPgnGraph(-1, null));
                     } else {
                         dismissDlg();
-                        launchDialog(DialogType.Append);
+                        launchDialog(dialogType);
                         return;
                     }
                     break;
@@ -361,7 +344,7 @@ public class Popups {
                         chessPad.getPgnGraph().setModified(false);
                         dismissDlg();
                         editTags = null;
-                        chessPad.setPgnGraph(null);
+                        chessPad.setPgnGraph(-1,null);
                         return;
                     } catch (Config.PGNException e) {
                         Log.e(DEBUG_TAG, "dlgMessage()", e);
@@ -389,9 +372,9 @@ public class Popups {
 
             case Glyphs:
                 dismissDlg();
-                if(chessPad.mode == ChessPad.Mode.Game || chessPad.isPuzzleMode()) {
+                if (chessPad.mode == ChessPad.Mode.Game || chessPad.isPuzzleMode()) {
                     chessPad.getPgnGraph().setGlyph(selected);
-                } else if(chessPad.mode == ChessPad.Mode.DgtGame) {
+                } else if (chessPad.mode == ChessPad.Mode.DgtGame) {
                     chessPad.dgtBoardPad.getPgnGraph().getCurrentMove().setGlyph(selected);
                 }
                 break;
@@ -421,19 +404,29 @@ public class Popups {
                 break;
 
             case Load:
-                if (selectedValue instanceof CpFile.Item) {
+                if (selectedValue instanceof CpFile.PgnItemName) {
                     Log.d(DEBUG_TAG, String.format("selectedSquare %s", selectedValue.toString()));
                     dismissDlg();
-                    final CpFile.Item actualItem = (CpFile.Item) selectedValue;
+                    final CpFile.PgnItem[] actualItem = {null};
                     new CPAsyncTask(chessPad.chessPadLayout, new CPExecutor() {
                         @Override
+                        public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
+                            Log.d(DEBUG_TAG, String.format("getPgnItem start, thread %s", Thread.currentThread().getName()));
+                            actualItem[0] = ((CpFile.PgnFile)chessPad.getCurrentPath()).getPgnItem(selected - 1, (progress) -> {
+                                Log.d(DEBUG_TAG, String.format("loading, Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
+                                progressPublisher.publishProgress(progress);
+                                return false;
+                            });
+                        }
+
+                        @Override
                         public void onPostExecute() {
-                            Log.d(DEBUG_TAG, String.format("gePgnFile end, thread %s", Thread.currentThread().getName()));
+                            Log.d(DEBUG_TAG, String.format("getPgnItem end, thread %s", Thread.currentThread().getName()));
                             try {
                                 chessPad.mode = ChessPad.Mode.Game;
-                                chessPad.setPgnGraph(actualItem);
+                                chessPad.setPgnGraph(selected - 1, actualItem[0]);
                             } catch (Config.PGNException e) {
-                                Log.e(DEBUG_TAG, String.format("actualItem %s", actualItem.toString()), e);
+                                Log.e(DEBUG_TAG, String.format("actualItem %s", actualItem[0].toString()), e);
                             }
                         }
 
@@ -442,38 +435,47 @@ public class Popups {
                             Log.e(DEBUG_TAG, "load, onExecuteException, thread " + Thread.currentThread().getName(), e);
                             crashAlert(R.string.crash_cannot_load);
                         }
-
-                        @Override
-                        public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
-                            Log.d(DEBUG_TAG, String.format("getPgnFile start, thread %s", Thread.currentThread().getName()));
-                            CpFile.getPgnFile(actualItem, (progress) -> {
-                                Log.d(DEBUG_TAG, String.format("loading, Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
-                                return false;
-                            });
-                        }
                     }).execute();
                 } else {
-                    chessPad.setCurrentPath((CpFile)selectedValue);
-                    dismissDlg();
-                    launchDialog(DialogType.Load);
+                    if (pgnFileListAdapter.parentItem == selectedValue) {
+                        chessPad.setCurrentPath(((CpFile.CpParent)selectedValue).getParent());
+                    } else {
+                        chessPad.setCurrentPath((CpFile.CpParent)selectedValue);
+                    }
+                    // refresh dialog without blink
+                    pgnFileListAdapter.refresh(chessPad.getCurrentPath(), selected);
+                    this.dialogType = dialogType;   // restore
                 }
                 break;
 
             case Puzzle:
-                chessPad.setCurrentPath((CpFile) selectedValue);
-                chessPad.setPuzzles();
+                dismissDlg();
+                if (selectedValue instanceof CpFile.PgnFile) {
+                    chessPad.setCurrentPath((CpFile.CpParent)selectedValue);
+                    chessPad.setPuzzles();
+                } else {
+                    if (pgnFileListAdapter.parentItem == selectedValue) {
+                        chessPad.setCurrentPath(((CpFile.CpParent)selectedValue).getParent());
+                    } else {
+                        chessPad.setCurrentPath((CpFile.CpParent)selectedValue);
+                    }
+                    launchDialog(dialogType);
+                }
                 break;
 
             case Append:
                 chessPad.mode = ChessPad.Mode.Game;
-                final CpFile.Pgn pgn = new CpFile.Pgn(selectedValue.toString());
-                chessPad.getPgnGraph().getPgn().setParent(pgn);
-                chessPad.getPgnGraph().getPgn().setIndex(-1);
-                chessPad.savePgnGraph(true, () -> chessPad.setPgnGraph(null));
+                chessPad.getPgnGraph().getPgnItem().setParent((CpFile.PgnFile)selectedValue);
+                chessPad.savePgnGraph(true, () -> chessPad.setPgnGraph(-1, null));
                 break;
 
             case Merge:
-                chessPad.mergePgnGraph(mergeData, () -> chessPad.setPgnGraph(null));
+                chessPad.mergePgnGraph(mergeData, () -> {
+                    PgnGraph pgnGraph = chessPad.getPgnGraph();
+                    pgnGraph.setModified(false);
+                    chessPad.setPgnGraph(pgnGraph.getPgnItemIndex(), null);
+                    pgnGraph.setModified(true);
+                });
                 break;
 
             case Tags:
@@ -490,16 +492,16 @@ public class Popups {
                             Toast.makeText(chessPad, R.string.err_empty_new_tag_name, Toast.LENGTH_LONG).show();
                             break;
                         } else {
-                            for(Pair<String, String> tag : editTags) {
-                                if(lastPair == tag) {
+                            for (Pair<String, String> tag : editTags) {
+                                if (lastPair == tag) {
                                     continue;
                                 }
-                                if(label.equals(tag.first)) {
+                                if (label.equals(tag.first)) {
                                     Toast.makeText(chessPad, R.string.err_tag_name_exists, Toast.LENGTH_LONG).show();
                                     return;
                                 }
                             }
-                            editTags.add(new Pair<>(ADD_TAG_LABEL, ""));      // new 'add tag' row
+                            editTags.add(new Pair<>(Config.ADD_TAG_LABEL, ""));      // new 'add tag' row
                         }
                     } else {
                         editTags.remove(selected);
@@ -653,153 +655,53 @@ public class Popups {
         currentAlertDialog = dialog;
         currentAlertDialog.setOnCancelListener((d) -> {
             // When user touches outside of dialog bounds,
-            // the dialog gets canceled and this method executes.
+            // the dialog gets cancelled and this method executes.
             Log.d(DEBUG_TAG, "tag editor cancelled");
             dismissDlg();
             editTags = null;
         });
     }
 
-    static class MergeData extends PgnGraph.MergeData {
-        ChessPadLayout.StringKeeper startStringWrapper;
-        ChessPadLayout.StringKeeper endStringWrapper;
-        ChessPadLayout.StringKeeper maxPlysPathWrapper;
-        ChessPadLayout.StringKeeper pgnPathWrapper;
-        ChessPadLayout.ChangeObserver changeObserver;
+    // for Load and Puzzle
+    private void dlgSelectPgnItem(final DialogType dialogType) {
+        int selectedLine = -1;
+        PgnFileListAdapter getPgnFileListAdapter = null;
+        CpFile.CpParent currentPath = chessPad.getCurrentPath();
+        CpFile.PgnItem pgnItem = chessPad.getPgnGraph().getPgnItem();
 
-        MergeData() {
-            super();
-            init();
-        }
-
-        MergeData(BitStream.Reader reader) throws Config.PGNException {
-            super(reader);
-            init();
-        }
-
-        private void init() {
-            pgnPathWrapper = new ChessPadLayout.StringKeeper() {
-                @Override
-                public void setValue(String str) {
-                    pgnPath = str;
-                    if(MergeData.this.changeObserver != null) {
-                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
-                    }
-                }
-
-                @Override
-                public String getValue() {
-                    return pgnPath;
-                }
-            };
-
-            startStringWrapper = new ChessPadLayout.StringKeeper() {
-                @Override
-                public void setValue(String value) {
-                    if( value.isEmpty()) {
-                        start = -1;
-                    } else {
-                        start = getNumericValue(value);
-                    }
-                    if(MergeData.this.changeObserver != null) {
-                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
-                    }
-                }
-
-                @Override
-                public String getValue() {
-                    if(start == -1) {
-                        return "";
-                    }
-                    return "" + start;
-                }
-            };
-
-            endStringWrapper = new ChessPadLayout.StringKeeper() {
-                @Override
-                public void setValue(String value) {
-                    if( value.isEmpty()) {
-                        end = -1;
-                    } else {
-                        end = getNumericValue(value);
-                    }
-                    if(MergeData.this.changeObserver != null) {
-                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
-                    }
-                }
-
-                @Override
-                public String getValue() {
-                    if(end == -1) {
-                        return "";
-                    }
-                    return "" + end;
-                }
-            };
-
-            maxPlysPathWrapper = new ChessPadLayout.StringKeeper() {
-                @Override
-                public void setValue(String value) {
-                    if( value.isEmpty()) {
-                        maxPlys = -1;
-                    } else {
-                        maxPlys = getNumericValue(value);
-                    }
-                    if(MergeData.this.changeObserver != null) {
-                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
-                    }
-                }
-
-                @Override
-                public String getValue() {
-                    if(maxPlys == -1) {
-                        return "";
-                    }
-                    return "" + maxPlys;
-                }
-            };
-        }
-
-        void setChangeObserver(ChessPadLayout.ChangeObserver changeObserver) {
-            this.changeObserver = changeObserver;
-        }
-    }
-
-    private void setCheckMark(TextView textViewAnnotate, MergeData mergeData) {
-        int res = 0;
-        if(mergeData.annotate) {
-            res = R.drawable.check;
-        }
-        textViewAnnotate.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
-    }
-
-    private void attachStringKeeper(final EditText editText, final ChessPadLayout.StringKeeper stringKeeper) {
-        if(stringKeeper == null) {
-            return;
-        }
-        editText.setText(stringKeeper.getValue());
-        editText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+        if (dialogType == DialogType.Puzzle) {
+            if (currentPath instanceof CpFile.PgnFile) {
+                currentPath = currentPath.getParent();
             }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                String text = s.toString().toLowerCase();
-                String oldText = stringKeeper.getValue();
-                if(!text.equals(oldText)) {
-                    stringKeeper.setValue(text);
+        } else {
+            if (pgnItem != null) {
+                // set highlighted line
+                if (currentPath.differs(pgnItem.getParent())) {
+                    String currentAbsPath = currentPath.getAbsolutePath();
+                    String parentPath = pgnItem.getParent().getAbsolutePath();
+                    if (parentPath.startsWith(currentAbsPath)) {
+                        CpFile.CpParent parent = pgnItem.getParent();
+                        while (currentPath.differs(parent.getParent())) {
+                            parent = parent.getParent();
+                        }
+                        String relPath = parent.getRelativePath();
+                        getPgnFileListAdapter = getPgnFileListAdapter(currentPath, relPath);
+                    }
+                } else {
+                    selectedLine = chessPad.getPgnGraph().getPgnItemIndex();
                 }
             }
-        });
+        }
+        if (getPgnFileListAdapter == null) {
+            getPgnFileListAdapter = getPgnFileListAdapter(currentPath, selectedLine);
+        }
+        launchDialog(dialogType, getPgnFileListAdapter);
+        adjustSize(currentAlertDialog, .9, .9);
     }
 
+    // for Append and Merge
     @SuppressLint("ClickableViewAccessibility")
-    private void dlgSelectPgn(final DialogType dialogType) {
+    private void dlgSelectPgnFile(final DialogType dialogType) {
         if (currentAlertDialog != null) {
             return;
         }
@@ -815,73 +717,26 @@ public class Popups {
         final ListView fileListView = dialog.findViewById(R.id.file_list);
 
         MergeData _mergeData;
-
         fileListShown = false;
-        if(dialogType == DialogType.Puzzle) {
-            adjustSize(dialog, .9, .9);
-            _mergeData = new MergeData();
-            dialog.findViewById(R.id.append_controls_pane).setVisibility(View.GONE);
-            dialog.findViewById(R.id.append_path_title).setVisibility(View.GONE);
-            dialog.findViewById(R.id.end_dialog_buttons_pane).setVisibility(View.GONE);
-            fileListShown = true;
-
-            final CpFile cpFile = chessPad.getPgnGraph().getPgn();
-            if (cpFile != null) {
-                CpFile path = chessPad.getCurrentPath();
-                filePathTextView.setText(CpFile.getRelativePath(path));
-                while ((path instanceof CpFile.Item) || (path instanceof CpFile.Pgn)) {
-                    filePathTextView.setText(CpFile.getRelativePath(path));
-                    path = path.getParent();
-                }
-                int selectedIndex = 0;
-                try {
-                    selectedIndex = cpFile.parentIndex(path);
-                } catch (Config.PGNException e) {
-                    Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                }
-                mergePgnFileListAdapter = new PgnFileListAdapter(path, selectedIndex) {
-                    @Override
-                    protected void onConvertViewClick(int position) {
-                        Log.d(DEBUG_TAG, "Open Puzzles onConvertViewClick " + position);
-                        CpFile newPath = (CpFile) mergePgnFileListAdapter.getItem(position);
-                        filePathTextView.setText(CpFile.getRelativePath(newPath));
-                        if (newPath instanceof CpFile.Pgn) {
-                            returnFromDialog(dialogType, newPath, 0);
-                            dismissDlg();
-                        } else if (newPath instanceof CpFile.Item) {
-                            // sanity check
-                            Log.e(DEBUG_TAG, String.format("Invalid selection %s", newPath.toString()));
-                        } else {
-                            chessPad.setCurrentPath(newPath);
-                            int selectedIndex = 0;
-                            try {
-                                selectedIndex = cpFile.parentIndex(newPath);
-                            } catch (Config.PGNException e) {
-                                Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                            }
-                            mergePgnFileListAdapter.refresh(chessPad.getCurrentPath(), selectedIndex);
-                        }
-
-                    }
-                };
-                fileListView.setAdapter(mergePgnFileListAdapter);
-            }
-        } else if(dialogType == DialogType.Append) {
+        if (dialogType == DialogType.Append) {
             _mergeData = this.appendData;
-        } else {  // if(dialogType == DialogType.Merge)
+        } else {  // if (dialogType == DialogType.Merge)
             filePathTextView.setEnabled(false);
             _mergeData = this.mergeData;
             View mergeControls = dialog.findViewById(R.id.merge_controls_pane);
             mergeControls.setVisibility(View.VISIBLE);
         }
         final MergeData mergeData = _mergeData;
-        if(mergeData.pgnPath == null) {
-            CpFile path = chessPad.getCurrentPath();
-            mergeData.pgnPath = CpFile.getRelativePath(path);
-            while ((path instanceof CpFile.Item) || (path instanceof CpFile.Pgn)) {
-                mergeData.pgnPath = CpFile.getRelativePath(path);
-                path = path.getParent();
+        CpFile.CpParent currentPath = chessPad.getCurrentPath();
+        while ((currentPath instanceof CpFile.PgnFile)) {
+            if (mergeData.pgnFile == null) {
+                mergeData.pgnFile = (CpFile.PgnFile)currentPath;
             }
+            currentPath = currentPath.getParent();
+        }
+        if (mergeData.pgnFile == null) {
+            // should not be here!
+            mergeData.pgnFile = (CpFile.PgnFile)chessPad.getPgnGraph().getPgnItem().getParent();
         }
 
         mergeData.setChangeObserver((value) -> btnOk.setEnabled(((MergeData)value).isMergeSetupOk()));
@@ -900,7 +755,7 @@ public class Popups {
                 mergeData.pgnPathWrapper.setValue(s.toString());
             }
         });
-        filePathTextView.setText(mergeData.pgnPath);
+        filePathTextView.setText(mergeData.pgnFile.getAbsolutePath());
 
         if (fileListShown) {
             fileListView.setVisibility(View.VISIBLE);
@@ -914,58 +769,61 @@ public class Popups {
             } else {
                 String fileName = filePathTextView.getText().toString();
                 Log.d(DEBUG_TAG, String.format("onClick: %s", DialogType.Merge.toString()));
-                File appendToFile = new File(CpFile.getRootPath(), fileName);
-                returnFromDialog(dialogType, appendToFile.getAbsoluteFile(), 0);
+                if (dialogType == DialogType.Append) {
+                    chessPad.getPgnGraph().setPgnItemIndex(-1);     // to append
+                }
                 dismissDlg();
+                returnFromDialog(dialogType, CpFile.CpParent.fromPath(fileName), 0);
             }
         });
+        // search button:
         dialog.findViewById(R.id.lookup_button).setOnClickListener((v) -> {
+            if (fileListShown) {
+                return;
+            }
             fileListShown = true;
             fileListView.setVisibility(View.VISIBLE);
-            final CpFile cpFile = chessPad.getPgnGraph().getPgn();
-            if (cpFile != null) {
-                CpFile path = chessPad.getCurrentPath();
-                filePathTextView.setText(CpFile.getRelativePath(path));
-                while ((path instanceof CpFile.Item) || (path instanceof CpFile.Pgn)) {
-                    filePathTextView.setText(CpFile.getRelativePath(path));
-                    path = path.getParent();
-                }
+            CpFile.CpParent parent = null;
+            CpFile.PgnItem pgnItem = chessPad.getPgnGraph().getPgnItem();
+            if (pgnItem != null) {
+                parent = pgnItem.getParent();
+            }
+            if (parent == null) {
+                parent = chessPad.getCurrentPath();
+            }
 
-                int selectedIndex = 0;
-                try {
-                    selectedIndex = cpFile.parentIndex(path);
-                } catch (Config.PGNException e) {
-                    Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                }
-                mergePgnFileListAdapter = new PgnFileListAdapter(path, selectedIndex) {
-                    @Override
-                    protected void onConvertViewClick(int position) {
-                        Log.d(DEBUG_TAG, "PgnFileListAdapter.subclass.onConvertViewClick " + position);
-                        CpFile newPath = (CpFile) mergePgnFileListAdapter.getItem(position);
-                        filePathTextView.setText(CpFile.getRelativePath(newPath));
-                        if (newPath instanceof CpFile.Pgn) {
-                            fileListShown = false;
-                            fileListView.setVisibility(View.GONE);
-                            fileListView.setAdapter(null);
-                        } else if (newPath instanceof CpFile.Item) {
-                            Log.e(DEBUG_TAG, String.format("Invalid selection %s", newPath.toString()));
+            filePathTextView.setText(parent.getAbsolutePath());
+            while (parent instanceof CpFile.PgnFile) {
+                filePathTextView.setText(parent.getAbsolutePath());
+                parent = parent.getParent();
+            }
+
+            int selectedIndex = -1;
+            mergePgnFileListAdapter = new PgnFileListAdapter(parent, selectedIndex) {
+                @Override
+                protected void onConvertViewClick(int position) {
+                    Log.d(DEBUG_TAG, "PgnFileListAdapter.subclass.onConvertViewClick " + position);
+                    CpFile.CpParent newPath = (CpFile.CpParent)mergePgnFileListAdapter.getItem(position);
+                    if (newPath instanceof CpFile.PgnFile) {
+                        fileListShown = false;
+                        fileListView.setVisibility(View.GONE);
+                        fileListView.setAdapter(null);
+                        filePathTextView.setText(newPath.getAbsolutePath());
+                    } else {
+                        if (position == 0) {
+                            chessPad.setCurrentPath(newPath.getParent());
                         } else {
                             chessPad.setCurrentPath(newPath);
-                            int selectedIndex = 0;
-                            try {
-                                selectedIndex = cpFile.parentIndex(newPath);
-                            } catch (Config.PGNException e) {
-                                Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                            }
-                            mergePgnFileListAdapter.refresh(chessPad.getCurrentPath(), selectedIndex);
                         }
-
+                        filePathTextView.setText(chessPad.getCurrentPath().getAbsolutePath());
+                        mergePgnFileListAdapter.refresh(chessPad.getCurrentPath(), position);
                     }
-                };
-                fileListView.setAdapter(mergePgnFileListAdapter);
-                fileListView.setFastScrollEnabled(true);
-                fileListView.setFastScrollAlwaysVisible(true);
-            }
+
+                }
+            };
+            fileListView.setAdapter(mergePgnFileListAdapter);
+            fileListView.setFastScrollEnabled(true);
+            fileListView.setFastScrollAlwaysVisible(true);
         });
 
         // for merge only:
@@ -983,12 +841,187 @@ public class Popups {
         attachStringKeeper(dialog.findViewById(R.id.merge_end), mergeData.endStringWrapper);
         attachStringKeeper(dialog.findViewById(R.id.merge_max_plys), mergeData.maxPlysPathWrapper);
 
+        adjustSize(dialog, .9, .9);
         currentAlertDialog = dialog;
         dialog.show();
     }
 
-    private PgnFileListAdapter getPgnFileListAdapter(CpFile parentItem, int initSelection) {
-        if(pgnFileListAdapter == null || pgnFileListAdapter.isChanged(parentItem)
+    static class MergeData extends PgnGraph.MergeData {
+        ChessPadLayout.StringKeeper startStringWrapper;
+        ChessPadLayout.StringKeeper endStringWrapper;
+        ChessPadLayout.StringKeeper maxPlysPathWrapper;
+        ChessPadLayout.StringKeeper pgnPathWrapper;
+        ChessPadLayout.ChangeObserver changeObserver;
+        String path;
+
+        MergeData() {
+            super();
+            init();
+        }
+
+        private void init() {
+            pgnPathWrapper = new ChessPadLayout.StringKeeper() {
+                @Override
+                public void setValue(String str) {
+                    path = str;
+                    if (MergeData.this.changeObserver != null) {
+                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    }
+                }
+
+                @Override
+                public String getValue() {
+                    if (path == null) {
+                        return "";
+                    }
+                    return path;
+                }
+            };
+
+            startStringWrapper = new ChessPadLayout.StringKeeper() {
+                @Override
+                public void setValue(String value) {
+                    if (value.isEmpty()) {
+                        start = -1;
+                    } else {
+                        start = getNumericValue(value);
+                    }
+                    if (MergeData.this.changeObserver != null) {
+                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    }
+                }
+
+                @Override
+                public String getValue() {
+                    if (start == -1) {
+                        return "";
+                    }
+                    return "" + start;
+                }
+            };
+
+            endStringWrapper = new ChessPadLayout.StringKeeper() {
+                @Override
+                public void setValue(String value) {
+                    if (value.isEmpty()) {
+                        end = -1;
+                    } else {
+                        end = getNumericValue(value);
+                    }
+                    if (MergeData.this.changeObserver != null) {
+                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    }
+                }
+
+                @Override
+                public String getValue() {
+                    if (end == -1) {
+                        return "";
+                    }
+                    return "" + end;
+                }
+            };
+
+            maxPlysPathWrapper = new ChessPadLayout.StringKeeper() {
+                @Override
+                public void setValue(String value) {
+                    if (value.isEmpty()) {
+                        maxPlys = -1;
+                    } else {
+                        maxPlys = getNumericValue(value);
+                    }
+                    if (MergeData.this.changeObserver != null) {
+                        MergeData.this.changeObserver.onValueChanged(MergeData.this);
+                    }
+                }
+
+                @Override
+                public String getValue() {
+                    if (maxPlys == -1) {
+                        return "";
+                    }
+                    return "" + maxPlys;
+                }
+            };
+        }
+
+        void setChangeObserver(ChessPadLayout.ChangeObserver changeObserver) {
+            this.changeObserver = changeObserver;
+        }
+
+        public MergeData(BitStream.Reader reader) throws Config.PGNException {
+            super(reader);
+            try {
+                path = reader.readString();
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
+            }
+            init();
+        }
+
+        @Override
+        public void serialize(BitStream.Writer writer) throws Config.PGNException {
+            super.serialize(writer);
+            try {
+                writer.writeString(path);
+            } catch (IOException e) {
+                throw new Config.PGNException(e);
+            }
+        }
+
+        public boolean isMergeSetupOk() {
+            if (path == null) {
+                return false;
+            }
+            if (!CpFile.isPgnOk(path)) {
+                return false;
+            }
+            return end == -1 || start <= end;
+        }
+
+    }
+
+    private void setCheckMark(TextView textViewAnnotate, MergeData mergeData) {
+        int res = 0;
+        if (mergeData.annotate) {
+            res = R.drawable.check;
+        }
+        textViewAnnotate.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
+    }
+
+    private void attachStringKeeper(final EditText editText, final ChessPadLayout.StringKeeper stringKeeper) {
+        if (stringKeeper == null) {
+            return;
+        }
+        editText.setText(stringKeeper.getValue());
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                String text = s.toString().toLowerCase();
+                String oldText = stringKeeper.getValue();
+                if (!text.equals(oldText)) {
+                    stringKeeper.setValue(text);
+                }
+            }
+        });
+    }
+
+    private PgnFileListAdapter getPgnFileListAdapter(CpFile.CpParent parentItem, String selectedChild) {
+        PgnFileListAdapter pgnFileListAdapter = getPgnFileListAdapter(parentItem, -1);
+        pgnFileListAdapter.setSelectedChild(selectedChild);
+        return pgnFileListAdapter;
+    }
+
+    private PgnFileListAdapter getPgnFileListAdapter(CpFile.CpParent parentItem, int initSelection) {
+        if (pgnFileListAdapter == null || pgnFileListAdapter.isChanged(parentItem)
                    || pgnFileListAdapter.getCount() == 0) {  // kludgy way to fix storage permission change problem
             pgnFileListAdapter = new PgnFileListAdapter(parentItem, initSelection);
         }
@@ -1000,24 +1033,24 @@ public class Popups {
         dismissDlg();
         crashAlert(R.string.crash_cannot_list);
         pgnFileListAdapter = null;
-        chessPad.setCurrentPath(CpFile.getRootDir());
     }
 
     /////////////// array adapters /////////////////////////
 
-    private class TextArrayAdapter extends CPArrayAdapter {
-        TextArrayAdapter(List<?> values, int selectedIndex) {
+    // objects can be images, texts
+    private class TextArrayAdapter<T> extends CPArrayAdapter<T> {
+        TextArrayAdapter(List<T> values, int selectedIndex) {
             super(values, selectedIndex);
         }
 
         @Override
         @SuppressLint("ClickableViewAccessibility")
         protected void setRowViewHolder(RowViewHolder rowViewHolder, final int position) {
-            rowViewHolder.valueView = rowViewHolder.convertView.findViewById(R.id.view_row);
-            rowViewHolder.valueView.setVisibility(View.VISIBLE);
-            rowViewHolder.valueView.setEnabled(false);
-            rowViewHolder.valueView.setText(getValues().get(position).toString());
-            rowViewHolder.valueView.setOnTouchListener((v, event) -> {
+            rowViewHolder.rowValue = rowViewHolder.convertView.findViewById(R.id.view_row);
+            rowViewHolder.rowValue.setVisibility(View.VISIBLE);
+            rowViewHolder.rowValue.setEnabled(false);
+            rowViewHolder.rowValue.setText(getValues().get(position).toString());
+            rowViewHolder.rowValue.setOnTouchListener((v, event) -> {
                 if (event.getAction() == MotionEvent.ACTION_UP) {
                     onConvertViewClick(position);
                 }
@@ -1033,23 +1066,9 @@ public class Popups {
         }
     }
 
-    private class EndgameOptionsAdapter extends TextArrayAdapter {
-        EndgameOptionsAdapter(List<Pair<String, String>> values) {
-            super(values, -1);
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        protected void setRowViewHolder(RowViewHolder rowViewHolder, final int position) {
-            super.setRowViewHolder(rowViewHolder, position);
-            Pair<String, String> value = (Pair<String, String>)getValues().get(position);
-            rowViewHolder.valueView.setText(value.second);
-        }
-    }
-
-    private class TagListAdapter extends CPArrayAdapter {
+    private class TagListAdapter extends CPArrayAdapter<Pair<String, String>> {
         // last item is an extra tag to add a new line
-        private final List<Pair<String, String>> values;
+//        private final List<Pair<String, String>> values;
         final RowTextWatcher[] rowTextWatchers;
 
         TagListAdapter(List<Pair<String, String>> values) {
@@ -1058,38 +1077,38 @@ public class Popups {
             rowTextWatchers = new RowTextWatcher[values.size()];
         }
 
-        @Override
-        protected List<?> getValues() {
-            return values;
-        }
+//        @Override
+//        protected List<?> getValues() {
+//            return values;
+//        }
 
         @SuppressLint("ClickableViewAccessibility")
         @Override
         protected void setRowViewHolder(RowViewHolder rowViewHolder, final int position) {
             View layout = rowViewHolder.convertView.findViewById(R.id.row_layout);
             layout.setVisibility(View.VISIBLE);
-            rowViewHolder.labelView = rowViewHolder.convertView.findViewById(R.id.row_label);
-            rowViewHolder.valueView = rowViewHolder.convertView.findViewById(R.id.row_value);
+            rowViewHolder.rowLabel = rowViewHolder.convertView.findViewById(R.id.row_label);
+            rowViewHolder.rowValue = rowViewHolder.convertView.findViewById(R.id.row_value);
             rowViewHolder.actionButton = rowViewHolder.convertView.findViewById(R.id.row_action_button);
-            rowViewHolder.valueView.setTag(position);
-            rowViewHolder.labelView.setTag(position);
+            rowViewHolder.rowValue.setTag(position);
+            rowViewHolder.rowLabel.setTag(position);
             rowViewHolder.actionButton.setTag(position);
 
             RowTextWatcher rowTextWatcher = rowTextWatchers[position];
-            if(rowTextWatcher != null) {
-                rowViewHolder.labelView.removeTextChangedListener(rowTextWatcher);
-                rowViewHolder.valueView.removeTextChangedListener(rowTextWatcher);
+            if (rowTextWatcher != null) {
+                rowViewHolder.rowLabel.removeTextChangedListener(rowTextWatcher);
+                rowViewHolder.rowValue.removeTextChangedListener(rowTextWatcher);
             }
             rowTextWatcher = new RowTextWatcher(rowViewHolder);
             rowTextWatchers[position] = rowTextWatcher;
 
             Pair<String, String> tag = values.get(position);
             String labelText = tag.first;
-            rowViewHolder.labelView.setText(labelText);
-            rowViewHolder.valueView.setText(tag.second);
+            rowViewHolder.rowLabel.setText(labelText);
+            rowViewHolder.rowValue.setText(tag.second);
 
-            rowViewHolder.labelView.addTextChangedListener(rowTextWatcher);
-            rowViewHolder.valueView.addTextChangedListener(rowTextWatcher);
+            rowViewHolder.rowLabel.addTextChangedListener(rowTextWatcher);
+            rowViewHolder.rowValue.addTextChangedListener(rowTextWatcher);
 
             int actionButtonRes;
             if (Config.STR.contains(labelText)) {
@@ -1106,16 +1125,17 @@ public class Popups {
             }
 
             if (position == values.size() - 1) {
-                rowViewHolder.labelView.setEnabled(true);
+                rowViewHolder.rowLabel.setEnabled(true);
                 actionButtonRes = R.drawable.add;
             } else {
-                rowViewHolder.labelView.setEnabled(false);
+                rowViewHolder.rowLabel.setEnabled(false);
             }
             rowViewHolder.actionButton.setCompoundDrawablesWithIntrinsicBounds(0, 0, actionButtonRes, 0);
         }
 
         @Override
         protected void onConvertViewClick(int position) {
+            // do nothing
             Log.d(DEBUG_TAG, "TagListAdapter.onConvertViewClick " + position);
         }
 
@@ -1137,9 +1157,9 @@ public class Popups {
                 Pair<String, String> tag = values.get(index);
                 String label = tag.first;
                 String text = tag.second;
-                String newLabel = rowViewHolder.labelView.getText().toString();
-                String newText = rowViewHolder.valueView.getText().toString();
-                if(label.equals(newLabel) && text.equals(newText)) {
+                String newLabel = rowViewHolder.rowLabel.getText().toString();
+                String newText = rowViewHolder.rowValue.getText().toString();
+                if (label.equals(newLabel) && text.equals(newText)) {
                     return;
                 }
                 if (DEBUG) {
@@ -1150,7 +1170,7 @@ public class Popups {
         }
     }
 
-    private int dp2Pixels(int dp) {
+    private int dp2Pixels() {
         final float scale = chessPad.getResources().getDisplayMetrics().density;
         return (int) (30 * scale + 0.5f);
     }
@@ -1163,17 +1183,17 @@ public class Popups {
         Log.d(DEBUG_TAG, String.format("Offset %d%%, free %s, %.1f%%", progress, freeMemory, percentAvail));
     }
 
-    private class PgnFileListAdapter extends CPArrayAdapter {
-        private CpFile parentItem;
-        private List<CpFile> cpFileList;  // values
+    private class PgnFileListAdapter extends CPArrayAdapter<CpFile> {
+        private CpFile.CpParent parentItem;
         private boolean addParentLink;
+        private String selectedChild;
 
-        PgnFileListAdapter(CpFile parentItem, int initSelection) {
+        PgnFileListAdapter(CpFile.CpParent parentItem, int initSelection) {
             super();
             refresh(parentItem, initSelection);
         }
 
-        void refresh(final CpFile parentItem, int initSelection) {
+        void refresh(final CpFile.CpParent parentItem, int initSelection) {
             if (DEBUG) {
                 Log.d(DEBUG_TAG, "PgnFileListAdapter.refresh, thread " + Thread.currentThread().getName());
             }
@@ -1188,39 +1208,18 @@ public class Popups {
             // greeble31 suggested to allocate certain amount of memory and free it on OOM and process abort. Then Android will still have memory to continue.
             // For some reason SoftReference does not work with API 22, releases the buffer on the 1st GC
             final byte[][] oomReserve = new byte[1][];
-            if(parentItem instanceof CpFile.Pgn) {
+            if (parentItem instanceof CpFile.PgnFile) {
                 oomReserve[0] = new byte[5 * 1024 * 1024];
             }
 
             addParentLink = false;
-            if (!parentItem.getAbsolutePath().equals(CpFile.getRootDir().getAbsolutePath())) {
+            if (!parentItem.isRoot()) {
                 addParentLink = true;
                 ++selectedIndex;
             }
 
             new CPAsyncTask(chessPad.chessPadLayout, new CPExecutor() {
-                @Override
-                public void onPostExecute() {
-                    oomReserve[0] = null;
-                    System.gc();    // ??
-                    try {
-                        Thread.sleep(500);
-                    } catch (InterruptedException e) {
-                        Log.e(DEBUG_TAG, "sleep", e);
-                    }
-                    parentItem.setTotalChildren(cpFileList.size());
-                    Log.d(DEBUG_TAG, String.format("Child list %d items long, thread %s", cpFileList.size(), Thread.currentThread().getName()));
-                    if (addParentLink) {
-                        cpFileList.add(0, parentItem.getParent());
-                    }
-                    notifyDataSetChanged();
-                }
-
-                @Override
-                public void onExecuteException(Config.PGNException e) {
-                    Log.e(DEBUG_TAG, "PgnFileListAdapter.onExecuteException, thread " + Thread.currentThread().getName(), e);
-                    onLoadParentCrash();
-                }
+                private List<CpFile> cpFileList = new ArrayList<>();     // fix crash report from 4/11/2020 21:45
 
                 @Override
                 public void doInBackground(final ProgressPublisher progressPublisher) {
@@ -1228,13 +1227,13 @@ public class Popups {
                     Log.d(DEBUG_TAG, String.format("PgnFileListAdapter.getChildrenNames start, thread %s", Thread.currentThread().getName()));
                     try {
                         cpFileList = parentItem.getChildrenNames((progress) -> {
-                            if(progress < 0) {
+                            if (progress < 0) {
                                 // on OOM additional diagnostics require more memory and crash
 //                                String message = "ERROR, list truncated to " + (-progress);
                                 chessPad.sendMessage(Config.MSG_NOTIFICATION, "Operation aborted");
                                 return true;
                             }
-                            if(DEBUG) {
+                            if (DEBUG) {
                                 if (oldProgress[0] != progress) {
                                     checkMemory(progress);
                                     oldProgress[0] = progress;
@@ -1246,26 +1245,47 @@ public class Popups {
                         Log.d(DEBUG_TAG, String.format("getChildrenNames list %d items long, thread %s", cpFileList.size(), Thread.currentThread().getName()));
                     } catch (Config.PGNException e) {
                         Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
-                        cpFileList = new ArrayList<>();     // fix crash report from 4/11/2020 21:45
                     }
+                }
+
+                @Override
+                public void onPostExecute() {
+                    oomReserve[0] = null;
+                    System.gc();    // ??
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        Log.e(DEBUG_TAG, "sleep", e);
+                    }
+                    Log.d(DEBUG_TAG, String.format("Child list %d items long, thread %s", cpFileList.size(), Thread.currentThread().getName()));
+                    if (addParentLink) {
+                        cpFileList.add(0, parentItem);
+                    }
+                    values = cpFileList;
+                    notifyDataSetChanged();
+                }
+
+                @Override
+                public void onExecuteException(Config.PGNException e) {
+                    Log.e(DEBUG_TAG, "PgnFileListAdapter.onExecuteException, thread " + Thread.currentThread().getName(), e);
+                    onLoadParentCrash();
                 }
             }).execute();
         }
 
         @Override
-        List<?> getValues() {
-            return cpFileList;
-        }
-
-        @Override
         public void setSelectedIndex(int selectedIndex) {
-            if(addParentLink) {
+            if (addParentLink) {
                 ++selectedIndex;
             }
-            this.selectedIndex = selectedIndex;
+            super.setSelectedIndex(selectedIndex);
         }
 
-        boolean isChanged(CpFile parentItem) {
+        public void setSelectedChild(String selectedChild) {
+            this.selectedChild = selectedChild;
+        }
+
+        boolean isChanged(CpFile.CpParent parentItem) {
             return this.parentItem.differs(parentItem);
         }
 
@@ -1281,55 +1301,78 @@ public class Popups {
             String text;
             String displayLength = "";
             int res = 0;
+            boolean goBackRow = false;
+            CpFile cpFile = (CpFile)values.get(position);
             if (position == 0 && addParentLink) {
-                text = "..";
+                text = DIR_GO_UP_TEXT;
                 res = R.drawable.go_up;
+                goBackRow = true;
             } else {
-                CpFile cpFile = cpFileList.get(position);
+                text = cpFile.getRelativePath();
                 displayLength = cpFile.getDisplayLength();
-                text = cpFile.toString();
                 if (cpFile instanceof CpFile.Zip) {
                     res = R.drawable.zip;
                 } else if (cpFile instanceof CpFile.Dir) {
                     res = R.drawable.folder;
-                } else if (cpFile instanceof CpFile.Pgn) {
+                } else if (cpFile instanceof CpFile.PgnFile) {
                     res = R.drawable.pw;
-//                } else {
-//                    res = R.drawable.pw;        // to do ?
                 }
             }
 
+            if (selectedChild != null) {
+                if (selectedChild.equals(text)) {
+                    selectedIndex = position;
+                }
+            }
             View layout = rowViewHolder.convertView.findViewById(R.id.row_layout);
             layout.setVisibility(View.VISIBLE);
-            rowViewHolder.labelView = rowViewHolder.convertView.findViewById(R.id.row_label);
-            rowViewHolder.labelView.setVisibility(View.GONE);
-            rowViewHolder.valueView = rowViewHolder.convertView.findViewById(R.id.row_value);
+            rowViewHolder.rowLabel = rowViewHolder.convertView.findViewById(R.id.row_label);
+            rowViewHolder.rowLabel.setVisibility(View.GONE);
+            rowViewHolder.rowValue = rowViewHolder.convertView.findViewById(R.id.row_value);
             rowViewHolder.actionButton = rowViewHolder.convertView.findViewById(R.id.row_action_button);
 
-            rowViewHolder.valueView.setText(text);
-            rowViewHolder.valueView.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
-
-            rowViewHolder.valueView.setOnTouchListener((v, event) -> {
+            rowViewHolder.rowValue.setText(text);
+            rowViewHolder.rowValue.setCompoundDrawablesWithIntrinsicBounds(res, 0, 0, 0);
+            rowViewHolder.rowValue.setOnTouchListener((v, event) -> {
                 if (event.getAction() == MotionEvent.ACTION_UP) {
                     onConvertViewClick(position);
                 }
                 // true if the event was handled and should not be given further down to other views.
                 return true;
             });
-            if(displayLength.length() > 0) {
+            rowViewHolder.rowValue.setFocusable(false);
+
+            if (goBackRow || cpFile instanceof CpFile.PgnItemName) {
+                rowViewHolder.actionButton.setVisibility(View.GONE);
+            } else {
+                rowViewHolder.actionButton.setVisibility(View.VISIBLE);
+/* todo: implement delete
+                rowViewHolder.actionButton.setCompoundDrawablesWithIntrinsicBounds(0, 0, R.drawable.delete_small, 0);
+//*/
+                rowViewHolder.actionButton.setText(displayLength);
                 rowViewHolder.actionButton.setLayoutParams(new LinearLayout.LayoutParams(
                         0,
-                        dp2Pixels(20),
+                        dp2Pixels(),
+                        3.0f
+                ));
+            }
+
+/*
+            if (displayLength.length() > 0) {
+                rowViewHolder.actionButton.setLayoutParams(new LinearLayout.LayoutParams(
+                        0,
+                        dp2Pixels(),
                         3.0f
                 ));
                 rowViewHolder.actionButton.setText(displayLength);
             } else {
                 rowViewHolder.actionButton.setLayoutParams(new LinearLayout.LayoutParams(
                         0,
-                        dp2Pixels(20),
+                        dp2Pixels(),
                         0
                 ));
             }
+*/
         }
     }
 

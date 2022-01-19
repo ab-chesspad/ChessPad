@@ -96,33 +96,19 @@ public class DgtBoardView extends SetupView {
         });
 
         // override super:
-        setupStatus.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
-                    if(getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
-                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.SetupMess, false);
-                    } else {
-                        getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game, true);
-                    }
-                    DgtBoardView.this.draw();
+        setupStatus.setOnTouchListener((v, event) -> {
+            if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
+                if(getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
+                    getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.SetupMess, false);
+                } else {
+                    getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game, true);
                 }
-                // true if the event was handled and should not be given further down to other views.
-                return true;
+                DgtBoardView.this.draw();
             }
+            // true if the event was handled and should not be given further down to other views.
+            return true;
         });
     }
-
-/*
-    ChessPadLayout.CpEditText createTextView(RelativeLayout relativeLayout) {
-        ChessPadLayout.CpEditText view = new ChessPadLayout.CpEditText(chessPad);
-        view.setPadding(0, 0, 0, 0);
-        view.setTextSize(16);
-        view.setTextColor(Color.DKGRAY);
-        relativeLayout.addView(view);
-        return view;
-    }
-*/
 
     @Override
     Board getBoard() {
@@ -198,7 +184,7 @@ public class DgtBoardView extends SetupView {
         btnWhiteQueenCastle.setVisibility(View.GONE);
         btnWhiteKingCastle.setVisibility(View.GONE);
         btnBlackQueenCastle.setVisibility(View.GONE);
-        btnBlackKingCastle.setVisibility(View.GONE);;
+        btnBlackKingCastle.setVisibility(View.GONE);
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -220,7 +206,6 @@ public class DgtBoardView extends SetupView {
         controlPaneLayout.setVisibility(View.GONE);
         super.draw();
         Log.d(DEBUG_TAG, String.format("draw() done %s", getDgtBoardPad().getBoardStatus().toString()));
-//        invalidate();
     }
 
     @Override

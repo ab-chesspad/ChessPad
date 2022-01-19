@@ -13,7 +13,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+
+ * full ChessPad screen
+ * Created by Alexander Bootman on 8/20/16.
+ */
 package com.ab.droid.chesspad.layout;
 
 import android.annotation.SuppressLint;
@@ -47,10 +50,6 @@ import com.ab.pgn.Pair;
 
 import java.util.List;
 
-/**
- * full ChessPad screen
- * Created by Alexander Bootman on 8/20/16.
- */
 public class ChessPadLayout implements ProgressBarHolder {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
@@ -139,12 +138,9 @@ public class ChessPadLayout implements ProgressBarHolder {
         }
         cpView.controlPaneLayout.setVisibility(View.VISIBLE);
         cpView.draw();
-        boolean showProgressBar = false;
-        if (cpProgressBar != null) {
-            showProgressBar = cpProgressBar.isVisible();
+        if (cpProgressBar == null) {
+            cpProgressBar = new CpProgressBar(chessPad, mainLayout);
         }
-        cpProgressBar = new CpProgressBar(chessPad, mainLayout);
-        cpProgressBar.show(showProgressBar);
         invalidate();
     }
 
@@ -291,6 +287,7 @@ public class ChessPadLayout implements ProgressBarHolder {
             return true;
         });
         title.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        title.setFocusable(false);
         this.addView(title);
         menuButton = this.createImageButton(mainLayout, ChessPad.Command.Menu, R.drawable.menu);
     }
@@ -508,7 +505,7 @@ public class ChessPadLayout implements ProgressBarHolder {
             h = Metrics.titleHeight;
             y = Metrics.titleHeight * 2;
             progressBar = new ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal);
-            progressBar.setVisibility(View.GONE);
+            progressBar.setVisibility(View.INVISIBLE);
             progressBar.setMax(100);
             addView(relativeLayout, progressBar, x, y, w, h);
 
@@ -521,7 +518,7 @@ public class ChessPadLayout implements ProgressBarHolder {
             progressText.setBackgroundColor(Color.RED);
             progressText.setTextColor(Color.WHITE);
             progressText.setGravity(Gravity.CENTER);
-            progressText.setVisibility(View.GONE);
+            progressText.setVisibility(View.INVISIBLE);
             addView(relativeLayout, progressText, x, y, w, h);
             isVisible = false;
         }
@@ -539,9 +536,10 @@ public class ChessPadLayout implements ProgressBarHolder {
                 progressBar.setVisibility(View.VISIBLE);
                 progressText.setVisibility(View.VISIBLE);
             } else {
-                progressBar.setVisibility(View.GONE);
-                progressText.setVisibility(View.GONE);
+                progressBar.setVisibility(View.INVISIBLE);
+                progressText.setVisibility(View.INVISIBLE);
             }
+//            Log.d("chesspad-debug", String.format("CpProgressBar %b, draw %s", doShow, Thread.currentThread().getName()));
         }
 
         void update(int progress) {
@@ -550,4 +548,3 @@ public class ChessPadLayout implements ProgressBarHolder {
         }
     }
 }
-
