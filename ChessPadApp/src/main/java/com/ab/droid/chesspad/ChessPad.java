@@ -19,10 +19,7 @@
  */
 package com.ab.droid.chesspad;
 
-import android.Manifest;
-import android.app.Activity;
 import android.content.ComponentCallbacks2;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
@@ -35,6 +32,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.DocumentsContract;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.widget.RelativeLayout;
@@ -42,8 +40,6 @@ import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.core.content.pm.PackageInfoCompat;
 import androidx.documentfile.provider.DocumentFile;
 
@@ -55,22 +51,22 @@ import com.ab.pgn.Board;
 import com.ab.pgn.Book;
 import com.ab.pgn.Config;
 import com.ab.pgn.CpEventObserver;
-import com.ab.pgn.io.CpFile;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnGraph;
 import com.ab.pgn.Setup;
 import com.ab.pgn.Square;
 import com.ab.pgn.dgtboard.DgtBoardPad;
+import com.ab.pgn.io.CpFile;
 import com.ab.pgn.uci.UCI;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
@@ -183,8 +179,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         StopDgtGame,
     }
 
-    private final static int OPEN_DIRECTORY_REQUEST_CODE = 1;
-
     private static String defaultDirectory;
 
     public Mode mode = Mode.Game;
@@ -223,18 +217,16 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     //    private MediaPlayer dingPlayer;
     private PuzzleData puzzleData;
 
-    transient private String intentFileName = null;
+    transient private CpFile.CpParent intentFile = null;
     transient private boolean isDestroying = false;
     transient private UCI uci;
     transient private UCI.IncomingInfoMessage incomingInfoMessage;
     transient private Book openingBook;
 
     private static ChessPad instance;
-
     public static ChessPad getInstance() {
         return instance;
     }
-
     public static Context getContext() {
         return instance;
     }
@@ -270,9 +262,13 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         this.setContentView(mainLayout, rlp);
         chessPadLayout = new ChessPadLayout(this);
 
+        try {
+            pgnGraph = new PgnGraph(new Board());
+        } catch (Config.PGNException e) {
+            Log.e(DEBUG_TAG, "cannot create inital pgnGraph");
+        }
         puzzleData = new PuzzleData(this);
         popups = new Popups(this);
-        setupDirs();
 
         try {
             PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
@@ -283,7 +279,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             versionName = "0.0";
         }
         setupErrs = getResources().getStringArray(R.array.setup_errs);
-        init();
         bgMessageHandler = new CpHandler(this);
         dgtBoardInterface = new DgtBoardInterface(new DgtBoardInterface.StatusObserver() {
             @Override
@@ -317,7 +312,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 }
             }
         });
-        dgtBoardPad = new DgtBoardPad(dgtBoardInterface, getDefaultDirectory(), getCpEventObserver());
 
         try (InputStream is = this.getAssets().open(BOOK_ASSET_NAME)) {
             int length = is.available();
@@ -374,9 +368,13 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         mode = Mode.Game;
         chessPadLayout.redraw();
         chessPadLayout.invalidate();
-        intentFileName = getIntentFileName();
-        if (intentFileName != null) {
-            currentPath = CpFile.CpParent.fromPath(intentFileName);
+        setupDirs();
+
+        init();
+        dgtBoardPad = new DgtBoardPad(dgtBoardInterface, getDefaultDirectory(), getCpEventObserver());
+
+        if ((intentFile = handleIntentView()) != null) {
+            currentPath = intentFile;
             popups.dialogType = Popups.DialogType.Load;
         } else {
             restoreData();
@@ -384,52 +382,34 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         Log.d(DEBUG_TAG, "onStart() done");
     }
 
-    // on fresh start only
-    private String getIntentFileName() {
-        String intentFileName = null;
+    // copy intent file into default directory
+    private CpFile.CpParent handleIntentView() {
+        CpFile.CpParent intentFile = null;
         Intent intent = getIntent();
         String action = intent.getAction();
-        if (Intent.ACTION_VIEW.equals(action)) {
-            Log.d(DEBUG_TAG, String.format("action %s", action));
+        if (!Intent.ACTION_VIEW.equals(action)) {
+            return intentFile;
         }
-        Log.d(DEBUG_TAG, String.format("action %s", action));
-        Uri data = intent.getData();
-        if (data == null) {
-            intentFileName = intent.getStringExtra(Intent.EXTRA_TEXT);
-        } else {
-            String scheme = data.getScheme();
-            if ("file".equals(scheme)) {
-                intentFileName = data.getEncodedPath();
-                if (intentFileName != null)
-                    intentFileName = Uri.decode(intentFileName);
-            }
-            if ((intentFileName == null) &&
-                    ("content".equals(scheme) || "file".equals(scheme))) {
-                String type = intent.getType();
-                String ext;
-                if ("application/zip".equals(type)) {
-                    ext = CpFile.EXT_ZIP;
-                } else {
-                    ext = CpFile.EXT_PGN;
-                }
-                intentFileName = CpFile.getRootPath() + File.separator + DEFAULT_DIRECTORY + File.separator + "download" + ext;
-                ContentResolver resolver = getContentResolver();
-                try (InputStream is = resolver.openInputStream(data);
-                     OutputStream os = new FileOutputStream(intentFileName)) {
-                    CpFile.copy(is, os);
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+        Uri uri = intent.getData();
+        DocumentFile documentFile = DocumentFile.fromSingleUri(this, uri);
+        String intentFileName = documentFile.getName();
+        if (intentFileName == null) {
+            return null;
         }
-        Log.d(DEBUG_TAG, String.format("intentFileName %s", intentFileName));
-        return intentFileName;
+
+        // check if file exists and create a unique name?
+        intentFileName = DEFAULT_DIRECTORY + CpFile.SLASH + intentFileName;
+        try (InputStream is = getContext().getContentResolver().openInputStream(uri);
+                OutputStream os = new FileOutputStream(CpFile.newFile(intentFileName))) {
+            CpFile.copy(is, os);
+            intentFile = CpFile.CpParent.fromPath(intentFileName);
+        } catch (IOException e) {
+            Log.e(DEBUG_TAG, e.getMessage(), e);
+        }
+        return intentFile;
     }
 
-
-    // Called when the activity will start interacting with the user
+    // Called when the activity starts interacting with the user
     // after onStart() or onPause()
     // @RequiresApi(api = Build.VERSION_CODES.HONEYCOMB_MR1)
     @Override
@@ -450,10 +430,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         if (uci != null) {
             uci.doAnalysis(doAnalysis);
         }
-        if (intentFileName == null) {
+        if (intentFile == null) {
             chessPadLayout.invalidate();
         }
-        intentFileName = null;
+        intentFile = null;
         popups.afterUnserialize();
         Log.d(DEBUG_TAG, "onResume() done");
     }
@@ -575,7 +555,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     private void init() {
         try {
             setup = null;
-            pgnGraph = new PgnGraph(new Board());
             sample();       // initially create a sample pgn
         } catch (Throwable t) {
             Log.e(DEBUG_TAG, t.getLocalizedMessage(), t);
@@ -1169,110 +1148,6 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private void setupDirs() {
-        // todo!!
-/*
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE);
-*/
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            int PERMISSION_REQUEST_CODE = 1;
-/*
-            if (ContextCompat.checkSelfPermission(MainActivity.this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-
-                if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                } else {
-                    ActivityCompat.requestPermissions(MainActivity.this,
-                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                            PERMISSION_REQUEST_CODE);
-                }
-            }
-*/
-            if (ContextCompat.checkSelfPermission(this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    != PackageManager.PERMISSION_GRANTED) {
-
-                if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-                } else {
-                    ActivityCompat.requestPermissions(this,
-                            new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                            PERMISSION_REQUEST_CODE);
-                }
-            }
-        }
-
-        File root = Environment.getExternalStorageDirectory();
-//        File f = getContext().getFilesDir();
-        File f1 = getContext().getExternalFilesDir(DEFAULT_DIRECTORY);
-        boolean res = f1.mkdirs();  // false
-
-/*
-        File f2 = new File(getContext().getExternalFilesDir(null), "test");
-        try {
-            OutputStream os = new FileOutputStream(f2);
-            byte[] data = "test string".getBytes(StandardCharsets.UTF_8);
-            os.write(data);
-            os.close();
-        } catch (IOException e) {
-            // Unable to create file, likely because external storage is
-            // not currently mounted.
-            Log.w("ExternalStorage", "Error writing " + f2, e);
-        }
-*/
-
-        CpFile.setRoot(root.getAbsolutePath());
-        currentPath = CpFile.CpParent.fromPath(DEFAULT_DIRECTORY);
-
-//        if (!PermissionUtils.checkStoragePermission(this)) {
-//            currentPath = null;
-//            return;
-//        }
-//
-//        ACTION_MANAGE_STORAGE
-
-/*
-        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-                );
-        startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE);
-*/
-
-        File dir = CpFile.newFile(getDefaultDirectory());
-        dir.mkdirs();
-    }
-
-
-    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        super.onActivityResult(requestCode, resultCode, intent);
-
-        if (requestCode == OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            this.getContentResolver().takePersistableUriPermission(
-                    intent.getData(),
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-            );
-            loadDirectory(intent.getData());
-        }
-    }
-
-    private void loadDirectory(Uri directoryUri) {
-        DocumentFile documentsTree = DocumentFile.fromTreeUri(this, directoryUri);
-        DocumentFile[] childDocuments = documentsTree.listFiles();
-        for (DocumentFile childDocument : childDocuments) {
-            Log.d(DEBUG_TAG, childDocument.toString());
-        }
-
-    }
-
     private void switchToSetup() {
         setup = new Setup(pgnGraph);
         mode = Mode.Setup;
@@ -1807,6 +1682,24 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
     public boolean isFlipped() {
         return flipped;
+    }
+
+//    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
+    private void setupDirs() {
+
+//        String manufacturer = android.os.Build.MANUFACTURER;
+        File root;
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+        } else {
+            root = Environment.getExternalStorageDirectory();
+        }
+        CpFile.setRoot(root.getAbsolutePath());
+        currentPath = CpFile.CpParent.fromPath(DEFAULT_DIRECTORY);
+        File dir = new File(root, DEFAULT_DIRECTORY);
+        // on Samsung /sdcard/Documents does not exist
+        // but nonetheless if the app has permission, it will be vreated along with ChessPad
+        boolean res = dir.mkdirs();
     }
 
     // GUI access

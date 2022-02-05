@@ -235,7 +235,7 @@ public class Popups {
                 break;
 
             case Glyphs:
-                launchDialog(dialogType, new TextArrayAdapter(glyphs, chessPad.getPgnGraph().getGlyph()));
+                launchDialog(dialogType, new TextArrayAdapter<String>(glyphs, chessPad.getPgnGraph().getGlyph()));
                 break;
 
             case Tags:
@@ -253,7 +253,7 @@ public class Popups {
 
             case Menu:
                 final List<ChessPad.MenuItem> menuItems = chessPad.getMenuItems();
-                launchDialog(dialogType, new TextArrayAdapter(menuItems, -1) {
+                launchDialog(dialogType, new TextArrayAdapter<ChessPad.MenuItem>(menuItems, -1) {
                     @Override
                     protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
                         super.setRowViewHolder(rowViewHolder, position);
@@ -267,7 +267,7 @@ public class Popups {
                     @Override
                     protected void onConvertViewClick(int position) {
                         Log.d(DEBUG_TAG, "TextArrayAdapter.subclass.onConvertViewClick " + position);
-                        if ( menuItems.get(position).isEnabled()) {
+                        if (menuItems.get(position).isEnabled()) {
                             super.onConvertViewClick(position);
                         }
                     }
@@ -283,7 +283,7 @@ public class Popups {
                     _promotionList = bPromotionList;
                 }
                 final List<Integer> promotionList = _promotionList;
-                launchDialog(dialogType, new TextArrayAdapter(promotionList, -1) {
+                launchDialog(dialogType, new TextArrayAdapter<Integer>(promotionList, -1) {
                     @Override
                     protected void setRowViewHolder(RowViewHolder rowViewHolder, int position) {
                         super.setRowViewHolder(rowViewHolder, position);
@@ -302,7 +302,7 @@ public class Popups {
                 break;
 
             case Variations:
-                launchDialog(dialogType, new TextArrayAdapter(chessPad.getPgnGraph().getVariations(), 0) {
+                launchDialog(dialogType, new TextArrayAdapter<Move>(chessPad.getPgnGraph().getVariations(), 0) {
                     @Override
                     protected void setRowViewHolder(RowViewHolder rowViewHolder, final int position) {
                         super.setRowViewHolder(rowViewHolder, position);
@@ -442,9 +442,15 @@ public class Popups {
                     } else {
                         chessPad.setCurrentPath((CpFile.CpParent)selectedValue);
                     }
-                    // refresh dialog without blink
-                    pgnFileListAdapter.refresh(chessPad.getCurrentPath(), selected);
-                    this.dialogType = dialogType;   // restore
+                    if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.Q) {
+                        // refresh dialog without blink
+                        pgnFileListAdapter.refresh(chessPad.getCurrentPath(), selected);
+                        this.dialogType = dialogType;   // restore
+                    } else {
+                        // does not work for API 30 and up
+                        dismissDlg();
+                        launchDialog(dialogType);
+                    }
                 }
                 break;
 
@@ -465,8 +471,12 @@ public class Popups {
 
             case Append:
                 chessPad.mode = ChessPad.Mode.Game;
-                chessPad.getPgnGraph().getPgnItem().setParent((CpFile.PgnFile)selectedValue);
-                chessPad.savePgnGraph(true, () -> chessPad.setPgnGraph(-1, null));
+                CpFile.PgnFile pgnFile = (CpFile.PgnFile) selectedValue;
+                chessPad.getPgnGraph().getPgnItem().setParent(pgnFile);
+                chessPad.savePgnGraph(true, () -> {
+                    chessPad.setCurrentPath(pgnFile);
+                    chessPad.setPgnGraph(-1, null);
+                });
                 break;
 
             case Merge:
@@ -532,7 +542,6 @@ public class Popups {
         launchDialog(dialogType, null, 0, arrayAdapter, DialogButton.None);
     }
 
-    // todo: fix sizes
     private void launchDialog(final DialogType dialogType, String msg, int icon, final CPArrayAdapter arrayAdapter, DialogButton button) {
         if (currentAlertDialog != null) {
             return;
@@ -1037,7 +1046,6 @@ public class Popups {
 
     /////////////// array adapters /////////////////////////
 
-    // objects can be images, texts
     private class TextArrayAdapter<T> extends CPArrayAdapter<T> {
         TextArrayAdapter(List<T> values, int selectedIndex) {
             super(values, selectedIndex);
@@ -1067,8 +1075,7 @@ public class Popups {
     }
 
     private class TagListAdapter extends CPArrayAdapter<Pair<String, String>> {
-        // last item is an extra tag to add a new line
-//        private final List<Pair<String, String>> values;
+        // last item is a special line to add a new tag
         final RowTextWatcher[] rowTextWatchers;
 
         TagListAdapter(List<Pair<String, String>> values) {
@@ -1076,11 +1083,6 @@ public class Popups {
             this.values = values;
             rowTextWatchers = new RowTextWatcher[values.size()];
         }
-
-//        @Override
-//        protected List<?> getValues() {
-//            return values;
-//        }
 
         @SuppressLint("ClickableViewAccessibility")
         @Override
@@ -1301,12 +1303,12 @@ public class Popups {
             String text;
             String displayLength = "";
             int res = 0;
-            boolean goBackRow = false;
+            boolean goUpRow = false;
             CpFile cpFile = (CpFile)values.get(position);
             if (position == 0 && addParentLink) {
                 text = DIR_GO_UP_TEXT;
                 res = R.drawable.go_up;
-                goBackRow = true;
+                goUpRow = true;
             } else {
                 text = cpFile.getRelativePath();
                 displayLength = cpFile.getDisplayLength();
@@ -1342,7 +1344,7 @@ public class Popups {
             });
             rowViewHolder.rowValue.setFocusable(false);
 
-            if (goBackRow || cpFile instanceof CpFile.PgnItemName) {
+            if (goUpRow || cpFile instanceof CpFile.PgnItemName) {
                 rowViewHolder.actionButton.setVisibility(View.GONE);
             } else {
                 rowViewHolder.actionButton.setVisibility(View.VISIBLE);

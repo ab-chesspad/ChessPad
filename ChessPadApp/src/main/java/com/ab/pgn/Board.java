@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-* Chess _board with pieces, validation
+* Chess board with pieces, validation
 * PgnGraph vertex
 * Created by Alexander Bootman on 8/6/16.
 */
@@ -1202,7 +1202,7 @@ public class Board {
                         probeMoves = probeKingMoves;
                         break;
                 }
-                for(int[] probeMove : probeMoves) {
+                for (int[] probeMove : probeMoves) {
                     int x = i + probeMove[0];
                     if (x < 0 || x >= Config.BOARD_SIZE) {
                         continue;
@@ -1493,8 +1493,8 @@ public class Board {
         trg.toEmpty();
         trg.boardData = this.boardData;
         trg.boardCounts = this.boardCounts;
-        for(int y = 0; y < Config.BOARD_SIZE; ++y) {
-            for(int x = 0; x < Config.BOARD_SIZE; ++x) {
+        for (int y = 0; y < Config.BOARD_SIZE; ++y) {
+            for (int x = 0; x < Config.BOARD_SIZE; ++x) {
                 int piece = this.getPiece(x, y);
                 int i = Config.BOARD_SIZE - 1 - x;
                 int j = Config.BOARD_SIZE - 1 - y;

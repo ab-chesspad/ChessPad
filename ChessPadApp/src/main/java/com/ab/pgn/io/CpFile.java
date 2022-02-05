@@ -214,11 +214,6 @@ public abstract class CpFile implements Comparable<CpFile> {
             public boolean getMovesText(int index) {
                 return true;
             }
-
-            @Override
-            public boolean skip(int index) {
-                return false;
-            }
         }, parseItems);
 
         return pgnItems;
@@ -717,11 +712,6 @@ public abstract class CpFile implements Comparable<CpFile> {
                             return updIndex != index;
                         }
 
-                        @Override
-                        public boolean skip(int index) {
-                            return false;
-                        }
-
                     }, false);
 
                     if (updIndex == -1) {
@@ -786,6 +776,10 @@ public abstract class CpFile implements Comparable<CpFile> {
         static String getParentPath(String path) {
             if (path.endsWith(SLASH)) {
                 path = path.substring(0, path.length() - SLASH.length());
+            }
+            String rootPath = getRootPath();
+            if (rootPath == null) {
+                rootPath = "";
             }
             path = concat(rootPath, path);
             int i = path.lastIndexOf(SLASH);
@@ -868,9 +862,9 @@ public abstract class CpFile implements Comparable<CpFile> {
         public String getRelativePath() {
             String parentPath = parent.getAbsolutePath();
             int len = parentPath.length();
-            if (parentPath.startsWith(SLASH)) {
-                ++len;
-            }
+//            if (parentPath.startsWith(SLASH)) {
+//                ++len;
+//            }
             String res = this.absPath.substring(len);
             if (res.startsWith(SLASH)) {
                 res = res.substring(SLASH.length());
@@ -1041,11 +1035,6 @@ public abstract class CpFile implements Comparable<CpFile> {
                 public boolean getMovesText(int index) {
                     return index == searchIndex;
                 }
-
-                @Override
-                public boolean skip(int index) {
-                    return index != searchIndex;
-                }
             });
             // in case item is not found, return the last entry
             // todo: it does not contain any info, so m.b. return null??
@@ -1087,11 +1076,6 @@ public abstract class CpFile implements Comparable<CpFile> {
 
                     @Override
                     public boolean getMovesText(int index) {
-                        return false;
-                    }
-
-                    @Override
-                    public boolean skip(int index) {
                         return false;
                     }
                 });
@@ -1144,11 +1128,6 @@ public abstract class CpFile implements Comparable<CpFile> {
 
                 @Override
                 public boolean getMovesText(int index) {
-                    return false;
-                }
-
-                @Override
-                public boolean skip(int index) {
                     return false;
                 }
 
@@ -1228,11 +1207,6 @@ public abstract class CpFile implements Comparable<CpFile> {
                 }
 
                 @Override
-                public boolean skip(int index) {
-                    return false;
-                }
-
-                @Override
                 public boolean handle(CpFile entry, InputStream is) throws Config.PGNException {
                     if (child.absPath.equals(((CpParent) entry).absPath)) {
                         child.length = ((CpParent) entry).length;
@@ -1274,26 +1248,31 @@ public abstract class CpFile implements Comparable<CpFile> {
             }
 
             if (oldFile.exists()) {
-                // delete old file then rename tmp to original name
+                // delete old file
                 if (!oldFile.delete()) {
                     throw new Config.PGNException("Cannot delete " + oldFile.getAbsolutePath());
                 }
             }
-            // rename tmp to original name
             boolean delete = this.totalChildren == 0 && pgnFile.totalChildren == 0 && pgnItem.moveText == null;
             if (delete) {
                 boolean res = tmpFile.delete();
                 logger.debug(String.format("deleting %s, %s", tmpFile.getAbsolutePath(), res));
                 File rootFile = new File(CpFile.getRootPath());
-                File dir = new File(CpFile.getRootPath() + this.absPath);
-                while (!dir.getAbsolutePath().equals(rootFile.getAbsolutePath())) {
-                    File parent = dir.getParentFile();
-                    dir.delete();
-                    dir = parent;
+                File parent = new File(concat(CpFile.getRootPath(), this.getParent().absPath));
+                while (!parent.getAbsolutePath().equals(rootFile.getAbsolutePath())) {
+                    if( parent.listFiles().length > 0) {
+                        break;
+                    }
+                    File dir = parent.getParentFile();
+                    if (!parent.delete()) {
+                        throw new Config.PGNException("Cannot delete " + parent.getAbsolutePath());
+                    }
+                    parent = dir;
                 }
             } else {
+                // rename tmp to original name
                 boolean res = tmpFile.renameTo(oldFile);
-                logger.debug(String.format("renaming %s, %s", oldFile.getAbsolutePath(), res));
+                logger.debug(String.format("renamed %s, res=%s", oldFile.getAbsolutePath(), res));
             }
         }
 
@@ -1463,11 +1442,6 @@ public abstract class CpFile implements Comparable<CpFile> {
                     public boolean getMovesText(int index) {
                         return false;
                     }
-
-                    @Override
-                    public boolean skip(int index) {
-                        return false;
-                    }
                 });
                 if (!found[0]) {
                     String relativePath = pgnFile.getRelativePath();
@@ -1536,19 +1510,10 @@ public abstract class CpFile implements Comparable<CpFile> {
     public interface EntryHandler {
         boolean addOffset(int length, int totalLength);     // return true to abort
         boolean getMovesText(int index);
-        boolean skip(int index);
-
-/*
-        default boolean skip(CpFile cpFile) {               // return true to skip
+        default boolean skip(int index) {               // return true to skip
             return false;
         }
-        default boolean skip(int index, CpFile cpFile) {    // return true to skip
-            return false;
-        }
-*/
-
         boolean handle(int index, CpFile.PgnItem entry) throws Config.PGNException;    // return false to break iteration
-
         default boolean handle(CpFile entry, InputStream is) throws Config.PGNException {   // return false to break iteration
             return true;
         }

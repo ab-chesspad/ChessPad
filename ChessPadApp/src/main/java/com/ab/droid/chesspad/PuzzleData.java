@@ -74,8 +74,7 @@ public class PuzzleData {
             return;
         }
 
-        boolean doSave = this.pgnFile != null && this.pgnFile.differs(pgnFile);
-        if (doSave) {
+        if (this.pgnFile != null && this.pgnFile.differs(pgnFile)) {
             save();
         }
         this.pgnFile = pgnFile;
@@ -156,12 +155,12 @@ public class PuzzleData {
         if (pgnFile != null && totalPuzzles == Integer.MAX_VALUE) {
             totalPuzzles = pgnFile.getLength() / MIN_PUZZLE_TEXT_LENGTH;
         }
-        if( totalPuzzles <= 0) {
+        if (totalPuzzles <= 0) {
             totalPuzzles = 1;
         }
 
         int newIndex = random.nextInt(totalPuzzles);
-        if(totalPuzzles > 1) {
+        if (totalPuzzles > 1) {
             while (newIndex == currentIndex) {
                 newIndex = random.nextInt(totalPuzzles);
             }
@@ -252,7 +251,7 @@ public class PuzzleData {
 
     void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
-            if(pgnFile == null) {
+            if (pgnFile == null) {
                 writer.write(0, 1);
             } else {
                 writer.write(1, 1);

@@ -20,7 +20,6 @@ package com.ab.droid.chesspad.layout;
 
 import com.ab.pgn.Pair;
 import java.util.List;
-
 public interface TitleHolder {
     void onTitleClick();
     List<Pair<String, String>> getTags();

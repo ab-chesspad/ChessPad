@@ -322,7 +322,7 @@ public class DgtBoardPad {
         }
         Move move = null;
         ListIterator<Move> li = pgnGraph.moveLine.subList(1, index).listIterator(index - 1);
-        while(li.hasPrevious()) {
+        while (li.hasPrevious()) {
             move = li.previous();
             Board board = pgnGraph.getBoard(move);
             if (board.samePosition(pgnGraph.getInitBoard())) {
@@ -374,7 +374,7 @@ public class DgtBoardPad {
             List<Pair<String, String>> tags = new LinkedList<>();
             String save = null;
             List<Pair<String, String>> pgnTags = pgnGraph.getPgnItem().cloneTags();
-            for(Pair<String, String> tag : pgnTags) {
+            for (Pair<String, String> tag : pgnTags) {
                 switch (tag.first) {
                     case Config.TAG_Round:
                         int round = 0;
@@ -577,7 +577,7 @@ public class DgtBoardPad {
         DgtBoardWatcher.BoardMessageMoveChunk pieceChunk = null;
         DgtBoardWatcher.BoardMessageMoveChunk emptyChunk = null;
         DgtBoardWatcher.BoardMessageMoveChunk anyEmptyChunk = null;
-        for(DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
+        for (DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
             if (DEBUG) {
                 msg += sep + chunk.toString();
                 if (chunk.piece == Config.EMPTY) {
@@ -677,7 +677,7 @@ public class DgtBoardPad {
         move.setPiece(oldPiece);
         move.setTo(pieceChunk.square);
 
-        for(DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
+        for (DgtBoardWatcher.BoardMessageMoveChunk chunk : chunks) {
             if (chunk.piece != Config.EMPTY) {
                 continue;
             }

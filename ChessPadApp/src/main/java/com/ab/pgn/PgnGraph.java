@@ -83,7 +83,6 @@ public class PgnGraph {
         modified = false;
         traceModified = true;
         rootMove.packData = initBoard.pack();
-        int[] pack = rootMove.packData;
         positions.put(new Pack(rootMove.packData), initBoard);
         moveLine.add(rootMove);
     }
@@ -269,104 +268,13 @@ public class PgnGraph {
             throw new Config.PGNException(e);
         }
     }
-/*
 
-    // unserialize graph and moveline from .pgn and .mvln files specified by String path
-    public PgnGraph(String path) throws Config.PGNException {
-        init(new Board(), -1, null);
-        String pgnPath = path + EXT_PGN;
-
-        try (FileInputStream fis = new FileInputStream(CpFile.newFile(pgnPath))) {
-            final List<CpFile.PgnItem> items = new LinkedList<>();
-            CpFile.parsePgnFile(fis, new CpFile.EntryHandler() {
-                @Override
-                public boolean handle(int index, CpFile.PgnItem entry, InputStream is) throws Config.PGNException {
-                    items.add(entry);
-                    return true;
-                }
-
-                @Override
-                public boolean getMovesText(int index) {
-                    return true;
-                }
-
-                @Override
-                public boolean skip(int index) {
-                    return false;
-                }
-
-                @Override
-                public boolean addOffset(int length, int totalLength) {
-                    return false;
-                }
-            }, true);
-            // verify the only one PgnItem?
-            pgnItemIndex = 0;
-            pgnItem = (CpFile.PgnItem)items.get(pgnItemIndex);
-        } catch (IOException e) {
-            throw  new Config.PGNException(e);
-        }
-
-        String movelinePath = path + EXT_MOVELINE;
-//        String movelinePath = CpFile.concat(CpFile.getRootPath(), path) + EXT_MOVELINE;
-        try (FileInputStream fis = new FileInputStream(CpFile.newFile(movelinePath));
-             BitStream.Reader reader = new BitStream.Reader(fis)) {
-            String currentItemPath = reader.readString();
-            int totalChildren = reader.read(24);
-            if(totalChildren == 0x0ffffff) {
-                totalChildren = -1;
-            }
-            int currentItemIndex = reader.read(24);
-            if(currentItemIndex == 0x0ffffff) {
-                currentItemIndex = -1;
-            }
-            boolean currentItemModified = reader.read(1) == 1;
-            boolean currentItemTraceModified = reader.read(1) == 1;
-            this.modified = currentItemModified;
-            this.traceModified = currentItemTraceModified;
-            this.unserializeMoveLine(reader, PGN_VERSION_CODE);
-        } catch (IOException e) {
-            throw  new Config.PGNException(e);
-        }
-    }
-
-    // serialize graph and moveline to .pgn and .mvln files specified by String path
-    public void serialize(String path, boolean modified) throws Config.PGNException {
-        if (modified) {
-            CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.CpParent.fromPath(path + EXT_PGN);
-            final CpFile.PgnItem item = new CpFile.PgnItem(pgnFile);
-            pgnItem.copy(item);
-            if (!this.getInitBoard().equals(new Board())) {
-                String fen = getInitBoard().toFEN();
-                item.setFen(fen);
-            }
-            item.save(0, null);
-        }
-
-        String movelinePath = path + EXT_MOVELINE;
-//        String movelinePath = CpFile.concat(CpFile.getRootPath(), path) + EXT_MOVELINE;
-        try (FileOutputStream fos = new FileOutputStream(CpFile.newFile(movelinePath));
-             BitStream.Writer writer = new BitStream.Writer(fos) ) {
-            pgnItem.serialize(writer);
-//            CpFile.PgnFile parent = this.parent;
-//            writer.writeString(parent.getAbsolutePath());
-//            writer.write(parent.getTotalChildren(), 24);
-//            writer.write(this.getPgnItem().getIndex(), 24);
-            writer.write(this.modified ? 1 : 0, 1);
-            writer.write(this.traceModified ? 1 : 0, 1);
-            this.serializeMoveLine(writer, PGN_VERSION_CODE);
-        } catch (IOException e) {
-            throw  new Config.PGNException(e);
-        }
-    }
-
-*/
     public void serializeMoveLine(BitStream.Writer writer, int versionCode) throws Config.PGNException {
         try {
             writer.write(versionCode, 4);
             writer.write(moveLine.size() - 1, 10);
             boolean skip = true;
-            for(Move move : moveLine) {
+            for (Move move : moveLine) {
                 if (skip) {
                     skip = false;
                     continue;
@@ -388,7 +296,7 @@ public class PgnGraph {
             moveLine.add(rootMove);
             int moveLineSize = reader.read(10);
             Board board = getInitBoard();
-            for( int i = 0; i < moveLineSize; ++i) {
+            for (int i = 0; i < moveLineSize; ++i) {
                 Move move = new Move(reader, board);
                 board = this.getBoard(move);
                 moveLine.addLast(move);
@@ -430,7 +338,7 @@ public class PgnGraph {
     }
 
     public void toInit() {
-        while(moveLine.size() > 1) {
+        while (moveLine.size() > 1) {
             moveLine.removeLast();
         }
     }
@@ -506,16 +414,6 @@ public class PgnGraph {
     public CpFile.PgnItem getPgnItem() {
         return pgnItem;
     }
-
-    // why?? todo!
-    public boolean isDeletable() {
-        return !pgnItem.getParent().isRoot();
-    }
-
-//    // needed for serialization
-//    public void setPgnItem(CpFile.PgnItem pgnItem) {
-//        this.pgnItem = pgnItem;
-//    }
 
     void prepareToPgn() {
         if (!this.getInitBoard().equals(new Board())) {
@@ -685,7 +583,7 @@ public class PgnGraph {
         do {
             res.add(variation);
             variation = variation.variation;
-        } while(variation != null);
+        } while (variation != null);
         return res;
     }
 
@@ -848,7 +746,7 @@ public class PgnGraph {
         StringBuilder sb = new StringBuilder();
         Board board = this.getInitBoard();
         boolean showMoveNum = true;
-        for( Move move : moves.subList(1, moves.size())) {
+        for (Move move : moves.subList(1, moves.size())) {
             if (!showMoveNum) {
                 showMoveNum = (board.getFlags() & Config.FLAGS_BLACK_MOVE) == 0;
             }
@@ -950,7 +848,7 @@ public class PgnGraph {
                 newMove.setGlyph(move.getGlyph());
             } else {
                 Move variation;
-                while((variation = move.getVariation()) != null) {
+                while ((variation = move.getVariation()) != null) {
                     if (variation.isSameAs(newMove)) {
                         move.setVariation(newMove);
                         newMove.comment = variation.comment;
@@ -1247,11 +1145,6 @@ public class PgnGraph {
             @Override
             public boolean getMovesText(int index) {
                 return index >= mergeData.start;
-            }
-
-            @Override
-            public boolean skip(int index) {
-                return false;
             }
 
             @Override
@@ -1578,7 +1471,7 @@ public class PgnGraph {
                 logger.debug(String.format("onVariantClose %s\n%s", newMove.toString(), board.toString()));
             }
             Pair<Move, Move> variationPair = variations.removeLast();
-            while(variationPair.second != pgnGraph.moveLine.removeLast()) {}
+            while (variationPair.second != pgnGraph.moveLine.removeLast()) {}
             pgnGraph.moveLine.addLast(variationPair.first);
         }
     }
@@ -1610,13 +1503,6 @@ public class PgnGraph {
         public String getCommonComment() {
             return null;
         }
-
-//        public boolean isMergeSetupOk() {
-//            if (pgnFile == null) {
-//                return false;
-//            }
-//            return end == -1 || start <= end;
-//        }
 
         public void serialize(BitStream.Writer writer) throws Config.PGNException {
             try {

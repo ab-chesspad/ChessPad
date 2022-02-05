@@ -254,7 +254,7 @@ class GameView extends ChessPadLayout.CpView {
                 }
                 setButtonEnabled(ChessPad.Command.Prev, false);
                 setButtonEnabled(ChessPad.Command.PrevVar, false);
-                setButtonEnabled(ChessPad.Command.Delete, !puzzleMode && chessPad.getPgnGraph().isDeletable());
+                setButtonEnabled(ChessPad.Command.Delete, !puzzleMode);
             } else {
                 imageButtons.get(ChessPad.Command.Start).setImageResource(R.drawable.game_start);
                 setButtonEnabled(ChessPad.Command.Start, true);

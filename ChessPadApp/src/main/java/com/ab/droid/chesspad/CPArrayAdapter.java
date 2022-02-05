@@ -115,12 +115,12 @@ abstract class CPArrayAdapter<T> extends ArrayAdapter<T> {
     }
 
     public T getItem(int position) {
-        Object item = null;
+        T item = null;
         List<T> values = getValues();
         if (values != null) {
             item = values.get(position);
         }
-        return (T)item;
+        return item;
     }
 
     static class RowViewHolder {
@@ -133,11 +133,11 @@ abstract class CPArrayAdapter<T> extends ArrayAdapter<T> {
         @Override
         public String toString() {
             StringBuilder sb = new StringBuilder();
-            if(rowLabel != null) {
+            if (rowLabel != null) {
                 sb.append("tag ").append(rowLabel.getText().toString()).append("=");
             }
             sb.append(rowValue.getText().toString());
-            if(actionButton != null) {
+            if (actionButton != null) {
                 sb.append(", ").append(actionButton.isEnabled());
             }
             return new String(sb);

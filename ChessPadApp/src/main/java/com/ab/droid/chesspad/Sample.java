@@ -20,6 +20,9 @@
 
 package com.ab.droid.chesspad;
 
+import android.util.Log;
+
+import com.ab.pgn.Config;
 import com.ab.pgn.io.CpFile;
 
 import java.io.File;
@@ -27,6 +30,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 class Sample {
+    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
+
     void createPgnTest() {
         String pgn =
             "[White \"Fischer, R\"]\n" +
@@ -120,7 +125,7 @@ class Sample {
             byte[] buf = pgn.getBytes("UTF-8");
             fos.write(buf, 0, buf.length);
         } catch (IOException e) {
-            e.printStackTrace();
+            Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
         }
     }
 }
