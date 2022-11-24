@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 
  * keep puzzle statistics
  * Created by Alexander Bootman on 1/18/19.
-
 */
 package com.ab.droid.chesspad;
 
@@ -42,10 +41,6 @@ public class PuzzleData {
         PUZZLE_INFO_EXT = ".info",
         str_dummy = null;
 
-    private static final int
-        MIN_PUZZLE_TEXT_LENGTH = 40,    // or slightly less? [FEN "8/8/8/8/K7/8/8/7k w - - 0 1"]
-        int_dummy = 0;
-
     transient private final Random random = new Random(System.currentTimeMillis());
     //        transient private final Random random = new Random(1);    // debug
     private final ChessPad chessPad;
@@ -62,24 +57,13 @@ public class PuzzleData {
 
     public PuzzleData(ChessPad chessPad) {
         this.chessPad = chessPad;
+        reset(null);
     }
 
-    public void setPgn(CpFile.PgnFile pgnFile) {
-        init(pgnFile);
-    }
-
-    private void init(CpFile.PgnFile pgnFile) {
-        if (this.pgnFile != null && !this.pgnFile.differs(pgnFile) || this.pgnFile == null && pgnFile == null) {
-            this.pgnFile = pgnFile;
-            return;
-        }
-
-        if (this.pgnFile != null && this.pgnFile.differs(pgnFile)) {
-            save();
-        }
+    public void reset(CpFile.PgnFile pgnFile) {
+        save();
+        load(pgnFile);
         this.pgnFile = pgnFile;
-        load();
-        newPuzzle(false);
     }
 
     private void clear() {
@@ -112,9 +96,9 @@ public class PuzzleData {
             int msg = 0;
             if (chessPad.mode == ChessPad.Mode.Puzzle) {
                 ++totalFailed;
-                msg = R.string.msg_puzzle_failure;
+                msg = R.string.msg_puzzle_failure_with_statistics;
             } // else?
-            Toast.makeText(chessPad, statisticsToString(msg), Toast.LENGTH_LONG).show();
+            Toast.makeText(MainActivity.getContext(), statisticsToString(msg), Toast.LENGTH_LONG).show();
             failed = true;
         }
     }
@@ -136,29 +120,25 @@ public class PuzzleData {
                 int msg = 0;
                 if (chessPad.mode == ChessPad.Mode.Puzzle) {
                     ++totalSolved;
-                    msg = R.string.msg_puzzle_success;
+                    msg = R.string.msg_puzzle_success_with_statistics;
                 }
-                Toast.makeText(chessPad, statisticsToString(msg), Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.getContext(), statisticsToString(msg), Toast.LENGTH_LONG).show();
                 solved = true;
             }
         }
     }
 
-    public void setTotalPuzzles() {
-        if (pgnFile != null) {
-            totalPuzzles = pgnFile.getTotalChildren();
-        }
+    public void setTotalPuzzles(int totalPuzzles) {
+        this.totalPuzzles = totalPuzzles;
     }
 
     public  int getNextIndex() {
-        int totalPuzzles = this.totalPuzzles;
-        if (pgnFile != null && totalPuzzles == Integer.MAX_VALUE) {
-            totalPuzzles = pgnFile.getLength() / MIN_PUZZLE_TEXT_LENGTH;
-        }
-        if (totalPuzzles <= 0) {
-            totalPuzzles = 1;
+        if (this.totalPuzzles <= 0 || this.totalPuzzles == Integer.MAX_VALUE) {
+            currentIndex = Integer.MAX_VALUE;
+            return currentIndex;
         }
 
+        int totalPuzzles = this.totalPuzzles;
         int newIndex = random.nextInt(totalPuzzles);
         if (totalPuzzles > 1) {
             while (newIndex == currentIndex) {
@@ -169,10 +149,10 @@ public class PuzzleData {
         return currentIndex;
     }
 
-    private void load() {
+    private void load(CpFile.PgnFile pgnFile) {
         totalPuzzles = Integer.MAX_VALUE;
         if (pgnFile != null) {
-            try (DataInputStream dis = new DataInputStream(chessPad.openFileInput(puzzleInfoName(pgnFile)))) {
+            try (DataInputStream dis = new DataInputStream(MainActivity.getContext().openFileInput(puzzleInfoName(pgnFile)))) {
                 long timeStamp = dis.readLong();
                 long pgnFileTimestamp = pgnFile.lastModified();
                 if (timeStamp == pgnFileTimestamp) {
@@ -197,7 +177,7 @@ public class PuzzleData {
         if (totalOpened <= 0) {
             return "";
         }
-        final String form = chessPad.getResources().getString(format);
+        final String form = MainActivity.getContext().getResources().getString(format);
         return String.format(Locale.getDefault(), form, totalOpened, totalSolved, (float)totalSolved * 100 / totalOpened);
     }
 
@@ -205,7 +185,7 @@ public class PuzzleData {
         if (pgnFile == null) {
             return;
         }
-        try (DataOutputStream dos = new DataOutputStream(chessPad.openFileOutput(puzzleInfoName(pgnFile), Context.MODE_PRIVATE))) {
+        try (DataOutputStream dos = new DataOutputStream(MainActivity.getContext().openFileOutput(puzzleInfoName(pgnFile), Context.MODE_PRIVATE))) {
             long pgnFileTimestamp = pgnFile.lastModified();
             dos.writeLong(pgnFileTimestamp);
             dos.writeInt(totalPuzzles);
@@ -230,12 +210,9 @@ public class PuzzleData {
         try {
             if (reader.read(1) == 1) {
                 String path = reader.readString();
-                pgnFile = (CpFile.PgnFile)CpFile.CpParent.fromPath(path);
+                pgnFile = (CpFile.PgnFile)CpFile.fromPath(path);
             }
             totalPuzzles = reader.read(32);
-            if (totalPuzzles < 0) {
-                totalPuzzles = Integer.MAX_VALUE;
-            }
             totalOpened = reader.read(32);
             totalSolved = reader.read(32);
             totalFailed = reader.read(32);

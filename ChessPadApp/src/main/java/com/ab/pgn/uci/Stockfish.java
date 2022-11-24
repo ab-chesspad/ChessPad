@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
  */
 package com.ab.pgn.uci;
 
-import java.io.File;
 import java.io.IOException;
 
 public class Stockfish implements UCI.UCIImpl {
@@ -51,8 +50,8 @@ public class Stockfish implements UCI.UCIImpl {
     @Override
     public void setOptions(UCI uci) {
         // todo for non-Android case
-        File f = new File("x");
-        System.out.println(f.getAbsolutePath());
+//        File f = new File("x");
+//        System.out.println(f.getAbsolutePath());
         uci.setOption(useNNUEOption, false);
     }
 

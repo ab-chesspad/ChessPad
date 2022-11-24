@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,23 +16,19 @@
 
  * create sample file to show CP features
  * Created by Alexander Bootman on 8/28/16.
- */
+*/
 
 package com.ab.droid.chesspad;
 
-import android.util.Log;
+import com.ab.droid.chesspad.io.DocFilAx;
+import com.ab.pgn.io.FilAx;
 
-import com.ab.pgn.Config;
-import com.ab.pgn.io.CpFile;
-
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
-class Sample {
-    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
-
-    void createPgnTest() {
+public class Sample {
+    public void createSample(String fileName) {
         String pgn =
             "[White \"Fischer, R\"]\n" +
             "[Black \"Petrosian, T\"]\n" +
@@ -120,12 +116,13 @@ class Sample {
             ""
             ;
 
-        File f = CpFile.newFile(ChessPad.getDefaultDirectory(), "sample.pgn");
-        try (FileOutputStream fos = new FileOutputStream(f)) {
-            byte[] buf = pgn.getBytes("UTF-8");
-            fos.write(buf, 0, buf.length);
+        FilAx sample = new DocFilAx(fileName);
+        try (
+            OutputStream os = sample.getOutputStream()) {
+            byte[] buf = pgn.getBytes(StandardCharsets.UTF_8);
+            os.write(buf, 0, buf.length);
         } catch (IOException e) {
-            Log.e(DEBUG_TAG, e.getLocalizedMessage(), e);
+            e.printStackTrace();
         }
     }
 }

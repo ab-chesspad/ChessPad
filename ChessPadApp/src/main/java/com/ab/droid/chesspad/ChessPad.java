@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,35 +14,29 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * main activity
+ * works with main activity
  * Created by Alexander Bootman on 8/20/16.
  */
 package com.ab.droid.chesspad;
 
-import android.content.ComponentCallbacks2;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.net.Uri;
-import android.os.Build;
-import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Message;
-import android.provider.DocumentsContract;
 import android.util.Log;
-import android.view.KeyEvent;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
-import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.pm.PackageInfoCompat;
 import androidx.documentfile.provider.DocumentFile;
 
+import com.ab.droid.chesspad.io.DocFilAx;
 import com.ab.droid.chesspad.layout.ChessPadLayout;
 import com.ab.droid.chesspad.layout.Metrics;
 import com.ab.droid.chesspad.uci.Stockfish;
@@ -50,7 +44,7 @@ import com.ab.pgn.BitStream;
 import com.ab.pgn.Board;
 import com.ab.pgn.Book;
 import com.ab.pgn.Config;
-import com.ab.pgn.CpEventObserver;
+import com.ab.pgn.dgtboard.DgtBoardEventObserver;
 import com.ab.pgn.Move;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnGraph;
@@ -59,31 +53,34 @@ import com.ab.pgn.Square;
 import com.ab.pgn.dgtboard.DgtBoardPad;
 import com.ab.pgn.io.CpFile;
 import com.ab.pgn.uci.UCI;
+import com.ab.pgn.io.FilAx;
 
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.lang.ref.WeakReference;
-import java.nio.charset.StandardCharsets;
+import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
-public class ChessPad extends AppCompatActivity implements BoardHolder, ComponentCallbacks2 {
+public class ChessPad implements Serializable, BoardHolder {
     private static final boolean DEBUG = false;
     private static final boolean DEBUG_DGT_BOARD = false;
-    private static final boolean DEBUG_RESOURCES = true;
 
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private static final String
         STATUS_FILE_NAME = "status",
         CURRENT_PGN_NAME = "current-pgn",
-        DEFAULT_DIRECTORY = "ChessPad",
+        MOVES_NAME = "moves",
+        DEFAULT_DIRECTORY = "/",
+        DGT_BOARD_OUTPUT_DIRECTORY = "dgt_board",
         BOOK_ASSET_NAME = "book/combined.book",
         str_dummy = null;
 
@@ -168,6 +165,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     private enum MenuCommand {
         Load,
         Puzzle,
+        Statistics,
         Merge,
         Save,
         Append,
@@ -178,6 +176,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         StartDgtGame,
         StopDgtGame,
     }
+
+    private static final int OPEN_DIRECTORY_REQUEST_CODE = 1;
 
     private static String defaultDirectory;
 
@@ -191,11 +191,10 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
     private PgnGraph pgnGraph;
     private int animationTimeout = 1000;      // config?
-    private CpFile.CpParent currentPath = new CpFile.Dir(null, "/");
-    private Popups popups;
-    private Mode nextMode;
-    private CpFile.PgnItem nextPgnItem;
-    private int nextPgnItemIndex;
+    private CpFile currentPath = new CpFile.Dir(null, "/");
+    private final Popups popups;
+    Mode nextMode;
+    private CpFile.PgnItem nextPgnFile;
     private boolean flipped, oldFlipped;
     private int selectedPiece;
     private int versionCode;
@@ -204,121 +203,92 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
     transient private AnimationHandler animationHandler;
     transient private boolean unserializing = false;
     transient private boolean merging = false;
-    transient private String[] setupErrs;
+    transient final private String[] setupErrs;
     transient private boolean pgngraphModified = false;     // compared to status
     transient private boolean navigationEnabled = true;
+    transient private DocFilAx rootFilAx;
 
     private DgtBoardInterface dgtBoardInterface;
-    private Handler bgMessageHandler;
+    private final Handler bgMessageHandler;
 
     private boolean dgtBoardOpen = false;
     private boolean dgtBoardAccessible = DEBUG_DGT_BOARD;
 
     //    private MediaPlayer dingPlayer;
-    private PuzzleData puzzleData;
+    private final PuzzleData puzzleData;
 
-    transient private CpFile.CpParent intentFile = null;
     transient private boolean isDestroying = false;
     transient private UCI uci;
     transient private UCI.IncomingInfoMessage incomingInfoMessage;
     transient private Book openingBook;
 
-    private static ChessPad instance;
-    public static ChessPad getInstance() {
-        return instance;
-    }
-    public static Context getContext() {
-        return instance;
-    }
+    static transient final byte[][] oomReserve = new byte[1][];
 
-    private RelativeLayout mainLayout;
+    private final RelativeLayout mainLayout;
 
     public RelativeLayout getMainLayout() {
         return mainLayout;
     }
 
-    // Always followed by onStart()
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        instance = this;
-        Log.d(DEBUG_TAG, "onCreate()");
-
-        if (DEBUG_RESOURCES) {
-            try {
-                Class.forName("dalvik.system.CloseGuard")
-                        .getMethod("setEnabled", boolean.class)
-                        .invoke(null, true);
-            } catch (ReflectiveOperationException e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        mainLayout = new RelativeLayout(this);
+    public ChessPad() {
+        mainLayout = new RelativeLayout(MainActivity.getContext());
         RelativeLayout.LayoutParams rlp = new RelativeLayout.LayoutParams(
                 RelativeLayout.LayoutParams.MATCH_PARENT,
                 RelativeLayout.LayoutParams.MATCH_PARENT);
         mainLayout.setBackgroundColor(Color.BLACK);
-        this.setContentView(mainLayout, rlp);
+        MainActivity.getInstance().setContentView(mainLayout, rlp);
         chessPadLayout = new ChessPadLayout(this);
+        CPAsyncTask.setProgressBarHolder(chessPadLayout);
 
-        try {
-            pgnGraph = new PgnGraph(new Board());
-        } catch (Config.PGNException e) {
-            Log.e(DEBUG_TAG, "cannot create inital pgnGraph");
-        }
         puzzleData = new PuzzleData(this);
         popups = new Popups(this);
 
         try {
-            PackageInfo pinfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            PackageInfo pinfo = MainActivity.getContext().getPackageManager().getPackageInfo(MainActivity.getContext().getPackageName(), 0);
             versionName = pinfo.versionName;
             versionCode = (int) PackageInfoCompat.getLongVersionCode(pinfo);
-//            int targetSdkVersion = pinfo.applicationInfo.targetSdkVersion;
         } catch (PackageManager.NameNotFoundException nnfe) {
             versionName = "0.0";
         }
-        setupErrs = getResources().getStringArray(R.array.setup_errs);
-        bgMessageHandler = new CpHandler(this);
-        dgtBoardInterface = new DgtBoardInterface(new DgtBoardInterface.StatusObserver() {
+        setupErrs = MainActivity.getContext().getResources().getStringArray(R.array.setup_errs);
+
+        CpFile.setFilAxProvider(new FilAx.FilAxProvider() {
             @Override
-            public void isOpen(boolean open) {
-                dgtBoardOpen = open;
-                Log.d(DEBUG_TAG, String.format("isOpen(%b)", dgtBoardOpen));
+            public FilAx newFilAx(String path) {
+                return new DocFilAx(path);
             }
 
             @Override
-            public void isAccessible(boolean accessible) {
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    // ignore
-                }
-                dgtBoardAccessible = accessible;
-                Log.d(DEBUG_TAG, String.format("isAccessible(%b)", dgtBoardAccessible));
-                if (dgtBoardAccessible) {
-                    try {
-                        dgtBoardInterface.open();
-                    } catch (IOException e) {
-                        // happens on API 21 whith pre-connected device
-                        e.printStackTrace();
-                        Toast.makeText(ChessPad.this, e.getMessage() + "\n" + "Try to reconnect device", Toast.LENGTH_LONG).show();
-                        cancelSetup();
-                    }
-                } else {
-                    if (!isDestroying) {
-                        cancelSetup();
-                    }
-                }
+            public FilAx newFilAx(FilAx parent, String name) {
+                return new DocFilAx(parent, name);
+            }
+
+            @Override
+            public String getRootPath() {
+                return DocFilAx.getRootUri();
             }
         });
 
-        try (InputStream is = this.getAssets().open(BOOK_ASSET_NAME)) {
+        bgMessageHandler = new CpHandler(this);
+
+        try {
+            setup = null;
+            pgnGraph = new PgnGraph(new Board());
+        } catch (Throwable t) {
+            Log.e(DEBUG_TAG, t.getLocalizedMessage(), t);
+        }
+        restoreData();
+    }
+
+    void onCreateContinue() {
+        unserializing = false;
+
+        try (InputStream is = MainActivity.getContext().getAssets().open(BOOK_ASSET_NAME)) {
             int length = is.available();
             openingBook = new Book(is, length);
         } catch (IOException | Config.PGNException e) {
             e.printStackTrace();
-            Toast.makeText(ChessPad.this, e.getMessage() + "\n" + "Opening book failed to open", Toast.LENGTH_LONG).show();
+            Toast.makeText(MainActivity.getContext(), e.getMessage() + "\n" + "Opening book failed to open", Toast.LENGTH_LONG).show();
         }
 
         try {
@@ -334,7 +304,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 @Override
                 public void engineOk() {
                     Log.d(DEBUG_TAG, "engineOk()");
-                    uci.setOption("Hash", 64);
+//                    uci.setOption("Hash", 64);
                     // do we need this?
 //        uciEngine.setOption("SyzygyPath", "/storage/emulated/0/DroidFish/rtb");
 //        uciEngine.setOption("SyzygyPath", "/storage/emulated/0/DroidFish/rtb");
@@ -359,63 +329,34 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 public void reportError(String message) {
                     Log.e(DEBUG_TAG, message);
                 }
-            }, new Stockfish(this));
+            }, new Stockfish(MainActivity.getContext()));
         } catch (IOException e) {
             Log.e(DEBUG_TAG, e.getMessage(), e);
         }
         Log.d(DEBUG_TAG, "engine launched");
-
-        mode = Mode.Game;
         chessPadLayout.redraw();
+
+        chessPadLayout.enableCommentEdit(true);
         chessPadLayout.invalidate();
-        setupDirs();
-
-        init();
-        dgtBoardPad = new DgtBoardPad(dgtBoardInterface, getDefaultDirectory(), getCpEventObserver());
-
-        if ((intentFile = handleIntentView()) != null) {
-            currentPath = intentFile;
-            popups.dialogType = Popups.DialogType.Load;
-        } else {
-            restoreData();
-        }
-        Log.d(DEBUG_TAG, "onStart() done");
+        notifyUci();
+        launch();
     }
 
-    // copy intent file into default directory
-    private CpFile.CpParent handleIntentView() {
-        CpFile.CpParent intentFile = null;
-        Intent intent = getIntent();
-        String action = intent.getAction();
-        if (!Intent.ACTION_VIEW.equals(action)) {
-            return intentFile;
-        }
-        Uri uri = intent.getData();
-        DocumentFile documentFile = DocumentFile.fromSingleUri(this, uri);
-        String intentFileName = documentFile.getName();
-        if (intentFileName == null) {
-            return null;
-        }
-
-        // check if file exists and create a unique name?
-        intentFileName = DEFAULT_DIRECTORY + CpFile.SLASH + intentFileName;
-        try (InputStream is = getContext().getContentResolver().openInputStream(uri);
-                OutputStream os = new FileOutputStream(CpFile.newFile(intentFileName))) {
-            CpFile.copy(is, os);
-            intentFile = CpFile.CpParent.fromPath(intentFileName);
-        } catch (IOException e) {
-            Log.e(DEBUG_TAG, e.getMessage(), e);
-        }
-        return intentFile;
-    }
-
-    // Called when the activity starts interacting with the user
+    // Called when the activity will start interacting with the user
     // after onStart() or onPause()
     // @RequiresApi(api = Build.VERSION_CODES.HONEYCOMB_MR1)
-    @Override
-    public void onResume() {
-        super.onResume();
-        Log.d(DEBUG_TAG, "onResume()");
+    void launch() {
+        Log.d(DEBUG_TAG, "onResume(), rootFilAx=" + rootFilAx);
+        if (unserializing) {
+            return;
+        }
+        if (rootFilAx == null) {
+            popups.launchDialog(Popups.DialogType.Welcome);
+            return;
+        }
+
+        sample();
+
         if (!dgtBoardAccessible) {
             try {
                 dgtBoardInterface.checkPermissionAndOpen();
@@ -430,33 +371,40 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         if (uci != null) {
             uci.doAnalysis(doAnalysis);
         }
-        if (intentFile == null) {
-            chessPadLayout.invalidate();
+
+        CpFile intentFile;
+        if ((intentFile = handleIntentView()) != null) {
+            currentPath = intentFile;
+            popups.dialogType = Popups.DialogType.Load;
         }
-        intentFile = null;
         popups.afterUnserialize();
-        Log.d(DEBUG_TAG, "onResume() done");
     }
 
-    // Followed by either onRestart() if this activity is coming back to interact with the user, or onDestroy() if this activity is going away
-    // becomes killable
-    @Override
-    protected void onStop() {
-        super.onStop();
-        Log.d(DEBUG_TAG, "onStop()");
-        if (merging) {
-            return;     // skip serialization
-        }
-        if (uci != null) {
-            uci.doAnalysis(false);    // no BG analysis
-        }
-        serializePgnGraph();
-        serializeUI();
+    void returnFromWelcome() {
+        Log.d(DEBUG_TAG, "returnFromWelcome");
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
+//                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION |
+                        Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        MainActivity.getInstance().startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE);
     }
 
-    // The final call you receive before your activity is destroyed
-    // becomes killable
-    @Override
+    void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        if (requestCode == OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            MainActivity.getContext().getContentResolver().takePersistableUriPermission(
+                    intent.getData(),
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+            );
+            try {
+                DocFilAx.setRoot(MainActivity.getContext(), intent.getDataString());
+                rootFilAx = new DocFilAx((String)null);
+                launch();
+            } catch (Config.PGNException e) {
+                popups.crashAlert(e.getMessage());
+            }
+        }
+    }
+
     protected void onDestroy() {
         Log.d(DEBUG_TAG, "onDestroy()");
         if (uci != null) {
@@ -466,115 +414,73 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         popups.dismissDlg();
         dgtBoardInterface.close();
         dgtBoardPad.close();
-        super.onDestroy();
     }
 
-    @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
+    public void onConfigurationChanged() {
         Log.d(DEBUG_TAG, "onConfigurationChanged()");
         chessPadLayout.redraw();
         popups.relaunchDialog();
     }
 
-    /**
-     * Release memory when the UI becomes hidden or when system resources become low.
-     * This is in theory. In practice the method is being called only with ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN.
-     * Even when the program consumes huge amts of memory, it crashes with OOM because of fragmentation, never calling onTrimMemory.
-     *
-     * @param level the memory-related event that was raised.
-     */
-    @Override
-    public void onTrimMemory(int level) {
-        Log.d(DEBUG_TAG, "onTrimMemory() " + level);
-        // Determine which lifecycle or system event was raised.
-        switch (level) {
-            case ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN:
-                /*
-                   Release any UI objects that currently hold memory.
-
-                   "release your UI resources" is actually about things like caches.
-                   You usually don't have to worry about managing views or UI components because the OS
-                   already does that, and that's why there are all those callbacks for creating, starting,
-                   pausing, stopping and destroying an activity.
-                   The user interface has moved to the background.
-                */
-                break;
-
-            case ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE:
-            case ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW:
-            case ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL:
-
-                /*
-                   Release any memory that your app doesn't need to run.
-
-                   The device is running low on memory while the app is running.
-                   The event raised indicates the severity of the memory-related event.
-                   If the event is TRIM_MEMORY_RUNNING_CRITICAL, then the system will
-                   begin killing background processes.
-                */
-
-                break;
-
-            case ComponentCallbacks2.TRIM_MEMORY_BACKGROUND:
-            case ComponentCallbacks2.TRIM_MEMORY_MODERATE:
-            case ComponentCallbacks2.TRIM_MEMORY_COMPLETE:
-
-                /*
-                   Release as much memory as the process can.
-                   The app is on the LRU list and the system is running low on memory.
-                   The event raised indicates where the app sits within the LRU list.
-                   If the event is TRIM_MEMORY_COMPLETE, the process will be one of
-                   the first to be terminated.
-                */
-
-                break;
-
-            default:
-                /*
-                  Release any non-critical data structures.
-                  The app received an unrecognized memory level value
-                  from the system. Treat this as a generic low-memory message.
-                */
-                break;
+    // copy intent file into default directory
+    private CpFile handleIntentView() {
+        CpFile intentFile = null;
+        Intent intent = MainActivity.getInstance().getIntent();
+        String action = intent.getAction();
+        if (!Intent.ACTION_VIEW.equals(action)) {
+            return intentFile;
         }
+        Uri uri = intent.getData();
+        DocumentFile documentFile = DocumentFile.fromSingleUri(MainActivity.getContext(), uri);
+        String intentFileName = documentFile.getName();
+        if (intentFileName == null) {
+            return null;
+        }
+
+        // check if file exists and create a unique name?
+        intentFileName = DEFAULT_DIRECTORY + FilAx.SLASH + intentFileName;
+        try (InputStream is = MainActivity.getContext().getContentResolver().openInputStream(uri);
+            OutputStream os = CpFile.newFile(intentFileName).getOutputStream()) {
+            CpFile.copy(is, os);
+            intentFile = CpFile.fromPath(intentFileName);
+        } catch (IOException e) {
+            Log.e(DEBUG_TAG, e.getMessage(), e);
+        }
+        return intentFile;
     }
 
     public Mode getMode() {
         return mode;
     }
 
-    public CpFile.CpParent getCurrentPath() {
+    public CpFile getCurrentPath() {
         return currentPath;
     }
 
-    public void setCurrentPath(CpFile.CpParent currentPath) {
+    public void setCurrentPath(CpFile currentPath) {
         this.currentPath = currentPath;
     }
 
-    private void init() {
-        try {
-            setup = null;
-            sample();       // initially create a sample pgn
-        } catch (Throwable t) {
-            Log.e(DEBUG_TAG, t.getLocalizedMessage(), t);
-        }
-    }
+    private DgtBoardEventObserver getCpEventObserver() {
+        return new DgtBoardEventObserver() {
+            @Override
+            public void update(byte msgId) {
+                Message msg = bgMessageHandler.obtainMessage();
+                msg.arg1 = msgId & 0x0ff;
+                bgMessageHandler.sendMessage(msg);
+            }
 
-    public static String getDefaultDirectory() {
-        return DEFAULT_DIRECTORY;
-    }
-
-    private CpEventObserver getCpEventObserver() {
-        return (msgId) -> {
-            Message msg = bgMessageHandler.obtainMessage();
-            msg.arg1 = msgId & 0x0ff;
-            bgMessageHandler.sendMessage(msg);
+            @Override
+            public OutputStream getOutputStream() throws FileNotFoundException {
+                String fname = String.format("%s/rec-%s.pgn", DGT_BOARD_OUTPUT_DIRECTORY, new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(new Date()));
+                FilAx f = new DocFilAx(fname);
+                return f.getOutputStream();
+            }
         };
     }
 
     boolean isSaveable() {
-        return pgnGraph.isModified() && pgnGraph.getPgnItemIndex() != -1;
+        return pgnGraph.isModified() && pgnGraph.getPgnItem().getIndex() != -1;
     }
 
     public void setComment(String newComment) {
@@ -593,68 +499,88 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
     List<MenuItem> getMenuItems() {
         List<MenuItem> menuItems = new LinkedList<>();
-        boolean enabled = true;
-        if (mode == Mode.DgtGame) {
-            enabled = false;
+        boolean enabled = mode != Mode.DgtGame;
+        Context context = MainActivity.getContext();
+        Resources resources = context.getResources();
+        menuItems.add(new MenuItem(MenuCommand.Load, resources.getString(R.string.menu_load), enabled));
+        menuItems.add(new MenuItem(MenuCommand.Puzzle, resources.getString(R.string.menu_puzzle), enabled));
+        if (mode == Mode.Puzzle) {
+            menuItems.add(new MenuItem(MenuCommand.Statistics, resources.getString(R.string.menu_statistics), enabled));
         }
-        menuItems.add(new MenuItem(MenuCommand.Load, getResources().getString(R.string.menu_load), enabled));
-        menuItems.add(new MenuItem(MenuCommand.Puzzle, getResources().getString(R.string.menu_puzzle), enabled));
         boolean enableMerge = enabled && mode == Mode.Game && pgnGraph.getInitBoard().equals(new Board());
-        menuItems.add(new MenuItem(MenuCommand.Merge, getResources().getString(R.string.menu_merge), enableMerge));
-        menuItems.add(new MenuItem(MenuCommand.Save, getResources().getString(R.string.menu_save), enabled && isSaveable()));
-        menuItems.add(new MenuItem(MenuCommand.Append, getResources().getString(R.string.menu_append),
+        menuItems.add(new MenuItem(MenuCommand.Merge, resources.getString(R.string.menu_merge), enableMerge));
+        menuItems.add(new MenuItem(MenuCommand.Save, resources.getString(R.string.menu_save), enabled && isSaveable()));
+        menuItems.add(new MenuItem(MenuCommand.Append, resources.getString(R.string.menu_append),
                 enabled && (mode == Mode.Game || isPuzzleMode())));
         if (mode == Mode.Game) {
-            menuItems.add(new MenuItem(MenuCommand.AnyMove, getResources().getString(R.string.menu_any_move), pgnGraph.isNullMoveValid()));
-            menuItems.add(new MenuItem(MenuCommand.Setup, getResources().getString(R.string.menu_setup), true));
+            menuItems.add(new MenuItem(MenuCommand.AnyMove, resources.getString(R.string.menu_any_move), pgnGraph.isNullMoveValid()));
+            menuItems.add(new MenuItem(MenuCommand.Setup, resources.getString(R.string.menu_setup), true));
         } else if (mode == Mode.Puzzle) {
-            menuItems.add(new MenuItem(MenuCommand.Setup, getResources().getString(R.string.menu_setup), true));
+            menuItems.add(new MenuItem(MenuCommand.Setup, resources.getString(R.string.menu_setup), true));
         } else if (mode == Mode.Setup) {
-            menuItems.add(new MenuItem(MenuCommand.CancelSetup, getResources().getString(R.string.menu_cancel_setup), true));
+            menuItems.add(new MenuItem(MenuCommand.CancelSetup, resources.getString(R.string.menu_cancel_setup), true));
         }
         if (dgtBoardAccessible) {
             if (mode == Mode.DgtGame) {
-                menuItems.add(new MenuItem(MenuCommand.StopDgtGame, getResources().getString(R.string.menu_stop_dgt_game), true));
+                menuItems.add(new MenuItem(MenuCommand.StopDgtGame, resources.getString(R.string.menu_stop_dgt_game), true));
             } else {
-                menuItems.add(new MenuItem(MenuCommand.StartDgtGame, getResources().getString(R.string.menu_start_dgt_game), enabled));
+                menuItems.add(new MenuItem(MenuCommand.StartDgtGame, resources.getString(R.string.menu_start_dgt_game), enabled));
             }
         }
 
-        menuItems.add(new MenuItem(MenuCommand.About, getResources().getString(R.string.menu_about)));
+        menuItems.add(new MenuItem(MenuCommand.About, resources.getString(R.string.menu_about)));
         return menuItems;
     }
 
     private void sample() {
-        new Sample().createPgnTest();
+        new Sample().createSample("sample.pgn");
+    }
+
+    void serialize() {
+        Log.d(DEBUG_TAG, "onStop()");
+        if (merging) {
+            return;     // skip serialization
+        }
+        if (uci != null) {
+            uci.doAnalysis(false);    // no BG analysis
+        }
+        if (currentPath != null) {
+            serializeUI();
+            serializePgnGraph();
+        }
     }
 
     private void serializePgnGraph() {
         Log.d(DEBUG_TAG, String.format("serializePgnGraph() pgngraphModified=%s", pgngraphModified));
         if (pgngraphModified || pgnGraph.isModified()) {
-            try (BitStream.Writer writer = new BitStream.Writer(openFileOutput(CURRENT_PGN_NAME, Context.MODE_PRIVATE))) {
+            try (BitStream.Writer writer = new BitStream.Writer(MainActivity.getContext().openFileOutput(CURRENT_PGN_NAME, Context.MODE_PRIVATE))) {
                 pgnGraph.serializeGraph(writer, versionCode);
             } catch (Config.PGNException | IOException e) {
                 Log.e(DEBUG_TAG, "serializePgnGraph", e);
             }
             Log.d(DEBUG_TAG, "serializePgnGraph() done");
         }
+        try (BitStream.Writer writer = new BitStream.Writer(MainActivity.getContext().openFileOutput(MOVES_NAME, Context.MODE_PRIVATE))) {
+            pgnGraph.serializeMoveLine(writer, versionCode);
+        } catch (Config.PGNException | IOException e) {
+            Log.e(DEBUG_TAG, "serializeMoveLine", e);
+        }
+        Log.d(DEBUG_TAG, "serializeMoveLine() done");
     }
 
-    private boolean unserializePgnGraph(ProgressPublisher progressPublisher) {
+    private boolean unserializePgnGraph() {
         boolean res = false;
         Log.d(DEBUG_TAG, "unserializePgnGraph() start");
-        try (BitStream.Reader reader = new BitStream.Reader(openFileInput(CURRENT_PGN_NAME))) {
-            pgnGraph = new PgnGraph(reader, versionCode, new CpFile.ProgressObserver() {
-                @Override
-                public boolean setProgress(int progress) {
-                    Log.d(DEBUG_TAG, String.format("loading, Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
-                    progressPublisher.publishProgress(progress);
-                    return false;
-                }
-            });
+        try (BitStream.Reader reader = new BitStream.Reader(MainActivity.getContext().openFileInput(CURRENT_PGN_NAME))) {
+            pgnGraph = new PgnGraph(reader, versionCode);
             res = true;
         } catch (Config.PGNException | IOException e) {
             Log.w(DEBUG_TAG, "unserializePgnGraph()", e);
+        }
+        try (BitStream.Reader reader = new BitStream.Reader(MainActivity.getContext().openFileInput(MOVES_NAME))) {
+            pgnGraph.unserializeMoveLine(reader, versionCode);
+        } catch (Config.PGNException | IOException e) {
+            Log.w(DEBUG_TAG, "unserializeMoveLine()", e);
         }
         Log.d(DEBUG_TAG, "unserializePgnGraph() done");
         return res;
@@ -662,20 +588,30 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
     private void serializeUI() {
         Log.d(DEBUG_TAG, "serializeUI()");
-        try (BitStream.Writer writer = new BitStream.Writer(openFileOutput(STATUS_FILE_NAME, Context.MODE_PRIVATE))) {
+        try (BitStream.Writer writer = new BitStream.Writer(MainActivity.getContext().openFileOutput(STATUS_FILE_NAME, Context.MODE_PRIVATE))) {
             writer.write(versionCode, 8);
+            if (rootFilAx == null) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                rootFilAx.serialize(writer);
+            }
             currentPath.serialize(writer);
             writer.write(mode.getValue(), 3);
             if (mode == Mode.Setup) {
                 setup.serialize(writer);
             }
-            dgtBoardPad.serialize(writer);
-            if (nextPgnItem == null) {
+            if (dgtBoardPad == null) {
                 writer.write(0, 1);
             } else {
                 writer.write(1, 1);
-                nextPgnItem.serialize(writer);
-                writer.write(nextPgnItemIndex, 24);
+                dgtBoardPad.serialize(writer);
+            }
+            if (nextPgnFile == null) {
+                writer.write(0, 1);
+            } else {
+                writer.write(1, 1);
+                nextPgnFile.serialize(writer);
             }
             writer.write(flipped ? 1 : 0, 1);
             writer.write(oldFlipped ? 1 : 0, 1);
@@ -688,103 +624,142 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             writer.write(doAnalysis ? 1 : 0, 1);
             puzzleData.serialize(writer);
             popups.serialize(writer);
-            pgnGraph.serializeMoveLine(writer, versionCode);
         } catch (Config.PGNException | IOException e) {
             Log.d(DEBUG_TAG, "serializeUI", e);
         }
     }
 
-    private void unserializeUI() {
-        Log.d(DEBUG_TAG, "unserializeUI() start");
-        try (BitStream.Reader reader = new BitStream.Reader(openFileInput(STATUS_FILE_NAME))) {
+    // return false on failure
+    private void unserializeUI() throws Config.PGNException {
+        try (BitStream.Reader reader = new BitStream.Reader(MainActivity.getContext().openFileInput(STATUS_FILE_NAME))) {
             int oldVersionCode = reader.read(8);
-            if (versionCode == oldVersionCode) {
-                currentPath = (CpFile.CpParent)CpFile.unserialize(reader);
-                mode = Mode.value(reader.read(3));
-                if (mode == Mode.Setup) {
-                    setup = new Setup(reader);
-                } else if (mode == Mode.DgtGame) {
-                    mode = Mode.Game;   // do not launch DGT board connection automatically
-                }
-                dgtBoardPad.unserialize(reader);
-                if (reader.read(1) == 1) {
-                    nextPgnItem = (CpFile.PgnItem)CpFile.unserialize(reader);
-                    nextPgnItemIndex = reader.read(24);
-                }
-                flipped = reader.read(1) == 1;
-                oldFlipped = reader.read(1) == 1;
-                if (reader.read(1) == 1) {
-                    selectedSquare = new Square(reader);
-                }
-                doAnalysis = reader.read(1) == 1;
-                puzzleData.unserialize(reader);
-                popups.unserialize(reader);
-                if (selectedSquare != null) {
-                    selectedPiece = getBoard().getPiece(selectedSquare);
-                }
-                pgnGraph.unserializeMoveLine(reader, versionCode);
-            } else {
-                Log.w(DEBUG_TAG, String.format("Old serialization %d ignored", oldVersionCode));
+            if (versionCode != oldVersionCode) {
+                throw new Config.PGNException(String.format("Old serialization %d ignored", oldVersionCode));
             }
-        } catch (Throwable t) {
-            Log.w(DEBUG_TAG, t.getLocalizedMessage(), t);
+            if (reader.read(1) == 1) {
+                rootFilAx = new DocFilAx(reader);
+            }
+            currentPath = CpFile.unserialize(reader);
+            if (currentPath == null) {
+                currentPath = CpFile.fromPath(DEFAULT_DIRECTORY);
+            }
+            mode = Mode.value(reader.read(3));
+            if (mode == Mode.Setup) {
+                setup = new Setup(reader);
+            } else if (mode == Mode.DgtGame) {
+                mode = Mode.Game;   // do not launch DGT board connection automatically
+            }
+            if (reader.read(1) == 1) {
+                dgtBoardPad.unserialize(reader);
+            }
+            if (reader.read(1) == 1) {
+                nextPgnFile = (CpFile.PgnItem) CpFile.unserialize(reader);
+            }
+            flipped = reader.read(1) == 1;
+            oldFlipped = reader.read(1) == 1;
+            if (reader.read(1) == 1) {
+                selectedSquare = new Square(reader);
+            }
+            doAnalysis = reader.read(1) == 1;
+            puzzleData.unserialize(reader);
+            popups.unserialize(reader);
+            if (selectedSquare != null) {
+                selectedPiece = getBoard().getPiece(selectedSquare);
+            }
+        } catch (Config.PGNException e) {
+            throw e;
+        } catch(Throwable t){
+            Log.e(DEBUG_TAG, t.getLocalizedMessage(), t);
         }
         chessPadLayout.redraw();
-        Log.d(DEBUG_TAG, "unserializeUI() done");
     }
 
     private void restoreData() {
         // unserialize data asynchronously, show progress bar
-        // can be quite long, e.g. SicilianGranPrix-merged.pgn
+        // can be quite long, e.g. for SicilianGranPrix-merged.pgn
+        if (dgtBoardInterface == null) {
+            dgtBoardInterface = new DgtBoardInterface(new DgtBoardInterface.StatusObserver() {
+                @Override
+                public void isOpen(boolean open) {
+                    dgtBoardOpen = open;
+                    Log.d(DEBUG_TAG, String.format("isOpen(%b)", dgtBoardOpen));
+                }
+
+                @Override
+                public void isAccessible(boolean accessible) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        // ignore
+                    }
+                    dgtBoardAccessible = accessible;
+                    Log.d(DEBUG_TAG, String.format("isAccessible(%b)", dgtBoardAccessible));
+                    if (dgtBoardAccessible) {
+                        try {
+                            dgtBoardInterface.open();
+                        } catch (IOException e) {
+                            // happens on API 21 whith pre-connected device
+                            e.printStackTrace();
+                            Toast.makeText(MainActivity.getContext(), e.getMessage() + "\n" + "Try to reconnect device", Toast.LENGTH_LONG).show();
+                            cancelSetup();
+                        }
+                    } else {
+                        if (!isDestroying) {
+                            cancelSetup();
+                        }
+                    }
+                }
+            });
+            dgtBoardPad = new DgtBoardPad(dgtBoardInterface, getCpEventObserver());
+        }
+
         unserializing = true;
         chessPadLayout.enableCommentEdit(false);
+        try {
+            unserializeUI();
 
-        new CPAsyncTask(chessPadLayout, new CPExecutor() {
-            @Override
-            public void doInBackground(final ProgressPublisher progressPublisher) {
-                Log.d(DEBUG_TAG, String.format("restoreData start, thread %s", Thread.currentThread().getName()));
-                unserializePgnGraph(progressPublisher);
-            }
+            new CPAsyncTask(new CPExecutor() {
+                @Override
+                public void doInBackground(final CpFile.ProgressObserver progressObserver) {
+                    reserveOOMBuffer();
+                    Log.d(DEBUG_TAG, String.format("restoreData start, thread %s", Thread.currentThread().getName()));
+                    unserializePgnGraph();
+                }
 
-            @Override
-            public void onPostExecute() {
-                Log.d(DEBUG_TAG, String.format("restoreData onPostExecute, thread %s", Thread.currentThread().getName()));
-                unserializeUI();
-                notifyUci();
-                chessPadLayout.invalidate();
-                unserializing = false;
-                chessPadLayout.enableCommentEdit(true);
-            }
+                @Override
+                public void onPostExecute() {
+                    freeOOMBuffer();
+                    Log.d(DEBUG_TAG, String.format("restoreData onPostExecute, thread %s", Thread.currentThread().getName()));
+                    onCreateContinue();
+                }
 
-            @Override
-            public void onExecuteException(Config.PGNException e) {
-                Log.e(DEBUG_TAG, "toNextGame, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                popups.crashAlert(R.string.crash_cannot_load);
-            }
+                @Override
+                public void onExecuteException(Throwable e) {
+                    freeOOMBuffer();
+                    Log.e(DEBUG_TAG, "restoreData, onExecuteException, thread " + Thread.currentThread().getName(), e);
+                    if (e instanceof OutOfMemoryError) {
+                        popups.crashAlert(R.string.crash_oom);
+                    } else {
+                        popups.crashAlert(R.string.crash_cannot_load);
+                    }
+                }
 
-        }).execute();
+            }).execute();
+        } catch (Config.PGNException e) {
+            Log.w(DEBUG_TAG, e);
+            onCreateContinue();
+        }
     }
 
     private boolean isUiFrozen() {
         return unserializing || merging || animationHandler != null;
     }
 
-    @Override
-    public boolean onKeyDown(int keyCode, KeyEvent event) {
-        if (keyCode == KeyEvent.KEYCODE_MENU) {
-            onButtonClick(Command.Menu);
-            // return 'true' to prevent further propagation of the key event
-            return true;
-        }
-        // let the system handle all other key events
-        return super.onKeyDown(keyCode, event);
-    }
-
     public void onButtonClick(Command command) {
         Board board = getBoard();
         if (DEBUG) {
             if (board != null) {
-                Log.d(DEBUG_TAG, String.format("click %s\n%s", command.toString(), board.toString()));
+                Log.d(DEBUG_TAG, String.format("click %s\n%s", command.toString(), board));
             }
         }
         switch (command) {
@@ -793,7 +768,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 if (!isUiFrozen()) {
                     if (pgnGraph.isInit()) {
                         Log.d(DEBUG_TAG, "to prev game");
-                        toNextGame((CpFile.PgnFile) pgnGraph.getPgnItem().getParent(), pgnGraph.getPgnItemIndex() - 1);
+                        CpFile.PgnItem currentPgnItem = pgnGraph.getPgnItem();
+                        toNextGame((CpFile.PgnFile)currentPgnItem.getParent(), currentPgnItem.getIndex() - 1);
                     } else {
                         pgnGraph.toInit();
                         notifyUci();
@@ -826,7 +802,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
             case Next:
                 if (!isUiFrozen()) {
-                    if (!puzzleData.isDone() && puzzleData.solvedMoves <= pgnGraph.moveLine.size() - 1) {
+                    if (isPuzzleMode() &&
+                            !puzzleData.isDone() && puzzleData.solvedMoves <= pgnGraph.moveLine.size() - 1) {
                         puzzleData.setFailed();
                     }
                     selectedSquare = null;
@@ -878,19 +855,19 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             case End:
                 selectedSquare = null;
                 if (!isUiFrozen()) {
-                    CpFile.PgnItem currentItem = pgnGraph.getPgnItem();
+                    CpFile.PgnItem currentPgnItem = pgnGraph.getPgnItem();
                     if (isPuzzleMode()) {
                         if (puzzleData.started && puzzleData.isUnsolved()) {
                             puzzleData.setFailed();
                         }
                         stopAnalysis();
                         if (mode == Mode.Puzzle) {
-                            toNextGame((CpFile.PgnFile) currentItem.getParent(), puzzleData.getNextIndex());
+                            toNextGame((CpFile.PgnFile)currentPgnItem.getParent(), puzzleData.getNextIndex());
                         }
                     } else {    //  if (mode == Mode.Game) {
                         if (pgnGraph.isEnd()) {
                             Log.d(DEBUG_TAG, "to next game");
-                            toNextGame((CpFile.PgnFile) currentItem.getParent(), pgnGraph.getPgnItemIndex() + 1);
+                            toNextGame((CpFile.PgnFile)currentPgnItem.getParent(), currentPgnItem.getIndex() + 1);
                         } else {
                             animationHandler = new AnimationHandler(animationTimeout, new TimeoutObserver() {
                                 @Override
@@ -925,6 +902,8 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             case Flip:
                 if (mode == Mode.DgtGame) {
                     dgtBoardPad.setFlipped(!dgtBoardPad.isFlipped());
+                } else if (mode == Mode.Setup) {
+                    setup.setFlipped(!setup.isFlipped());
                 } else {
                     flipped = !flipped;
                 }
@@ -993,7 +972,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
             savePgnGraph(false, () -> {
                 pgnGraph = new PgnGraph(new Board());
                 pgngraphModified = true;
-                currentPath = currentPath.getParent();
+                currentPath = CpFile.fromPath(DocFilAx.getParentPath(currentPath.getAbsolutePath()));
                 notifyUci();
                 chessPadLayout.invalidate();
             });
@@ -1013,13 +992,13 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         switch (mode) {
             case Game:
             case Puzzle:
-                return pgnGraph.getPgnItem().cloneTags();
+                return pgnGraph.getPgnItem().getTags();
 
             case Setup:
-                return setup.cloneTags();
+                return setup.getTags();
 
             case DgtGame:
-                return dgtBoardPad.cloneTags();
+                return dgtBoardPad.getTags();
 
         }
         return null;    // should never happen
@@ -1101,12 +1080,17 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 popups.launchDialog(Popups.DialogType.Puzzle);
                 break;
 
+            case Statistics:
+                String msg = puzzleData.statisticsToString(R.string.msg_puzzle_statistics);
+                popups.dlgMessage(Popups.DialogType.ShowMessage, msg, 0, Popups.DialogButton.Ok);
+                break;
+
             case About:
                 popups.launchDialog(Popups.DialogType.ShowMessage);
                 break;
 
             case Save:
-                savePgnGraph(true, () -> setPgnGraph(-1, null));
+                savePgnGraph(true, () -> setPgnGraph(null));
                 break;
 
             case Append:
@@ -1169,9 +1153,9 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         if (pgnGraph.getParsingErrorNum() != 0) {
             String error = pgnGraph.getParsingError();
             if (error == null) {
-                error = String.format("%s, %s", getSetupErr(pgnGraph.getParsingErrorNum()), getResources().getString(R.string.err_moves_ignored));
+                error = String.format("%s, %s", getSetupErr(pgnGraph.getParsingErrorNum()), MainActivity.getContext().getResources().getString(R.string.err_moves_ignored));
             }
-            Toast.makeText(ChessPad.this, error, Toast.LENGTH_LONG).show();
+            Toast.makeText(MainActivity.getContext(), error, Toast.LENGTH_LONG).show();
         }
     }
 
@@ -1201,47 +1185,38 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         chessPadLayout.redraw();
     }
 
-    // after loading a new item or ending setup
+    // after loading a new pgnItem or ending setup
     // in Setup on 'setup ok' (null)
     // after ending Append (null)
     // after SaveModified?, savePgnGraph, (null)
     // after SaveModified, negative, (null)
-    // after load, new item
-    public void setPgnGraph(int index, CpFile.PgnItem item) throws Config.PGNException {
+    // after load, new pgnItem
+    public void setPgnGraph(CpFile.PgnItem pgnItem) throws Config.PGNException {
         if (pgnGraph.isModified()) {
-            Log.d(DEBUG_TAG, String.format(Locale.US, "setPgnGraph %s, old is modified", item));
-            nextPgnItem = item;
-            nextPgnItemIndex = index;
+            Log.d(DEBUG_TAG, String.format(Locale.US, "setPgnGraph %s, old is modified", pgnItem));
+            nextPgnFile = pgnItem;
             popups.launchDialog(Popups.DialogType.SaveModified);
         } else {
-            if (item == null) {
+            if (pgnItem == null) {
                 if (mode == Mode.Game || mode == Mode.Puzzle) {
-                    item = nextPgnItem;
-                    index = nextPgnItemIndex;
+                    pgnItem = nextPgnFile;
                 }
             }
 
-            boolean asyncLoad = false;
-            if (item == null && setup != null) {
+            if (pgnItem == null && setup != null) {
                 pgnGraph = setup.toPgnGraph();
                 pgngraphModified = true;
-            } else if (item != null) {
-                Log.d(DEBUG_TAG, String.format("setPgnGraph loadPgnGraph %d. %s", index, item));
-                loadPgnGraph(index, item);
-                asyncLoad = true;
+                cancelSetup();
+            } else if (pgnItem != null) {
+                if (this.nextMode != null) {
+                    this.mode = this.nextMode;
+                    this.nextMode = null;
+                }
+                Log.d(DEBUG_TAG, String.format("setPgnGraph loadPgnGraph %s", pgnItem));
+                loadPgnGraph(pgnItem);
             }
-
             if (nextMode == Mode.DgtGame) {
                 openDgtMode();
-            } else {
-                if (!asyncLoad) {
-                    puzzleData.setPgn(null);
-                }
-                nextPgnItem = null;
-                selectedSquare = null;
-                incomingInfoMessage = null;
-                popups.promotionMove = null;
-                cancelSetup();
             }
         }
         popups.editTags = null;
@@ -1252,48 +1227,66 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         }
     }
 
-    private void loadPgnGraph(int index, CpFile.PgnItem pgnItem) {
-        new CPAsyncTask(chessPadLayout, new CPExecutor() {
+    private void refreshScreenWithNewGraph() {
+        pgngraphModified = true;
+        chessPadLayout.showProgressBar(false);
+        if (isPuzzleMode()) {
+            pgnGraph.setPuzzleMode();
+            pgnGraph.toInit();
+            puzzleData.newPuzzle();
+            Log.d(DEBUG_TAG, String.format("pgnGraph.toInit(), moveline %s", pgnGraph.moveLine.size()));
+            flipped = (pgnGraph.getBoard().getFlags() & Config.BLACK) != 0;
+        }
+        nextPgnFile = null;
+        selectedSquare = null;
+        incomingInfoMessage = null;
+        popups.promotionMove = null;
+        cancelSetup();
+
+        popups.editTags = null;
+        if (mode == Mode.Game) {
+            notifyUci();
+        } else {
+            stopAnalysis();
+        }
+    }
+
+    private void loadPgnGraph(CpFile.PgnItem pgnItem) {
+        new CPAsyncTask(new CPExecutor() {
             @Override
-            public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
+            public void doInBackground(final CpFile.ProgressObserver progressObserver) throws Config.PGNException {
                 Log.d(DEBUG_TAG, String.format("loadPgnGraph start, thread %s", Thread.currentThread().getName()));
-                pgnGraph = new PgnGraph(index, pgnItem, progress -> {
-                    Log.d(DEBUG_TAG, String.format("loadPgnGraph %s, progress %d%%", pgnItem.toString(), progress));
-                    progressPublisher.publishProgress(progress);
-                    return false;
-                });
+                reserveOOMBuffer();
+                pgnGraph = new PgnGraph(pgnItem);
             }
 
             @Override
             public void onPostExecute() {
+                freeOOMBuffer();
                 Log.d(DEBUG_TAG, String.format("loadPgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));
-                pgngraphModified = true;
-                chessPadLayout.showProgressBar(false);
-                chessPadLayout.invalidate();
-                if (mode == Mode.Game) {
-                    notifyUci();
-                } else {
-                    stopAnalysis();
-                    pgnGraph.setPuzzleMode();
-                    pgnGraph.toInit();
-                    puzzleData.newPuzzle();
-                    Log.d(DEBUG_TAG, String.format("pgnGraph.toInit(), moveline %s", pgnGraph.moveLine.size()));
-                    flipped = (pgnGraph.getBoard().getFlags() & Config.BLACK) != 0;
-                    chessPadLayout.invalidate();
-                }
+                refreshScreenWithNewGraph();
             }
 
             @Override
-            public void onExecuteException(Config.PGNException e) {
+            public void onExecuteException(Throwable e) {
+                freeOOMBuffer();
                 Log.e(DEBUG_TAG, "loadPgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                popups.crashAlert(R.string.crash_cannot_load);
+                chessPadLayout.showProgressBar(false);
+                chessPadLayout.invalidate();
+                if (e instanceof OutOfMemoryError) {
+                    popups.crashAlert(R.string.crash_oom);
+                } else {
+                    popups.crashAlert(R.string.crash_cannot_load);
+                }
             }
         }).execute();
     }
 
     void notifyUci() {
         if (uci != null) {
-//            Log.d(DEBUG_TAG, String.format("notifyUci() %s", getPgnGraph().getBoard().toFEN()));
+            if (getPgnGraph() != null && getPgnGraph().getBoard() != null) {
+                Log.d(DEBUG_TAG, String.format("notifyUci() %s", getPgnGraph().getBoard().toFEN()));
+            }
             uci.abortCurrentAnalisys();
             if (doAnalysis) {
                 UCI.IncomingInfoMessage msg = fromBook();
@@ -1378,71 +1371,68 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         do {
             sb.append(sep).append(tokens[i++]);
             sep = " ";
-        } while( i < tokens.length && i < totalHints);
+        } while ( i < tokens.length && i < totalHints);
         return new String(sb);
     }
 
     void setPuzzles() {
         Log.d(DEBUG_TAG, String.format("set for puzzles %s, totalChildren=%s", currentPath.getAbsolutePath(), currentPath.getTotalChildren()));
-        puzzleData.setPgn((CpFile.PgnFile) currentPath);
+        puzzleData.reset((CpFile.PgnFile)currentPath);
         mode = Mode.Puzzle;
         doAnalysis = false;
         toNextGame((CpFile.PgnFile)currentPath, puzzleData.getNextIndex());
     }
 
-    private void toNextGame(final CpFile.PgnFile pgnFile, final int nextIndex) {
-        final CpFile.PgnItem[] items = {null};
+    void toNextGame(final CpFile.PgnFile pgnFile, final int nextIndex) {
+        CpFile.PgnItem[] pgnItems = {null};
 
-        new CPAsyncTask(chessPadLayout, new CPExecutor() {
+        new CPAsyncTask(new CPExecutor() {
             @Override
-            public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
+            public void doInBackground(final CpFile.ProgressObserver progressObserver) throws Config.PGNException {
                 Log.d(DEBUG_TAG, String.format("toNextGame start, thread %s", Thread.currentThread().getName()));
-
-                items[0] = pgnFile.getPgnItem(nextIndex, (progress) -> {
-                    if (DEBUG) {
-                        Log.d(DEBUG_TAG, String.format("toNextGame, Offset %d%%", progress));
-                    }
-                    progressPublisher.publishProgress(progress);
-                    return false;
-                });
+                reserveOOMBuffer();
+                pgnItems[0] = pgnFile.getPgnItem(nextIndex);
             }
 
             @Override
             public void onPostExecute() throws Config.PGNException {
-                Log.d(DEBUG_TAG, String.format("toNextGame onPostExecute, thread %s", Thread.currentThread().getName()));
+                freeOOMBuffer();
+                ChessPad.this.showMemory("toNextGame onPostExecute");
                 if (nextIndex >= pgnFile.getTotalChildren()) {
                     // That means that items[0] is lastEntry. pgnFile.getPgnItem brings back all info only for the real requested index, so retry.
-                    puzzleData.setTotalPuzzles();
+                    puzzleData.setTotalPuzzles(pgnFile.getTotalChildren());
                     toNextGame(pgnFile, puzzleData.getNextIndex());
                 } else {
-                    setPgnGraph(nextIndex, items[0]);
+                    setPgnGraph(pgnItems[0]);
                 }
             }
 
             @Override
-            public void onExecuteException(Config.PGNException e) {
+            public void onExecuteException(Throwable e) {
+                freeOOMBuffer();
+                if (e.getCause() != null) {
+                    e = e.getCause();
+                }
                 Log.e(DEBUG_TAG, "toNextGame, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                popups.crashAlert(R.string.crash_cannot_load);
+                if (e instanceof OutOfMemoryError) {
+                    popups.crashAlert(R.string.crash_oom);
+                } else {
+                    popups.crashAlert(R.string.crash_cannot_load);
+                }
             }
-
         }).execute();
     }
 
     public void mergePgnGraph(final Popups.MergeData mergeData, final CPPostExecutor cpPostExecutor) {
         merging = true;
         chessPadLayout.enableCommentEdit(false);
-        new CPAsyncTask(chessPadLayout, new CPExecutor() {
+        new CPAsyncTask(new CPExecutor() {
             @Override
-            public void doInBackground(final ProgressPublisher progressPublisher) {
+            public void doInBackground(final CpFile.ProgressObserver progressObserver) {
                 Log.d(DEBUG_TAG, String.format("mergePgnGraph start, thread %s", Thread.currentThread().getName()));
+                reserveOOMBuffer();
                 try {
-                    pgnGraph.merge(mergeData, (progress) -> {
-                        if (DEBUG) {
-                            Log.d(DEBUG_TAG, String.format("Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
-                        }
-                        progressPublisher.publishProgress(progress);
-                        return false;
-                    });
+                    pgnGraph.merge(mergeData);
                 } catch (Config.PGNException e) {
                     e.printStackTrace();
                 }
@@ -1450,6 +1440,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
             @Override
             public void onPostExecute() throws Config.PGNException {
+                freeOOMBuffer();
                 Log.d(DEBUG_TAG, String.format("mergePgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));
                 if (cpPostExecutor != null) {
                     cpPostExecutor.onPostExecute();
@@ -1457,16 +1448,30 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 merging = false;
                 chessPadLayout.enableCommentEdit(true);
                 pgngraphModified = true;
-                String msg = String.format(getResources().getString(R.string.msg_merge_count), mergeData.merged);
-                Toast.makeText(ChessPad.this, msg, Toast.LENGTH_LONG).show();
+                String msg = String.format(MainActivity.getContext().getResources().getString(R.string.msg_merge_count), mergeData.merged);
+                Toast.makeText(MainActivity.getContext(), msg, Toast.LENGTH_LONG).show();
             }
 
             @Override
-            public void onExecuteException(Config.PGNException e) {
+            public void onExecuteException(Throwable e) {
+                freeOOMBuffer();
                 merging = false;
                 chessPadLayout.enableCommentEdit(true);
                 Log.e(DEBUG_TAG, "mergePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                popups.crashAlert(R.string.crash_cannot_save);
+                if (e instanceof OutOfMemoryError) {
+                    // rollback, memory fragmented, no good
+                    PgnGraph pgnGraph = getPgnGraph();
+                    Move lastMove = pgnGraph.getCurrentMove();
+                    pgnGraph.delCurrentMove();
+                    try {
+                        pgnGraph.addMove(lastMove);  // restore
+                    } catch (Config.PGNException ex) {
+                        ex.printStackTrace();
+                    }
+                    popups.crashAlert(R.string.crash_oom);
+                } else {
+                    popups.crashAlert(R.string.crash_cannot_merge);
+                }
             }
         }).execute();
     }
@@ -1478,21 +1483,17 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         bgMessageHandler.sendMessage(msg);
     }
 
+    // when deletion no need to updateMoves
     public void savePgnGraph(final boolean updateMoves, final CPPostExecutor cpPostExecutor) {
-        new CPAsyncTask(chessPadLayout, new CPExecutor() {
+        new CPAsyncTask(new CPExecutor() {
             @Override
-            public void doInBackground(final ProgressPublisher progressPublisher) throws Config.PGNException {
+            public void doInBackground(final CpFile.ProgressObserver progressObserver) throws Config.PGNException {
                 long start = new Date().getTime();
                 if (DEBUG) {
                     Log.d(DEBUG_TAG, String.format("savePgnGraph start, thread %s", Thread.currentThread().getName()));
                 }
-                pgnGraph.save(updateMoves, (progress) -> {
-                    if (true) {
-                        Log.d(DEBUG_TAG, String.format("Offset %d%%, thread %s", progress, Thread.currentThread().getName()));
-                    }
-                    progressPublisher.publishProgress(progress);
-                    return false;
-                });
+                reserveOOMBuffer();
+                pgnGraph.save(updateMoves);
                 if (true) {
                     long end = new Date().getTime();
                     long duration = end - start;
@@ -1502,24 +1503,25 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
 
             @Override
             public void onPostExecute() throws Config.PGNException {
+                freeOOMBuffer();
                 Log.d(DEBUG_TAG, String.format("savePgnGraph onPostExecute, thread %s", Thread.currentThread().getName()));
-                PgnGraph pgnGraph = ChessPad.this.getPgnGraph();
-                if (pgnGraph.getPgnItemIndex() == -1) {
-                    CpFile.PgnFile pgnFile = (CpFile.PgnFile) pgnGraph.getPgnItem().getParent();
-                    int totalChildren;
-                    if ((totalChildren = pgnFile.getTotalChildren()) > 0) {
-                        pgnGraph.setPgnItemIndex(totalChildren - 1);
-                    }
-                }
                 if (cpPostExecutor != null) {
                     cpPostExecutor.onPostExecute();
                 }
             }
 
             @Override
-            public void onExecuteException(Config.PGNException e) {
+            public void onExecuteException(Throwable e) {
+                ChessPad.freeOOMBuffer();
+                if (e.getCause() != null) {
+                    e = e.getCause();
+                }
                 Log.e(DEBUG_TAG, "savePgnGraph, onExecuteException, thread " + Thread.currentThread().getName(), e);
-                popups.crashAlert(R.string.crash_cannot_save);
+                if (e instanceof OutOfMemoryError) {
+                    popups.crashAlert(R.string.crash_oom);
+                } else {
+                    popups.crashAlert(R.string.crash_cannot_save);
+                }
             }
         }).execute();
     }
@@ -1589,19 +1591,19 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                     if (!isPuzzleMode()) {
                         if ((newMove.moveFlags & Config.FLAGS_CHECKMATE) == 0) {
                             if ((newMove.moveFlags & Config.FLAGS_REPETITION) != 0) {
-                                Toast.makeText(this, R.string.msg_3_fold_repetition, Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.getContext(), R.string.msg_3_fold_repetition, Toast.LENGTH_LONG).show();
                                 if (newMove.comment == null) {
-                                    newMove.comment = getResources().getString(R.string.msg_3_fold_repetition);
+                                    newMove.comment = MainActivity.getContext().getResources().getString(R.string.msg_3_fold_repetition);
                                 }
                             } else if (pgnGraph.getBoard(newMove).getReversiblePlyNum() == 100) {
-                                Toast.makeText(this, R.string.msg_50_reversible_moves, Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.getContext(), R.string.msg_50_reversible_moves, Toast.LENGTH_LONG).show();
                                 if (newMove.comment == null) {
-                                    newMove.comment = getResources().getString(R.string.msg_50_reversible_moves);
+                                    newMove.comment = MainActivity.getContext().getResources().getString(R.string.msg_50_reversible_moves);
                                 }
                             } else if ((newMove.moveFlags & Config.FLAGS_STALEMATE) != 0) {
-                                Toast.makeText(this, R.string.msg_stalemate, Toast.LENGTH_LONG).show();
+                                Toast.makeText(MainActivity.getContext(), R.string.msg_stalemate, Toast.LENGTH_LONG).show();
                                 if (newMove.comment == null) {
-                                    newMove.comment = getResources().getString(R.string.msg_stalemate);
+                                    newMove.comment = MainActivity.getContext().getResources().getString(R.string.msg_stalemate);
                                 }
                             }
                         }
@@ -1640,7 +1642,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                         if (lastMove == null) {
                             puzzleData.setSuccess();
                         } else if (puzzleData.isUnsolved()) {
-                            Toast.makeText(this, R.string.msg_puzzle_keep_solving, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.getContext(), R.string.msg_puzzle_keep_solving, Toast.LENGTH_SHORT).show();
                         }
                         if (lastMove != null) {
                             sendMessage(Config.MSG_PUZZLE_ADVANCE, null);
@@ -1651,7 +1653,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                         puzzleData.setFailed();
                         chessPadLayout.invalidate();
                         sendMessage(Config.MSG_PUZZLE_TAKE_BACK, null);
-                        Toast.makeText(this, R.string.err_not_solution, Toast.LENGTH_SHORT).show();
+                        Toast.makeText(MainActivity.getContext(), R.string.err_not_solution, Toast.LENGTH_SHORT).show();
                     }
                 }
             } else {
@@ -1684,22 +1686,31 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
         return flipped;
     }
 
-//    @RequiresApi(api = Build.VERSION_CODES.KITKAT)
-    private void setupDirs() {
+    // With large files the program crashes because of fragmentation.
+    // On https://stackoverflow.com/questions/59959384/how-to-figure-out-when-android-memory-is-too-fragmented?noredirect=1#comment106055443_59959384
+    // greeble31 suggested to allocate certain amount of memory and free it on OOM and process abort. Then Android will still have memory to continue.
+    // For some reason SoftReference does not work with API 22, releases the buffer on the 1st GC
+    public static void reserveOOMBuffer() {
+        freeOOMBuffer();
+        oomReserve[0] = new byte[10 * 1024 * 1024];
+    }
 
-//        String manufacturer = android.os.Build.MANUFACTURER;
-        File root;
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
-        } else {
-            root = Environment.getExternalStorageDirectory();
+    public static void freeOOMBuffer() {
+        oomReserve[0] = null;
+        System.gc();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            // ignore
         }
-        CpFile.setRoot(root.getAbsolutePath());
-        currentPath = CpFile.CpParent.fromPath(DEFAULT_DIRECTORY);
-        File dir = new File(root, DEFAULT_DIRECTORY);
-        // on Samsung /sdcard/Documents does not exist
-        // but nonetheless if the app has permission, it will be vreated along with ChessPad
-        boolean res = dir.mkdirs();
+    }
+
+    public void showMemory(String msg) {
+        long freeMemory = Runtime.getRuntime().freeMemory();
+        long usedMemory = Runtime.getRuntime().totalMemory() - freeMemory;
+        Log.d(DEBUG_TAG, String.format("%s, used %s, free %s", msg,
+                NumberFormat.getInstance().format(usedMemory),
+                NumberFormat.getInstance().format(freeMemory)));
     }
 
     // GUI access
@@ -1795,7 +1806,7 @@ public class ChessPad extends AppCompatActivity implements BoardHolder, Componen
                 Log.d(activity.DEBUG_TAG, String.format("message 0x%s", Integer.toHexString(msgId)));
             }
             if (msgId == Config.MSG_NOTIFICATION) {
-                Toast.makeText(activity, msg.obj.toString(), Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.getContext(), msg.obj.toString(), Toast.LENGTH_LONG).show();
             } else if (msgId == Config.MSG_PUZZLE_ADVANCE) {
                 try {
                     Thread.sleep(PUZZLE_MOVE_DELAY_MSEC);

@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ public class Util {
             ch = moveText.charAt(i);
             if (Character.isUpperCase(ch)) {
                 // dxe8=Q, etc.
-                if(Config.PROMOTION_PIECES.indexOf(ch) < 0) {
+                if (Config.PROMOTION_PIECES.indexOf(ch) < 0) {
                     throw new Config.PGNException("invalid promotion " + _moveText);
                 }
                 newMove.setPiecePromoted(Config.FEN_PIECES.indexOf(ch));

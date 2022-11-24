@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,26 +14,37 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * parsing unit tests
+ * parsing tests
  * Created by Alexander Bootman on 8/6/16.
  */
 package com.ab.pgn;
 
+import com.ab.pgn.io.CpFile;
+import com.ab.pgn.BaseTest;
+
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.LinkedList;
+import java.io.InputStream;
 import java.util.List;
 
-import com.ab.pgn.io.CpFile;
-
-//@Ignore
 public class PgnMoveParsingTest extends BaseTest {
     final static String version = Config.version;
+
+    private List<PgnGraph> testParsing(String pgn) throws Config.PGNException {
+        List<PgnGraph> pgnGraphs = parse2PgnGraphs(pgn);
+        for (PgnGraph pgnGraph : pgnGraphs) {
+            logger.debug(pgnGraph.getInitBoard().toFEN());
+            logger.debug(pgnGraph.getBoard().toFEN());
+            String finalFen = pgnGraph.pgnItem.getTag(MY_TAG);
+            if (!finalFen.equals(Config.TAG_UNKNOWN_VALUE)) {
+                Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
+            }
+        }
+        return pgnGraphs;
+    }
 
     @Test
     public void testAmbig() throws Config.PGNException {
@@ -43,7 +54,7 @@ public class PgnMoveParsingTest extends BaseTest {
             "[Round \"?\"]\n" +
             "[White \"?\"]\n" +
             "[Black \"?\"]\n" +
-            "[Resujava raw uselt \"1-0\"]\n" +
+            "[Result \"1-0\"]\n" +
             "[FEN \"4k3/2R5/8/8/1KR3r1/8/7n/8 w - - 0 1\"]\n" +
             "[Source \"?\"]\n" +
             finalFen2Tag("4k3/8/2R5/8/1KR3r1/8/7n/8 b - - 1 1") +
@@ -78,7 +89,6 @@ public class PgnMoveParsingTest extends BaseTest {
         String pgn =
             "[White \"merge\"]\n" +
             "[Black \"variations \"]\n" +
-            "\n" +
             "1. e4 Nf6 (1. ... Nc6 2. Nf3 (2. Nc3 Nf6) 2. ... Nf6 3. Nc3 e6) (1. ... e5 2. Bc4) 2. Nc3 Nc6 3. Nf3 e5" +
             "";
         testParsing(pgn);
@@ -160,10 +170,10 @@ public class PgnMoveParsingTest extends BaseTest {
             "\n";
 
         List<PgnGraph> pgnGraphs = testParsing(pgn);
-        for(PgnGraph pgnGraph : pgnGraphs) {
+        for (PgnGraph pgnGraph : pgnGraphs) {
             BitStream.Writer writer = new BitStream.Writer();
             pgnGraph.serializeGraph(writer, TEST_SERIALIZATION_VERSION);
-            PgnGraph unserialized = new PgnGraph(new BitStream.Reader(writer), TEST_SERIALIZATION_VERSION, null);
+            PgnGraph unserialized = new PgnGraph(new BitStream.Reader(writer), TEST_SERIALIZATION_VERSION);
             unserialized.toEnd();
             pgnGraph.toEnd();
             Assert.assertEquals(pgnGraph.getBoard().toString(), unserialized.getBoard().toString());
@@ -257,6 +267,17 @@ public class PgnMoveParsingTest extends BaseTest {
     }
 
     @Test
+    public void testPgnAnnotated() throws Exception {
+        String fName = TEST_ROOT + "exeter_lessons_from_tal.pgn";
+        InputStream is = new FileInputStream(fName);
+        List<CpFile.PgnItem> pgnItems = parsePgnFile(null, is, true);
+        for (CpFile.PgnItem pgnItem : pgnItems) {
+            PgnGraph pgnGraph = new PgnGraph(pgnItem);
+            logger.debug(String.format("[%s \"%s\"]\n", MY_TAG, pgnGraph.getBoard().toFEN()));
+        }
+    }
+
+    @Test
     public void testPgnParser() throws Config.PGNException {
         final String comment1 = "{{Active {King in the)) Ending)";
         final String comment2 = "{How to {save) the f-pawn?)";
@@ -284,7 +305,7 @@ public class PgnMoveParsingTest extends BaseTest {
             public void onGlyph(String value) {
                 // invalid glyphs are skipped automatically
                 int newGlyph = Integer.valueOf(value.substring(1));
-                if(newGlyph <= Config.old_glyph_translation.size()) {
+                if (newGlyph <= Config.old_glyph_translation.size()) {
                     String newGlyphStr = "$" + ++glyphNum[0];
                     Assert.assertEquals(value, newGlyphStr);
                 }
@@ -306,6 +327,6 @@ public class PgnMoveParsingTest extends BaseTest {
             public void onVariantClose() {
                 logger.debug("variant )");
             }
-        }, null);
+        }, false);
     }
 }

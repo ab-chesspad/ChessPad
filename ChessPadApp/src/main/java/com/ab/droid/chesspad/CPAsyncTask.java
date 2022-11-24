@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,25 +19,27 @@
 */
 package com.ab.droid.chesspad;
 
+import com.ab.pgn.io.CpFile;
+
 import android.os.AsyncTask;
 import android.util.Log;
 import com.ab.droid.chesspad.layout.ProgressBarHolder;
 import com.ab.pgn.Config;
 
-public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> implements ProgressPublisher {
+public class CPAsyncTask extends AsyncTask<Void, Integer, Throwable> implements CpFile.ProgressObserver {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private final CPExecutor cpExecutor;
-    private final ProgressBarHolder progressBarHolder;
     private int oldProgress;
+    private static ProgressBarHolder progressBarHolder;
 
-    public CPAsyncTask(CPExecutor cpExecutor) {
-        this(null, cpExecutor);
+    public static void setProgressBarHolder(ProgressBarHolder progressBarHolder) {
+        CPAsyncTask.progressBarHolder = progressBarHolder;
     }
 
-    public CPAsyncTask(ProgressBarHolder progressBarHolder, CPExecutor cpExecutor) {
-        this.progressBarHolder = progressBarHolder;
+    public CPAsyncTask(CPExecutor cpExecutor) {
         this.cpExecutor = cpExecutor;
+        CpFile.setProgressObserver(this);
     }
 
     public void execute() {
@@ -55,7 +57,7 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     }
 
     @Override
-    protected void onPostExecute(Config.PGNException param) {
+    protected void onPostExecute(Throwable param) {
         super.onPostExecute(param);
         if (progressBarHolder != null) {
             progressBarHolder.showProgressBar(false);
@@ -72,10 +74,10 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     }
 
     @Override
-    protected Config.PGNException doInBackground(Void... params) {
+    protected Throwable doInBackground(Void... params) {
         try {
             cpExecutor.doInBackground(this);
-        } catch (Config.PGNException e) {
+        } catch (Throwable e) {
             Log.e(this.DEBUG_TAG, String.format("doInBackground, thread %s", Thread.currentThread().getName()), e);
             return e;
         }
@@ -91,7 +93,7 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Config.PGNException> i
     }
 
     @Override
-    public void publishProgress(int progress) {
+    public void setProgress(int progress) {
         if (progress - oldProgress >= 1) {
             oldProgress = progress;
             if (progress > 100) {
@@ -111,7 +113,7 @@ interface CPPostExecutor {
 }
 
 interface CPExecutor extends CPPostExecutor{
-    void onExecuteException(Config.PGNException e);
-    void doInBackground(ProgressPublisher progressPublisher) throws Config.PGNException;
+    void doInBackground(CpFile.ProgressObserver progressObserver) throws Config.PGNException;
+    void onExecuteException(Throwable e);
 }
 

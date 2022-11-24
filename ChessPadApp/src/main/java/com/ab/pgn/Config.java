@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,9 +20,7 @@ package com.ab.pgn;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class Config {
     public static final String version = "1.0";
@@ -151,7 +149,6 @@ public class Config {
 
         TAG_UNKNOWN_VALUE = "?",
         BOOK_COMMENT_STRING_TAG = "~",      // hopefully this char does not occur in opening books
-        ADD_TAG_LABEL = "",
 
         CP_DATE_FORMAT = "yyyy-MM-dd",
 
@@ -159,7 +156,6 @@ public class Config {
 
     // STR - Seven Tag Roster
     public static final List<String> STR = Arrays.asList(TAG_Event, TAG_Site, TAG_Date, TAG_Round, TAG_White, TAG_Black, TAG_Result);
-    public static final Set<String> STRSet = new HashSet<>(STR);
 
     public static final HashMap<String, Integer> old_glyph_translation;
     static {

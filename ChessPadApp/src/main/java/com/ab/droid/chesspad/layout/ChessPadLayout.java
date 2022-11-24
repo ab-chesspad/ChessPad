@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ import androidx.appcompat.widget.AppCompatImageButton;
 
 import com.ab.droid.chesspad.BoardHolder;
 import com.ab.droid.chesspad.ChessPad;
+import com.ab.droid.chesspad.MainActivity;
 import com.ab.droid.chesspad.R;
 import com.ab.pgn.Config;
 import com.ab.pgn.Pair;
@@ -51,8 +52,6 @@ import com.ab.pgn.Pair;
 import java.util.List;
 
 public class ChessPadLayout implements ProgressBarHolder {
-    private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
-
     static Bitmap checkBitmap;
 
     final ChessPad chessPad;
@@ -74,12 +73,12 @@ public class ChessPadLayout implements ProgressBarHolder {
         mainLayout = chessPad.getMainLayout();
 
         try {
-            chessPad.getSupportActionBar().hide();
+            MainActivity.getInstance().getSupportActionBar().hide();
         } catch (Exception e) {
             Log.e(this.getClass().getName(), "getSupportActionBar error", e);
         }
 
-        checkBitmap = BitmapFactory.decodeResource(chessPad.getResources(), R.drawable.chk);
+        checkBitmap = BitmapFactory.decodeResource(MainActivity.getInstance().getResources(), R.drawable.chk);
 
         createTitleBar();
         boardView = new BoardView(chessPad);
@@ -93,7 +92,7 @@ public class ChessPadLayout implements ProgressBarHolder {
     }
 
     CpImageButton createImageButton(final RelativeLayout relativeLayout, final ChessPad.Command command, int resource) {
-        CpImageButton btn = new CpImageButton(chessPad, resource);
+        CpImageButton btn = new CpImageButton(MainActivity.getInstance(), resource);
         btn.setId(command.getValue());
         btn.setOnClickListener((v) -> {
             chessPad.onButtonClick(ChessPad.Command.command(v.getId()));
@@ -139,36 +138,38 @@ public class ChessPadLayout implements ProgressBarHolder {
         cpView.controlPaneLayout.setVisibility(View.VISIBLE);
         cpView.draw();
         if (cpProgressBar == null) {
-            cpProgressBar = new CpProgressBar(chessPad, mainLayout);
+            cpProgressBar = new CpProgressBar(MainActivity.getContext(), mainLayout);
         }
+        cpProgressBar.show(cpProgressBar.isVisible());
         invalidate();
     }
 
     public void invalidate() {
-        if(cpView != null) {
+        if (cpView != null) {
             cpView.invalidate();
         }
         mainLayout.invalidate();
     }
 
     private void recalcSizes() {
-        int resource = chessPad.getResources().getIdentifier("status_bar_height", "dimen", "android");
+        Context context = MainActivity.getContext();
+        int resource = context.getResources().getIdentifier("status_bar_height", "dimen", "android");
         Metrics.statusBarHeight = 0;
         if (resource > 0) {
-            Metrics.statusBarHeight = chessPad.getResources().getDimensionPixelSize(resource);
+            Metrics.statusBarHeight = context.getResources().getDimensionPixelSize(resource);
         }
-        DisplayMetrics metrics = chessPad.getResources().getDisplayMetrics();
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
         Metrics.screenWidth = metrics.widthPixels;
         Metrics.screenHeight = metrics.heightPixels - Metrics.statusBarHeight;
 
-        int orientation = chessPad.getResources().getConfiguration().orientation;
+        int orientation = context.getResources().getConfiguration().orientation;
         Metrics.isVertical = orientation == Configuration.ORIENTATION_PORTRAIT;
         if (!Metrics.isVertical) {
             // almost square screens will have vertical layout in both orientations
             Metrics.isVertical = (float)Metrics.screenWidth / Metrics.screenHeight <= 1.3f;
         }
 
-        TextView dummy = new TextView(chessPad);
+        TextView dummy = new TextView(context);
         dummy.setSingleLine();
         dummy.setTextSize(16);
         dummy.setText("100. ... Qa2xa8+");
@@ -176,21 +177,21 @@ public class ChessPadLayout implements ProgressBarHolder {
         Metrics.titleHeight = dummy.getMeasuredHeight();
         Metrics.maxMoveWidth = dummy.getMeasuredWidth();
 
-        dummy = new TextView(chessPad);
+        dummy = new TextView(context);
         dummy.setSingleLine();
         dummy.setTextSize(16);
         dummy.setText(R.string.label_en_pass);
         dummy.measure(0, 0);
         Metrics.moveLabelWidth = dummy.getMeasuredWidth();
 
-        dummy = new TextView(chessPad);
+        dummy = new TextView(context);
         dummy.setSingleLine();
         dummy.setTextSize(16);
         dummy.setText(R.string.label_halfmove_clock);
         dummy.measure(0, 0);
         Metrics.halfMoveClockLabelWidth = dummy.getMeasuredWidth();
 
-        dummy = new TextView(chessPad);
+        dummy = new TextView(context);
         dummy.setSingleLine();
         dummy.setTextSize(16);
         dummy.setText("0:00:00 ");
@@ -263,7 +264,8 @@ public class ChessPadLayout implements ProgressBarHolder {
 
     @SuppressLint("ClickableViewAccessibility")
     void createTitleBar() {
-        title = new TextView(chessPad);
+        Context context = MainActivity.getContext();
+        title = new TextView(context);
         title.setSingleLine();
         title.setBackgroundColor(Color.GREEN);
         title.setTextColor(Color.BLACK);
@@ -328,12 +330,16 @@ public class ChessPadLayout implements ProgressBarHolder {
 
     @Override
     public void showProgressBar(boolean doShow) {
-        cpProgressBar.show(doShow);
+        if (cpProgressBar != null) {
+            cpProgressBar.show(doShow);
+        }
     }
 
     @Override
     public void updateProgressBar(int progress) {
-        cpProgressBar.update(progress);
+        if (cpProgressBar != null) {
+            cpProgressBar.update(progress);
+        }
     }
 
     static class CpEditText extends AppCompatEditText {
@@ -357,7 +363,7 @@ public class ChessPadLayout implements ProgressBarHolder {
                     }
                     String text = s.toString().toLowerCase();
                     String oldText = stringKeeper.getValue();
-                    if(!text.equals(oldText)) {
+                    if (!text.equals(oldText)) {
                         stringKeeper.setValue(text);
                     }
                 }
@@ -397,7 +403,7 @@ public class ChessPadLayout implements ProgressBarHolder {
         public String getValue() { return null; }
         public int getNumericValue(String value) {
             int res = 0;
-            if(value != null && !value.isEmpty()) {
+            if (value != null && !value.isEmpty()) {
                 try {
                     res = Integer.valueOf(value);
                 } catch (Exception e) {
@@ -421,7 +427,7 @@ public class ChessPadLayout implements ProgressBarHolder {
             this.flagKeeper = flagKeeper;
             chessPadLayout.addView(this);
             setOnClickListener((v) -> {
-                if(CpToggleButton.this.flagKeeper != null) {
+                if (CpToggleButton.this.flagKeeper != null) {
                     CpToggleButton.this.flagKeeper.setFlag(!CpToggleButton.this.flagKeeper.getFlag());
                     CpToggleButton.this.invalidate();
                 }
@@ -431,6 +437,9 @@ public class ChessPadLayout implements ProgressBarHolder {
         @Override
         public void onDraw(Canvas canvas) {
             super.onDraw(canvas);
+            if (CpToggleButton.this.flagKeeper == null) {
+                return;
+            }
             if (CpToggleButton.this.flagKeeper.getFlag()) {
                 canvas.drawBitmap(checkBitmap, 3, 3, null);
             }
@@ -453,16 +462,16 @@ public class ChessPadLayout implements ProgressBarHolder {
         }
 
         protected void init(ChessPadLayout chessPadLayout) {
+            Context context = MainActivity.getContext();
             this.chessPadLayout = chessPadLayout;
             this.chessPad = chessPadLayout.chessPad;
             this.boardHolder = chessPadLayout.chessPad;
 
-            controlPaneLayout = new RelativeLayout(chessPad);
+            controlPaneLayout = new RelativeLayout(context);
             chessPadLayout.addView(controlPaneLayout);
         }
 
         void draw() {
-            Log.d(DEBUG_TAG, String.format("draw %s", Thread.currentThread().getName()));
             int x, y;
 
             if (Metrics.isVertical) {
@@ -477,7 +486,8 @@ public class ChessPadLayout implements ProgressBarHolder {
         }
 
         ChessPadLayout.CpEditText createTextView() {
-            ChessPadLayout.CpEditText view = new ChessPadLayout.CpEditText(chessPad);
+            Context context = MainActivity.getContext();
+            ChessPadLayout.CpEditText view = new ChessPadLayout.CpEditText(context);
             view.setPadding(0, 0, 0, 0);
             view.setTextSize(16);
             view.setTextColor(Color.DKGRAY);
@@ -536,10 +546,9 @@ public class ChessPadLayout implements ProgressBarHolder {
                 progressBar.setVisibility(View.VISIBLE);
                 progressText.setVisibility(View.VISIBLE);
             } else {
-                progressBar.setVisibility(View.INVISIBLE);
-                progressText.setVisibility(View.INVISIBLE);
+                progressBar.setVisibility(View.GONE);
+                progressText.setVisibility(View.GONE);
             }
-//            Log.d("chesspad-debug", String.format("CpProgressBar %b, draw %s", doShow, Thread.currentThread().getName()));
         }
 
         void update(int progress) {
@@ -548,3 +557,4 @@ public class ChessPadLayout implements ProgressBarHolder {
         }
     }
 }
+

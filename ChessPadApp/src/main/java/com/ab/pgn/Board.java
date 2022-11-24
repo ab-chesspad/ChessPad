@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-* Chess board with pieces, validation
+* Chess _board with pieces, validation
 * PgnGraph vertex
 * Created by Alexander Bootman on 8/6/16.
 */
@@ -48,6 +48,8 @@ public class Board {
         VERTEX_VISITED_OFFSET = BOARD_DATA_PACK_LENGTH,         // 22
         VERTEX_VISITED_LENGTH = 1,
         VERTEX_VISITED_MASK = 0x1,
+
+        VERTEX_SERIALIZATION_VISITED_OFFSET = VERTEX_VISITED_OFFSET + VERTEX_VISITED_LENGTH,         // 23
 
         // boardCounts:
         PLY_NUM_OFFSET = 0,
@@ -95,6 +97,10 @@ public class Board {
 
     private Move move;              // moves made in this position
 
+/* uncomment to emulate OOM
+    int[] debugData = new int[4 * 1024];
+//*/
+
     public Board() {
         ySize =
         xSize = Config.BOARD_SIZE;
@@ -124,6 +130,68 @@ public class Board {
             tmp.boardCounts = reader.read(BOARD_COUNTS_PACK_LENGTH);
             tmp.validate(null);
             copy(tmp);
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    // not necessarily legal position
+    public void serializeAnyBoard(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            this.pack(writer);
+            List<Square> wKings = new LinkedList<>();
+            List<Square> bKings = new LinkedList<>();
+            for (int x = 0; x < Config.BOARD_SIZE; x++) {
+                for (int y = 0; y < Config.BOARD_SIZE; y++) {
+                    int piece = this.getPiece(x, y);
+                    if (piece == Config.WHITE_KING) {
+                        wKings.add(new Square(x, y));
+                    }
+                    if (piece == Config.BLACK_KING) {
+                        bKings.add(new Square(x, y));
+                    }
+                }
+            }
+            writer.write(wKings.size(), 6);
+            for (Square sq : wKings) {
+                sq.serialize(writer);
+            }
+            writer.write(bKings.size(), 6);
+            for (Square sq : bKings) {
+                sq.serialize(writer);
+            }
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    // not necessarily legal position
+    static Board unserializeAnyBoard(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            Board board = Board.unpackWithoutKings(reader);
+            for (int x = 0; x < Config.BOARD_SIZE; x++) {
+                for (int y = 0; y < Config.BOARD_SIZE; y++) {
+                    int piece = board.getPiece(x, y);
+                    if (piece == Config.WHITE_KING) {
+                        board.setPiece(x, y, Config.EMPTY);
+                    }
+                    if (piece == Config.BLACK_KING) {
+                        board.setPiece(x, y, Config.EMPTY);
+                    }
+                }
+            }
+
+            int n = reader.read(6);
+            for (int i = 0; i < n; ++i) {
+                Square sq = new Square(reader);
+                board.setPiece(sq, Config.WHITE_KING);
+            }
+            n = reader.read(6);
+            for (int i = 0; i < n; ++i) {
+                Square sq = new Square(reader);
+                board.setPiece(sq, Config.BLACK_KING);
+            }
+            return  board;
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -216,8 +284,7 @@ public class Board {
     }
 
     private void setWKing(Square wKing) {
-        setWKingX(wKing.getX());
-        setWKingY(wKing.getY());
+        setWKing(wKing.getX(), wKing.getY());
     }
 
     int getWKingX() {
@@ -246,8 +313,7 @@ public class Board {
     }
 
     private void setBKing(Square bKing) {
-        setBKingX(bKing.getX());
-        setBKingY(bKing.getY());
+        setBKing(bKing.getX(), bKing.getY());
     }
 
     int getBKingX() {
@@ -339,6 +405,16 @@ public class Board {
         return Util.getValue(boardData, VERTEX_VISITED_MASK, VERTEX_VISITED_OFFSET) == 1;
     }
 
+    void setSerialized(boolean visited) {
+        int flag = visited ? 1 : 0;
+        boardData = Util.setValue(boardData, flag, VERTEX_VISITED_MASK, VERTEX_SERIALIZATION_VISITED_OFFSET);
+//System.out.printf("%08x\n", boardData);
+    }
+
+    boolean getSerialized() {
+        return Util.getValue(boardData, VERTEX_VISITED_MASK, VERTEX_SERIALIZATION_VISITED_OFFSET) == 1;
+    }
+
     private void copy(Board src) {
         this.boardCounts = src.boardCounts;
         this.boardData = src.boardData;
@@ -362,7 +438,7 @@ public class Board {
         setFlags(Config.INIT_POSITION_FLAGS);
     }
 
-    void toEmpty() {
+    public void toEmpty() {
         setWKing(-1, -1);   // ??
         setBKing(-1, -1);   // ??
         copyBoard(empty);
@@ -1443,7 +1519,7 @@ public class Board {
         }
     }
 
-    static Board unpack(BitStream.Reader reader) throws Config.PGNException {
+    static Board unpackWithoutKings(BitStream.Reader reader) throws Config.PGNException {
         try {
             Board board = new Board();
             board.toEmpty();
@@ -1480,15 +1556,20 @@ public class Board {
                     mask <<= 1;
                 }
             }
-            board.setPiece(board.getWKingX(), board.getWKingY(), Config.WHITE_KING);
-            board.setPiece(board.getBKingX(), board.getBKingY(), Config.BLACK_KING);
             return board;
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
     }
 
-    public Board invert() {
+    static Board unpack(BitStream.Reader reader) throws Config.PGNException {
+        Board board = unpackWithoutKings(reader);
+        board.setPiece(board.getWKingX(), board.getWKingY(), Config.WHITE_KING);
+        board.setPiece(board.getBKingX(), board.getBKingY(), Config.BLACK_KING);
+        return board;
+    }
+
+        public Board invert() {
         Board trg = new Board();
         trg.toEmpty();
         trg.boardData = this.boardData;

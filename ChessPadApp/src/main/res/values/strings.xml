@@ -6,6 +6,7 @@
     <string name="err_moves_ignored">moves can be invalid</string>
     <string name="err_not_solution">This is not a solution</string>
 
+    <string name="alert_welcome">Welcome to ChessPad\nPlease create/select its home folder to store pgn files.</string>
     <string name="alert_pgn_path_label">Full Path to Pgn File:</string>
     <string name="alert_merge_start_label">Start:</string>
     <string name="alert_merge_end_label">End:</string>
@@ -25,12 +26,16 @@
     <string name="msg_stalemate">stalemate</string>
     <string name="msg_merge_count">Merged %d game(s)</string>
     <string name="msg_puzzle_keep_solving">Great! Keep good job.</string>
-    <string name="msg_puzzle_success">Success!\nopened %s\nsolved %s, %.2f%%</string>
-    <string name="msg_puzzle_failure">Failure.\nopened %s\nsolved %s, %.2f%%</string>
+    <string name="msg_puzzle_success">Success!</string>
+    <string name="msg_puzzle_success_with_statistics">Success!\nopened %s\nsolved %s, %.2f%%</string>
+    <string name="msg_puzzle_failure">Failure.</string>
+    <string name="msg_puzzle_failure_with_statistics">Failure.\nopened %s\nsolved %s, %.2f%%</string>
+    <string name="msg_puzzle_statistics">Opened %s\nsolved %s, %.2f%%</string>
     <string name="menu_load">Load</string>
     <string name="menu_puzzle">Open Puzzles</string>
     <string name="menu_merge">Merge</string>
     <string name="menu_setup">Setup</string>
+    <string name="menu_statistics">Puzzle Statistics</string>
     <string name="menu_save">Save</string>
     <string name="menu_append">Append</string>
     <string name="menu_any_move">Any move</string>
@@ -44,8 +49,10 @@
     <string name="label_move_num">Move number: </string>
 
     <string name="crash_cannot_save">Cannot write file. \nTry to select different directory.</string>
-    <string name="crash_cannot_load">Cannot load pgn file</string>
+    <string name="crash_cannot_load">Cannot load pgn file, operation aborted</string>
     <string name="crash_cannot_list">Cannot list items</string>
+    <string name="crash_cannot_merge">Unknown error, merge failed</string>
+    <string name="crash_oom">Out of memory, operation cancelled. \nWe recommend to exit ChessPad with Back button and re-launch</string>
 
     <string name="hint_file_name">File Name</string>
     <string name="hint_tag_label">New Tag</string>

@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,13 +26,22 @@ import java.io.Flushable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 
 public abstract class BitStream implements Closeable {
+    private static final boolean DEBUG = false;
+
     final byte[] bits = new byte[1];
     int bitIndex;
 
     int bitCount;     // debug
+    List<DebugTrace> traceList;
+
+    public int getBitCount() {
+        return bitCount;
+    }
 
     public static class Writer extends  BitStream implements Flushable {
         private OutputStream os;
@@ -40,6 +49,9 @@ public abstract class BitStream implements Closeable {
         public Writer(OutputStream os) {
             this.os = os;
             reset();
+            if (DEBUG) {
+                traceList = new LinkedList<>();
+            }
         }
 
         public Writer() {
@@ -57,6 +69,9 @@ public abstract class BitStream implements Closeable {
         }
 
         public void write(int _val, int writeBits) throws IOException {
+            if (traceList != null) {
+                traceList.add(new DebugTrace(bitCount, writeBits, new Config.PGNException("trace")));
+            }
             bitCount += writeBits;
             if (writeBits <= 0) {
                 throw new IOException("BitStream.write number of bits must be > 0");
@@ -70,7 +85,7 @@ public abstract class BitStream implements Closeable {
                 int newBitIndex = bitIndex + writeBits;
                 writeBits -= 8 - bitIndex;
                 bitIndex = newBitIndex;
-                if(writeBits >= 0) {
+                if (writeBits >= 0) {
                     flush();
                 }
             }
@@ -148,12 +163,6 @@ public abstract class BitStream implements Closeable {
             return longs;
         }
 
-        public int getBitCount() throws IOException {
-            if(os instanceof ByteArrayOutputStream) {
-                return getBits().length;
-            }
-            return 0;
-        }
     }
 
     public static class Reader extends  BitStream {
@@ -171,6 +180,7 @@ public abstract class BitStream implements Closeable {
 
         public Reader(Writer writer) throws IOException {
             this(writer.getBits());
+            this.traceList = writer.traceList;
         }
 
         public int read(int readBits) throws IOException {
@@ -179,6 +189,16 @@ public abstract class BitStream implements Closeable {
                 return val;
             }
 
+            if (traceList != null) {
+                DebugTrace debugTrace = traceList.remove(0);
+                if (debugTrace.length != readBits || debugTrace.bitCount != bitCount) {
+                    debugTrace.e.printStackTrace();
+                    String msg = String.format(Locale.US, "BitStream mismatch, wrote %d at %d bits, read %d at %d bits",
+                        debugTrace.length, debugTrace.bitCount, readBits, bitCount
+                    );
+                    throw new IOException(msg);
+                }
+            }
             bitCount += readBits;
             int totalLen = 0;
             while (readBits > 0) {
@@ -237,6 +257,17 @@ public abstract class BitStream implements Closeable {
         @Override
         public void close() throws IOException {
             is.close();
+        }
+    }
+
+    private static class DebugTrace {
+        int bitCount, length;
+        Config.PGNException e;
+
+        DebugTrace(int bitCount, int length, Config.PGNException e) {
+            this.bitCount = bitCount;
+            this.length = length;
+            this.e = e;
         }
     }
 }

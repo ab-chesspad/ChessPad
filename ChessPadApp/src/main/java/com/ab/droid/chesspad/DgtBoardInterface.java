@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.widget.Toast;
+
+import androidx.annotation.RequiresApi;
 
 import com.ab.pgn.Config;
 import com.ab.pgn.dgtboard.DgtBoardIO;
@@ -73,17 +75,16 @@ public class DgtBoardInterface extends DgtBoardIO {
 
     private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
         @Override
-        @TargetApi(12)
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (ACTION_USB_PERMISSION.equals(action)) {
                 synchronized (this) {
                     UsbAccessory accessory = intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        Toast.makeText(ChessPad.getContext(), "USB permission obtained", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.getContext(), "USB permission obtained", Toast.LENGTH_LONG).show();
                         setAccessory(accessory);
                     } else {
-                        Toast.makeText(ChessPad.getContext(), "USB permission denied", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.getContext(), "USB permission denied", Toast.LENGTH_LONG).show();
                         Log.d("LED", "USB permission denied for accessory "+ accessory);
 
                     }
@@ -95,18 +96,15 @@ public class DgtBoardInterface extends DgtBoardIO {
         }
     };
 
-    @TargetApi(12)
-	public DgtBoardInterface(StatusObserver statusObserver){
+    public DgtBoardInterface(StatusObserver statusObserver){
         this.statusObserver = statusObserver;
-		usbManager = (UsbManager) ChessPad.getContext().getSystemService(Context.USB_SERVICE);
-		// Log.d("LED", "usbManager" +usbManager);
-		permissionIntent = PendingIntent.getBroadcast(ChessPad.getContext(), 0, new Intent(ACTION_USB_PERMISSION), 0);
+        usbManager = (UsbManager) MainActivity.getContext().getSystemService(Context.USB_SERVICE);
+        permissionIntent = PendingIntent.getBroadcast(MainActivity.getContext(), 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE);
 		IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
 		filter.addAction(UsbManager.ACTION_USB_ACCESSORY_DETACHED);
-        ChessPad.getContext().registerReceiver(usbReceiver, filter);
+        MainActivity.getContext().registerReceiver(usbReceiver, filter);
 	}
 
-    @TargetApi(12)
     private UsbAccessory getAccessory() throws IOException {
         UsbAccessory[] accessories = usbManager.getAccessoryList();
         if (accessories == null) {
@@ -195,7 +193,7 @@ public class DgtBoardInterface extends DgtBoardIO {
         }
 
         int readCount = 0;
-        while(readCount == 0) {
+        while (readCount == 0) {
             try {
                 Thread.sleep(50);
             }
@@ -216,25 +214,24 @@ public class DgtBoardInterface extends DgtBoardIO {
         return readCount;
     }
 
-    @TargetApi(12)
 	public void checkPermissionAndOpen() throws IOException {
         Log.d(DEBUG_TAG, String.format("checkPermissionAndOpen() API %s", Build.VERSION.SDK_INT));
-	    synchronized (syncObject) {
+        synchronized (syncObject) {
             UsbAccessory accessory = getAccessory();
 
             if (!accessory.toString().contains(ManufacturerString)) {
-                Toast.makeText(ChessPad.getContext(), "Manufacturer is not matched!", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.getContext(), "Manufacturer is not matched!", Toast.LENGTH_LONG).show();
             }
 
             if (!accessory.toString().contains(ModelString1) && !accessory.toString().contains(ModelString2)) {
-                Toast.makeText(ChessPad.getContext(), "Model is not matched!", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.getContext(), "Model is not matched!", Toast.LENGTH_LONG).show();
             }
 
             if (!accessory.toString().contains(VersionString)) {
-                Toast.makeText(ChessPad.getContext(), "Version is not matched!", Toast.LENGTH_LONG).show();
+                Toast.makeText(MainActivity.getContext(), "Version is not matched!", Toast.LENGTH_LONG).show();
             }
 
-            Toast.makeText(ChessPad.getContext(), "Accessory Attached", Toast.LENGTH_LONG).show();
+            Toast.makeText(MainActivity.getContext(), "Accessory Attached", Toast.LENGTH_LONG).show();
 
             if (usbManager.hasPermission(accessory)) {
                 Log.d(DEBUG_TAG, "have Permission");
@@ -243,7 +240,7 @@ public class DgtBoardInterface extends DgtBoardIO {
                 synchronized (usbReceiver) {
                     Log.d(DEBUG_TAG, String.format("permissionRequestPending %b", permissionRequestPending));
                     if (!permissionRequestPending) {
-                        Toast.makeText(ChessPad.getContext(), "Request USB Permission", Toast.LENGTH_LONG).show();
+                        Toast.makeText(MainActivity.getContext(), "Request USB Permission", Toast.LENGTH_LONG).show();
                         usbManager.requestPermission(accessory,
                                 permissionIntent);
                         permissionRequestPending = true;
@@ -259,13 +256,12 @@ public class DgtBoardInterface extends DgtBoardIO {
         }
     }
 
-    @TargetApi(12)
     public void open() throws IOException {
         UsbAccessory accessory = getAccessory();
         Log.d(DEBUG_TAG, String.format("open %s", accessory));
         fileDescriptor = usbManager.openAccessory(accessory);
         if (fileDescriptor == null){
-            throw  new IOException(String.format("%s does not open", accessory.toString()));
+            throw  new IOException(String.format("%s does not open", accessory));
         }
         FileDescriptor fd = fileDescriptor.getFileDescriptor();
         inputStream = new FileInputStream(fd);
@@ -283,29 +279,29 @@ public class DgtBoardInterface extends DgtBoardIO {
         }
     }
 
-	public void close() {
+    public void close() {
         Log.d(DEBUG_TAG, "close accessory");
         try {
             Thread.sleep(10);
         } catch(InterruptedException e){ /* ignore */ }
 
-		try {
+        try {
             fileDescriptor.close();
 		} catch (Exception e){ /* ignore */ }
 
-		try {
-            inputStream.close();
-		} catch(Exception e){ /* ignore */ }
-
-		try {
-            outputStream.close();
-		} catch(Exception e){ /* ignore */ }
-
-		fileDescriptor = null;
-		inputStream = null;
-		outputStream = null;
         try {
-            ChessPad.getContext().unregisterReceiver(usbReceiver);
+            inputStream.close();
+        } catch(Exception e){ /* ignore */ }
+
+        try {
+            outputStream.close();
+        } catch(Exception e){ /* ignore */ }
+
+        fileDescriptor = null;
+        inputStream = null;
+        outputStream = null;
+        try {
+            MainActivity.getContext().unregisterReceiver(usbReceiver);
         } catch (Exception e) {
             // ignore, nothing to do
         }

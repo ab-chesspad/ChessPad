@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -32,10 +32,12 @@ class PgnParser {
         dummy_str = null;
 
 
-    static void parseMoves(String moveText, MoveTextHandler moveTextHandler, CpFile.ProgressObserver progressObserver) throws Config.PGNException {
+    static void parseMoves(String moveText, MoveTextHandler moveTextHandler, boolean showProgress) throws Config.PGNException {
         StringTokenizer st = new StringTokenizer(moveText, DELIMITERS, true);
         int offset = 0;
-        CpFile.ProgressNotifier progressNotifier = new CpFile.ProgressNotifier(progressObserver);
+        if (showProgress) {
+            CpFile.progressNotifier.setTotalLength(moveText.length());
+        }
         String oldGlyph = "";
         String token;
         String ch;
@@ -44,11 +46,13 @@ class PgnParser {
         try {
             while (st.hasMoreTokens()) {
                 token = st.nextToken(DELIMITERS).trim();
-                if(DEBUG) {
+                if (DEBUG) {
                     System.out.println(String.format(Locale.US, "%d: \"%s\"", offset, token));
                 }
                 offset += token.length() + 1;   // approximate
-                progressNotifier.setOffset(offset, moveText.length());
+                if (showProgress) {
+                    CpFile.progressNotifier.setOffset(offset);
+                }
                 if (token.isEmpty() || token.equals(".")) {
                     continue;
                 }
@@ -66,7 +70,7 @@ class PgnParser {
                 if (!oldGlyph.isEmpty()) {
                     Integer newGlyph = Config.old_glyph_translation.get(oldGlyph);
                     if (newGlyph != null) {
-                        moveTextHandler.onGlyph("$" + newGlyph.toString());
+                        moveTextHandler.onGlyph("$" + newGlyph);
                     }
                     oldGlyph = "";
                 }
@@ -95,7 +99,9 @@ class PgnParser {
                         }
                     } while (count > 0);
                     offset += comment.length() + 1;   // approximate
-                    progressNotifier.setOffset(offset, moveText.length());
+                    if (showProgress) {
+                        CpFile.progressNotifier.setOffset(offset);
+                    }
                     comment.deleteCharAt(comment.length() - 1);
                     token = new String(comment).replaceAll("(?s)\\s+", " ");
                     if (!Config.COMMENT_CLOSE.equals(token.substring(0, 1))) {    // ignore empty comments
@@ -115,6 +121,8 @@ class PgnParser {
                     moveTextHandler.onVariantClose();
                 }
             }
+        } catch (OutOfMemoryError e) {
+            throw e;
         } catch (Throwable t) {
             throw new Config.PGNException(t);
         }

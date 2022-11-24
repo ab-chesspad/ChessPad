@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,48 +15,24 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 * Opening book for UCI engine
-* many repeating comments (opening names) stored in commentStrings, the move comments
-* in a special format refer to this array
+* many repeating comments (opening names) stored in commentStrings,
+* the move comments are in a special format, refer to this array
 * Created by Alexander Bootman on 8/6/19.
  */
 package com.ab.pgn;
 
-import com.ab.pgn.io.CpFile;
-
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
 
 public class Book extends PgnGraph {
-    private String[] commentStrings;            // all comment strings, moves contain references on them
+    String[] commentStrings;            // all comment strings, moves contain references on them
 
     Book() {
         super();
-    }
-
-    private void save(String fileName) throws IOException {
-        File f = new File(fileName);
-        f.getParentFile().mkdirs();
-        try (OutputStream outputStream = new FileOutputStream(f);
-             PrintStream ps = new PrintStream(outputStream)) {
-            if (commentStrings == null) {
-                ps.println(0);
-            } else {
-                int size = commentStrings.length;
-                ps.println(size);
-                for (int indx = 0; indx < size; ++indx) {
-                    ps.println(commentStrings[indx]);
-                }
-            }
-            ps.println(toPgn());    // todo: make shorter
-        }
     }
 
     public Book(InputStream is, long totalLength) throws Config.PGNException {
@@ -65,7 +41,7 @@ public class Book extends PgnGraph {
             int length = line.length();
             int size = Integer.valueOf(line);
             commentStrings = new String[size];
-            for(int i = 0; i < size; ++i) {
+            for (int i = 0; i < size; ++i) {
                 line = br.readLine();
                 length += line.length();
                 commentStrings[i] = line;
@@ -75,7 +51,7 @@ public class Book extends PgnGraph {
                 sb.append(line);
             }
             String moves = new String(sb);
-            parseMoves(moves, null);
+            parseMoves(moves);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
@@ -119,130 +95,5 @@ public class Book extends PgnGraph {
             move = move.getVariation();
         } while (move != null);
         return moves;
-    }
-
-    public static class Builder {
-        public static void build(String ecoPgnFile, String additionalTextFile, String resultFile) throws Config.PGNException {
-            CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.CpParent.fromPath(ecoPgnFile);
-            MergeData mergeData = new MergeData(pgnFile);
-
-            Book book = new Book();
-            book.merge(mergeData, null);
-            int size = mergeData.commentStrings.size();
-            book.commentStrings = new String[size];
-            for(Map.Entry<String, Integer> entry : mergeData.commentStrings.entrySet()) {
-                book.commentStrings[entry.getValue()] = entry.getKey();
-            }
-
-            String title = "";
-            String line = "";
-            int totalNewMoves = 0;
-            try (FileReader fr = new FileReader(additionalTextFile);
-                 BufferedReader br = new BufferedReader(fr)) {
-                while((line = br.readLine()) != null) {
-                    line = line.trim();
-                    if (line.isEmpty()) {
-                        continue;
-                    }
-                    if (line.startsWith("#")) {
-                        title = line;
-                        continue;
-                    }
-                    PgnGraph graph = new PgnGraph();
-                    graph.parseMoves(line, null);
-                    int newMoves;
-                    if ((newMoves = merge(book, graph)) > 0) {
-                        totalNewMoves += newMoves;
-                    }
-                }
-//            logger.debug(String.format(Locale.US, "added total %s moves", totalNewMoves));
-                book.save(resultFile);
-            } catch (Config.PGNException e) {
-                e.printStackTrace();
-                System.out.printf("error for %s on %s", title, line);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private static int merge(Book book, PgnGraph graph) {
-            int newMoves = 0;
-            Board prevBoard = null;
-            String commonComment = null;
-            for(Move move : graph.moveLine) {
-                Board nextBoard = graph.getBoard(move);
-                Board ecoBoard = book.getBoard(move);
-                if (ecoBoard == null) {
-                    ++newMoves;
-                    move.comment = commonComment;
-                    ecoBoard = nextBoard.clone();
-                    book.positions.put(new Pack(move.packData), ecoBoard);
-                    Move prevMove = prevBoard.getMove();
-                    if (prevMove == null) {
-                        prevBoard.setMove(move);
-                    } else {
-                        move.setVariation(prevMove.getVariation());     // add new move as variation
-                        prevMove.setVariation(move);
-                    }
-                } else {
-                    Move m;
-                    if (prevBoard != null && (m = prevBoard.getMove()) != null) {
-                        while(m != null) {
-                            if (move.isSameAs(m)) {
-                                break;
-                            }
-                            m = m.getVariation();
-                        }
-                        // m == null when the position results with moves transposition
-                        if (m != null) {
-                            commonComment = m.comment;
-                        }
-                    }
-                }
-                prevBoard = ecoBoard;
-            }
-            return newMoves;
-        }
-
-        private static class MergeData extends PgnGraph.MergeData {
-            final Map<String, Integer> commentStrings;  // all comment strings, moves contain references on them
-            String commonComment;
-
-            MergeData(CpFile.PgnFile pgnFile) {
-                super(pgnFile);
-                commentStrings = new HashMap<>();
-            }
-
-            @Override
-            public PgnGraph.MergeState onNewItem(CpFile.PgnItem item) {
-                StringBuilder sb = new StringBuilder();
-                List<Pair<String, String>> tags = item.getTags();
-                for (Pair<String, String> tag : tags) {
-                    if (Config.TAG_UNKNOWN_VALUE.equals(tag.second)) {
-                        continue;
-                    }
-                    int index = commentStrings.size();
-                    Integer ind = commentStrings.get(tag.second);
-                    if (ind == null) {
-                        commentStrings.put(tag.second, index);
-                    } else {
-                        index = ind;
-                    }
-                    sb.append(Config.BOOK_COMMENT_STRING_TAG).append(index);
-                }
-                if (sb.length() > 0) {
-                    commonComment = new String(sb);
-                } else {
-                    commonComment = null;
-                }
-
-                return PgnGraph.MergeState.Merge;
-            }
-
-            @Override
-            public String getCommonComment() {
-                return commonComment;
-            }
-        }
     }
 }

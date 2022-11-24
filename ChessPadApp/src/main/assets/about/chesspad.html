@@ -1,3 +1,23 @@
+<!--
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+ * ChessPad description and user's manual
+ * Created by Alexander Bootman on 8/20/16.
+-->
+
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
@@ -17,12 +37,12 @@
   <body>
 
   <p>
-The most advanced graphical PGN editor. Allows user to load, browse, modify, delete PGN files, possibly inside zip files.
+The most advanced graphical PGN editor. Allows user to load, browse, annotate, modify, delete PGN files, possibly inside zip files.
 Supports nested variants, comments, glyphs.
 Here are the details about <a href="http://en.wikipedia.org/wiki/Portable_Game_Notation">PGN</a>
 and <a href="http://en.wikipedia.org/wiki/Forsyth%E2%80%93Edwards_Notation">FEN</a>.<br/>
 
-The latest version integrates Stockfish 14 and ChessPad shows its results as hints.<br/><br/>
+Integrates Stockfish 14 so that ChessPad shows its results as hints.<br/><br/>
 <!--
     Test:<br/>
   <a href="https://drive.google.com/open?id=1ueVN7QRhcYKW4lHTjzUY2tp5NekKuC0f">mate in 2</a>
@@ -30,15 +50,25 @@ The latest version integrates Stockfish 14 and ChessPad shows its results as hin
   <a href="https://drive.google.com/file/d/1r1saFwN4Er3zx_-oenS4JRwsfCZW4W5_/view?usp=sharing">lichess puzzles 0</a>,
     <br/>
 -->
-Please report the problems to 
+Please report possible problems to
 <a href="mailto:ab.chesspad@gmail.com">Alexander Bootman</a>.
   <br/><br/>
 
-ChessPad creates a sample file <i>/sdcard/ChessPad/sample.pgn</i> so the user can get an idea of ChessPad features.<br/>
-<b>Note:</b> all modifications to this file will be lost after ChessPad is restarted. To preserve your changes save the game in another file.
+    Because of the recent Android OS requirements, ChessPad file access architecture has been completely redesigned. Regarding UI that means that
+    at the first launch after ChessPad installation or upgrade, the user has to specify a new or existing directory
+    (e.g. /sdcard/Documents/ChessPad) which the program
+    will be using as its root directory and access all its files within it only. If an existing directory is specified, all legacy files
+    will be accessible. When ChessPad is invoked using Files (MyFiles, FileManager, etc.), pgn or zip file will be copied to ChessPad
+    home directory and then the program will show the file contents.
+    <br/>
+
+ChessPad creates a sample file <i>sample.pgn</i> so the user can get an idea of ChessPad features.<br/>
+<b>Note:</b> all modifications to this file will be lost after ChessPad is restarted. To preserve your changes save (using <b>Append</b>)
+      the game in another file.
   </p>
 
-<h3>Main Screen.</h3>
+  <h3>Main Screen.</h3>
+
   <br/>
   <center>
   <img src="game-view.png">
@@ -65,7 +95,6 @@ Button <b>To end / To next game / Faster animation</b>, depending on the game st
     <li>Opens the next game, if possible, when already at the last move;</li>
     <li>Speeds up animation, when in animation mode.</li>
   </ul>
-  </p>
   <p>
 Every pgn file can contain a number of games.
 There are two ways to open them, with <b>Load</b> or <b>Puzzles</b> menu commands:
@@ -97,7 +126,7 @@ There are two ways to open them, with <b>Load</b> or <b>Puzzles</b> menu command
   </table>
   <br/>
 In <b>Puzzles</b> mode any attempt to move the position forward or go to another puzzle prematurely
-is considered as failure. Button <b>Analysis</b> is disabled while the user is solving the puzzle.
+is considered a failure. Button <b>Analysis</b> is disabled while the user is solving the puzzle.
   <br/>
 There are a number of large chess puzzle collections on the Web, e.g. 
   <a href="https://drive.google.com/open?id=1ueVN7QRhcYKW4lHTjzUY2tp5NekKuC0f">mate in 2</a>
@@ -126,14 +155,12 @@ or<br/><br/>
     <li>ChessPad creates directories and zip files automatically, but to rename/copy/move/delete files and directories you will need one of File Managers
         available on Google Play.</li>
   </ul>
-  </p>
   <p>
 By tapping the title line, you get to the screen where you can modify PGN tags.<br/>
 All tag values can be changed and the tags not included in STR can even be deleted. You can also add new tags using the last line:<br/>
   <center>
   <img src="tag-editor.png">
   </center>
-  </p>
   <p>
 Using the menu command <b>Setup</b>, you can switch to Setup screen. The position and tags will be copied from Game screen:<br/>
   <center>
@@ -143,8 +170,7 @@ Using the menu command <b>Setup</b>, you can switch to Setup screen. The positio
 To place a piece on the board, tap on it in the pool set, then tap on the board where you want to place it as many times as you want. 
 Fling a piece to remove it from the board.<br/>
 Setup can be finished and ChessPad returns to Game screen only if the position does not have errors, such as no King, more than one King, etc.<br/>
-To abandon Setup and return to Game screen use Menu <b>Cancel Setup</b>. The position will be lost in this case.
-  </p>
+To abandon Setup and return to Game screen use Menu <b>Cancel Setup</b>. Then the setup position will be lost.
   <h3>Merging variations.</h3>
 ChessPad automatically merges variations when they lead to the same position. For example:<br/><br/>
   <span class="pgn">
@@ -239,17 +265,16 @@ ChessPad does not make any judgments, it just records the positions and the lega
 When in DGT Board mode, ChessPad records the games until the user stops it explicitly. 
 Then it writes a new pgn file with all recorded games.
 It increments Round tag and alternates White/Black tags automatically for every game. 
-The recorded games can be found on Android in ChessPad folder as rec-YYYY-MM-DD_hh-mm-ss.pgn files.<br/>
+The recorded games can be found on Android in <b>dgt_board</b> folder as rec-YYYY-MM-DD_hh-mm-ss.pgn files.<br/>
 Some issues with DGT Board were observed:
   <ul>
     <li>The connection is not recognized. Disconnect USB adapter from the phone and reconnect it. This is especially true with the older Android V5.0.</li>
-    <li>ChessPad screen does not show the current position on the board. We saw it only in Setup/Mess mode. Take off a piece and put it back.</li>
+    <li>ChessPad screen does not show the current position on the board. I saw it only in Setup/Mess mode. Take off a piece and put it back.</li>
   </ul>
   <p>
   <center>
 <b>ChessPad is free with no ads. Enjoy!</b>
   </center>
-  </p>
 
   <p>
 Please report the problems to 

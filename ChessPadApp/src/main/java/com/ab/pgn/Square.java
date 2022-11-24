@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ public class Square {
         if (sq != null && sq.length() == 2) {
             int x = fromX(sq.charAt(0));
             int y = fromY(sq.charAt(1));
-            if ( x >= 0 && x < Config.BOARD_SIZE && y >= 0 && y < Config.BOARD_SIZE) {
+            if (x >= 0 && x < Config.BOARD_SIZE && y >= 0 && y < Config.BOARD_SIZE) {
                 this.x = x;
                 this.y = y;
             }

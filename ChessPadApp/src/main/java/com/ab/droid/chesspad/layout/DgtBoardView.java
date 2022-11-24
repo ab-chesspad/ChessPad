@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ import android.widget.TextView;
 
 import com.ab.droid.chesspad.BoardHolder;
 import com.ab.droid.chesspad.ChessPad;
+import com.ab.droid.chesspad.MainActivity;
 import com.ab.droid.chesspad.R;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
@@ -98,7 +99,7 @@ public class DgtBoardView extends SetupView {
         // override super:
         setupStatus.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_UP && getSetup().getErrNum() == 0) {
-                if(getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
+                if (getDgtBoardPad().getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
                     getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.SetupMess, false);
                 } else {
                     getDgtBoardPad().setBoardStatus(DgtBoardPad.BoardStatus.Game, true);
@@ -356,7 +357,7 @@ public class DgtBoardView extends SetupView {
         DgtBoardPad dgtBoardPad = getDgtBoardPad();
         try {
             if (dgtBoardPad != null && dgtBoardPad.getBoardStatus() == DgtBoardPad.BoardStatus.Game) {
-                InputMethodManager imm = (InputMethodManager) chessPad.getSystemService(Context.INPUT_METHOD_SERVICE);
+                InputMethodManager imm = (InputMethodManager) MainActivity.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
                 if (imm != null) {
                     imm.hideSoftInputFromWindow(comment.getWindowToken(), 0);
                     Log.d(DEBUG_TAG, "kbd closed");

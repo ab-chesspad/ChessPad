@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ class DgtBoardWatcher {
     private WriteThread writeThread;
     private boolean passMessages;
 
-    DgtBoardWatcher(DgtBoardIO dgtBoardIO, BoardMessageConsumer boardMessageConsumer) {
+    public DgtBoardWatcher(DgtBoardIO dgtBoardIO, BoardMessageConsumer boardMessageConsumer) {
         logger.setIncludeTimeStamp(true);
         this.dgtBoardIO = dgtBoardIO;
         this.boardMessageConsumer = boardMessageConsumer;
@@ -66,33 +66,33 @@ class DgtBoardWatcher {
 
     public void start() {
         logger.debug("start");
-        if(readThread == null) {
+        if (readThread == null) {
             readThread = new ReadThread(boardMessageConsumer);
         }
         passMessages = true;
     }
 
-    void stop() {
+    public void stop() {
         logger.debug("stop");
         passMessages = false;
     }
 
     void finish() {
         stop();
-        if(readThread != null) {
+        if (readThread != null) {
             readThread.finish();
         }
         readThread = null;
     }
 
     void dumpBoardLoopStart(int timeout) {
-        if(readThread != null && writeThread == null) {
+        if (readThread != null && writeThread == null) {
             writeThread = new WriteThread(DgtBoardProtocol.DGT_SEND_BRD, timeout);
         }
     }
 
     void dumpBoardLoopStop() {
-        if(writeThread != null) {
+        if (writeThread != null) {
             writeThread.finish();
             writeThread = null;
         }
@@ -151,7 +151,7 @@ class DgtBoardWatcher {
         final int[] map = {Config.EMPTY, Config.WHITE_PAWN, Config.WHITE_ROOK, Config.WHITE_KNIGHT, Config.WHITE_BISHOP, Config.WHITE_KING, Config.WHITE_QUEEN,
                 Config.BLACK_PAWN, Config.BLACK_ROOK, Config.BLACK_KNIGHT, Config.BLACK_BISHOP, Config.BLACK_KING, Config.BLACK_QUEEN };
         int dgtByte = _dgtByte & 0x0ff;
-        if(dgtByte >= map.length) {
+        if (dgtByte >= map.length) {
             return Config.EMPTY;        // strange DGT eBoard bug
         }
         return map[dgtByte];
@@ -176,7 +176,7 @@ class DgtBoardWatcher {
             int offset = 0;
             while (keepRunning) {
                 int timeout = 1000;
-                if(passMessages) {
+                if (passMessages) {
                     timeout = 100;
                 }
                 try {
@@ -187,14 +187,14 @@ class DgtBoardWatcher {
                 int readCount;
                 try {
                     String tName = Thread.currentThread().getName();
-                    if(DEBUG) {
+                    if (DEBUG) {
                         logger.debug(String.format("%s: hanging on read", tName));
                     }
                     readCount = dgtBoardIO.read(readBuffer, offset, readBuffer.length - offset);
-                    if(readCount == -1) {
+                    if (readCount == -1) {
                         throw new IOException("Read length=-1");
                     }
-                    if(DEBUG) {
+                    if (DEBUG) {
                         logger.debug(String.format(Locale.getDefault(), "%s: read %d bytes %s", tName, readCount, bytesToHex(readBuffer, 0, offset + readCount)));
                     }
                 } catch (IOException e) {
@@ -225,7 +225,7 @@ class DgtBoardWatcher {
                     if (length < 3) {
                         return length;
                     }
-                    if(msgId == (byte)0x90 && readBuffer[1] == (byte)0x81) {
+                    if (msgId == (byte)0x90 && readBuffer[1] == (byte)0x81) {
                         expectedLength = 10;        // todo: find details of this undocumented message 908100080000B5000891
                     } else {
                         expectedLength = (readBuffer[1] << 7) + readBuffer[2];
@@ -236,10 +236,10 @@ class DgtBoardWatcher {
                 if (length < expectedLength) {
                     return length;
                 }
-                if(expectedLength <= 0) {
+                if (expectedLength <= 0) {
                     expectedLength = length;    // another undocumented message?
                 }
-                if(passMessages) {
+                if (passMessages) {
                     boardMessageConsumer.consume(BoardMessage.createMessage(readBuffer, expectedLength));
                 }
 
@@ -299,7 +299,7 @@ class DgtBoardWatcher {
         private BoardMessage(byte[] buffer, int length) {
             this.buffer = new byte[length];
             System.arraycopy(buffer, 0, this.buffer, 0, length);
-            if(DEBUG) {
+            if (DEBUG) {
                 logger.debug(String.format("BoardMessage 0x%s", Integer.toHexString(this.buffer[0] & 0x0ff)));
             }
         }
@@ -351,7 +351,7 @@ class DgtBoardWatcher {
         @Override
         public String toString() {
             String res = "";
-            if(piece == Config.EMPTY) {
+            if (piece == Config.EMPTY) {
                 res = "x";
             } else {
                 res += Config.FEN_PIECES.charAt(piece);
@@ -393,7 +393,7 @@ class DgtBoardWatcher {
                 Square sq = dgt2Square((byte) (i - 3));
                 board.setPiece(sq, piece);
             }
-            if(DEBUG) {
+            if (DEBUG) {
                 logger.debug(String.format("BoardMessagePosition %s", board.toFEN()));
             }
         }
@@ -420,10 +420,10 @@ class DgtBoardWatcher {
                     // ignore
                 }
                 try {
-                    if(DEBUG) {
+                    if (DEBUG) {
                         logger.debug(String.format("write 0x%s", Integer.toHexString(command & 0xFF)));
                     }
-                    if(dgtBoardIO == null) {
+                    if (dgtBoardIO == null) {
                         DgtBoardWatcher.this.dumpBoardLoopStop();
                         break;
                     }

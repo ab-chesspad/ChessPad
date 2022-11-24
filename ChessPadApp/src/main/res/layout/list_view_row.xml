@@ -14,7 +14,7 @@
         android:textColor="#000000"
         android:textSize="20sp"
         android:visibility="gone"
-        android:background="#ffffff"
+        android:background="#ff0000"
         />
 
     <LinearLayout
@@ -22,7 +22,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginTop="1dp"
         android:layout_marginLeft="10dp"
         android:layout_marginRight="10dp"
         android:visibility="gone"
@@ -50,8 +49,9 @@
             android:layout_width="0dp"
             android:layout_weight="6"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="2sp"
-            android:layout_gravity="center_vertical"
+            android:layout_marginStart="2sp"
+            android:layout_gravity="start"
+            android:gravity="start"
             android:maxLines="1"
             android:inputType="textCapWords|textCapSentences"
             android:scrollHorizontally="true"
@@ -67,8 +67,8 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="20dp"
-            android:layout_marginRight="0dp"
-            android:layout_gravity="center_vertical"
+            android:layout_gravity="end"
+            android:gravity="end"
             android:background="#ffffff"
             />
 

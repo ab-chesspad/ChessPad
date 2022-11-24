@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -98,7 +98,7 @@ public class BitStreamTest {
         reader.readList(trg);
         Assert.assertEquals(src.size(), trg.size());
         int k = 0;
-        for(String item : src) {
+        for (String item : src) {
             Assert.assertEquals(item, trg.get(k++));
         }
         Assert.assertEquals(j, reader.read(5));
@@ -115,7 +115,7 @@ public class BitStreamTest {
         int bit = index - ind * 8;
         int mask = 1 << bit;
         int res = puzzleBitmask[ind] & mask;
-        if(res == 0) {
+        if (res == 0) {
             puzzleBitmask[ind] |= mask;
         }
         return res;
@@ -136,7 +136,7 @@ public class BitStreamTest {
     public void testBits() {
         int lastIndex = 12;
         setPuzzles(lastIndex);
-        for(int i = 0; i <= lastIndex; ++i) {
+        for (int i = 0; i <= lastIndex; ++i) {
             int index = getNextPuzzleIndex();
             System.out.println(index);
         }

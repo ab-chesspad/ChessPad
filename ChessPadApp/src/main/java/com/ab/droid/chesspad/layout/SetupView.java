@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import com.ab.droid.chesspad.BoardHolder;
+import com.ab.droid.chesspad.ChessPad;
+import com.ab.droid.chesspad.MainActivity;
 import com.ab.droid.chesspad.R;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
@@ -38,6 +40,9 @@ import com.ab.pgn.Square;
 public class SetupView extends ChessPadLayout.CpView {
     final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
+    // User ->> Empty ->> Init
+    final int[] predefinedSetupButtons = {R.drawable.empty, R.drawable.init, R.drawable.prev_move};
+
     private final Board verticalPoolBoard, horizontalPoolBoard;
     private BoardView poolView;
     protected TextView setupStatus;
@@ -46,16 +51,9 @@ public class SetupView extends ChessPadLayout.CpView {
     protected ChessPadLayout.CpToggleButton btnWhiteMove, btnBlackMove;
     protected ChessPadLayout.CpToggleButton btnWhiteQueenCastle, btnWhiteKingCastle, btnBlackQueenCastle, btnBlackKingCastle;
     protected LabeledEditText enPassEditText, hmClockEditText, moveNumEditText;
-    protected ChessPadLayout.CpToggleButton btnPredefinedSetups;
-
+    protected ChessPadLayout.CpImageButton btnPredefinedSetups;
+    protected ChessPadLayout.CpImageButton btnFlip;
     private int poolSquareSize;
-
-    private static final int
-        predefinedPosition_none = 0x0,
-        predefinedPosition_init = 0x1,
-        predefinedPosition_empty = 0x2,
-        predefinedPosition_mask = predefinedPosition_init | predefinedPosition_empty
-    ;
 
     SetupView() {
         verticalPoolBoard = null;
@@ -78,7 +76,7 @@ public class SetupView extends ChessPadLayout.CpView {
             {Config.WHITE_KING, Config.BLACK_KING},
         });
 
-        poolView = new BoardView(chessPad, new BoardHolder() {
+        poolView = new BoardView(MainActivity.getContext(), new BoardHolder() {
             @Override
             public Board getBoard() {
                 if (Metrics.isVertical) {
@@ -138,7 +136,7 @@ public class SetupView extends ChessPadLayout.CpView {
             Setup setup = getSetup();
             if (setup != null && event.getAction() == MotionEvent.ACTION_UP && setup.getErrNum() == 0) {
                 try {
-                    chessPad.setPgnGraph(-1, null);
+                    chessPad.setPgnGraph(null);
                 } catch (Config.PGNException e) {
                     Log.e(DEBUG_TAG, "endSetup failed", e);
                 }
@@ -165,7 +163,7 @@ public class SetupView extends ChessPadLayout.CpView {
         });
         btnBlackMove = new ChessPadLayout.CpToggleButton(controlPaneLayout, R.drawable.kb, new SetupFlagKeeper(Config.FLAGS_BLACK_MOVE) {
             @Override
-            public void setFlag(boolean set){
+            public void setFlag ( boolean set){
                 super.setFlag(set);
                 setMoveNum(getMoveNum());
             }
@@ -243,7 +241,16 @@ public class SetupView extends ChessPadLayout.CpView {
             }
         });
 
-        btnPredefinedSetups = new ChessPadLayout.CpToggleButton(controlPaneLayout, R.drawable.delete, new SetupFlagKeeper(predefinedPosition_mask));
+        btnFlip = chessPadLayout.createImageButton(controlPaneLayout, ChessPad.Command.Flip, R.drawable.flip_board_view);
+
+        btnPredefinedSetups = chessPadLayout.createImageButton(controlPaneLayout, ChessPad.Command.None, R.drawable.empty);
+        btnPredefinedSetups.setOnClickListener((v) -> {
+            Setup setup = getSetup();
+            Log.d(DEBUG_TAG, String.format("btnPredefinedSetups onClick (%s)", setup.getCurrentPredefinedPosition()));
+            getSetup().setNextPredefinedPosition();
+            invalidate();
+        });
+
         controlPaneLayout.setVisibility(View.GONE);
     }
 
@@ -306,8 +313,9 @@ public class SetupView extends ChessPadLayout.CpView {
 
             @Override
             public boolean isFlipped() {
-                return false;
+                return getSetup().isFlipped();
             }
+
         };
     }
 
@@ -323,6 +331,7 @@ public class SetupView extends ChessPadLayout.CpView {
     @SuppressLint("ClickableViewAccessibility")
     void draw() {
         super.draw();
+
         chessPadLayout.boardView.draw(mainBoardHolder);
 
         if (Metrics.isVertical) {
@@ -340,6 +349,7 @@ public class SetupView extends ChessPadLayout.CpView {
         hmClockEditText.cpEditText.draw();
         moveNumEditText.cpEditText.draw();
     }
+
 
     private void setStatus(int errNum) {
         if (setupStatus != null) {
@@ -429,7 +439,14 @@ public class SetupView extends ChessPadLayout.CpView {
         y += h + Metrics.ySpacing;
         moveNumEditText.moveTo(x, y, Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2, h);
 
-// TODO!        chessPadLayout.moveTo(btnPredefinedSetups, x, y, Metrics.halfMoveClockLabelWidth, Metrics.moveLabelWidth / 2);
+        x = Metrics.paneWidth - toggleButtonSize - Metrics.xSpacing;
+        y = y0;
+        chessPadLayout.moveTo(btnFlip, x, y, toggleButtonSize, toggleButtonSize);
+
+        y += toggleButtonSize + Metrics.ySpacing;
+        chessPadLayout.moveTo(btnPredefinedSetups, x, y, toggleButtonSize, toggleButtonSize);
+
+
     }
 
     protected void drawSetupHorizontalLayout() {
@@ -459,14 +476,21 @@ public class SetupView extends ChessPadLayout.CpView {
         chessPadLayout.moveTo(poolView, x, y, w, h);
 
         int x0 = x + w + Metrics.xSpacing;
-
         x = x0;
         chessPadLayout.moveTo(btnWhiteMove, x, y, toggleButtonSize, toggleButtonSize);
         x += toggleButtonSize + Metrics.xSpacing;
         chessPadLayout.moveTo(btnBlackMove, x, y, toggleButtonSize, toggleButtonSize);
 
-        x = x0;
+        x = Metrics.paneWidth - toggleButtonSize - Metrics.xSpacing;
+        chessPadLayout.moveTo(btnFlip, x, y, toggleButtonSize, toggleButtonSize);
+
+        int y0 = y;
         y += toggleButtonSize + Metrics.ySpacing;
+        chessPadLayout.moveTo(btnPredefinedSetups, x, y, toggleButtonSize, toggleButtonSize);
+
+
+        x = x0;
+        y = y0 + toggleButtonSize + Metrics.ySpacing;
         chessPadLayout.moveTo(btnWhiteQueenCastle, x, y, toggleButtonSize, toggleButtonSize);
         x += toggleButtonSize + Metrics.xSpacing;
         chessPadLayout.moveTo(btnWhiteKingCastle, x, y, toggleButtonSize, toggleButtonSize);
@@ -486,7 +510,7 @@ public class SetupView extends ChessPadLayout.CpView {
 
     LabeledEditText createLabeledEditText(int rscLabel, ChessPadLayout.StringKeeper stringKeeper) {
         LabeledEditText labeledEditText = new LabeledEditText();
-        TextView label = new TextView(chessPad);
+        TextView label = new TextView(MainActivity.getContext());
         label.setBackgroundColor(Color.LTGRAY);
         label.setTextColor(Color.BLACK);
         label.setPadding(Metrics.xSpacing, Metrics.ySpacing, Metrics.xSpacing, Metrics.ySpacing);
@@ -495,7 +519,7 @@ public class SetupView extends ChessPadLayout.CpView {
         controlPaneLayout.addView(label);
         labeledEditText.label = label;
 
-        ChessPadLayout.CpEditText editText = new ChessPadLayout.CpEditText(chessPad);
+        ChessPadLayout.CpEditText editText = new ChessPadLayout.CpEditText(MainActivity.getContext());
         editText.setBackgroundColor(Color.GREEN);
         editText.setTextColor(Color.BLACK);
         editText.setPadding(Metrics.xSpacing, Metrics.ySpacing, Metrics.xSpacing, Metrics.ySpacing);
@@ -516,6 +540,7 @@ public class SetupView extends ChessPadLayout.CpView {
             return;
         }
         alreadyThere = true;
+        Log.d(DEBUG_TAG, String.format("SetupView.invalidate(%s)", this.getClass().getName()));
         chessPadLayout.boardView.setHints(null);
         Setup setup = getSetup();
         if (setup == null) {
@@ -523,12 +548,14 @@ public class SetupView extends ChessPadLayout.CpView {
         }
         setup.validate();
         setStatus(getSetup().getErrNum());
+        btnPredefinedSetups.setImageResource(predefinedSetupButtons[setup.getCurrentPredefinedPosition().ordinal()]);
         chessPadLayout.title.setText(setup.getTitleText());
+        chessPadLayout.boardView.invalidate();
         alreadyThere = false;
     }
 
     private static void invalidateViewGroup(ViewGroup viewGroup) {
-        for(int i = 0; i < viewGroup.getChildCount(); ++i) {
+        for (int i = 0; i < viewGroup.getChildCount(); ++i) {
             View child = viewGroup.getChildAt(i);
             if (child instanceof  ViewGroup) {
                 invalidateViewGroup((ViewGroup)child);

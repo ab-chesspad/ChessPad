@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,8 +19,8 @@
 */
 package com.ab.droid.chesspad;
 
+import android.annotation.SuppressLint;
 import android.graphics.Color;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -38,57 +38,82 @@ abstract class CPArrayAdapter<T> extends ArrayAdapter<T> {
 
     protected List<T> values;
     protected int selectedIndex;
-    private int layoutResource;
-    private LayoutInflater layoutInflater;
 
-    protected abstract void setRowViewHolder(RowViewHolder rowViewHolder, final int position);
-    protected abstract void onConvertViewClick(int position);
-
-    CPArrayAdapter() {
-        super(ChessPad.getContext(), R.layout.list_view_row);
-        init(null, -1);
-    }
+    protected abstract void rowSetup(RowViewHolder rowViewHolder);
+    protected abstract void onRowViewClick(int position);
 
     CPArrayAdapter(List<T> values, int selectedIndex) {
-        super(ChessPad.getContext(), R.layout.list_view_row);
+        super(MainActivity.getContext(), R.layout.list_view_row);
         init(values, selectedIndex);
     }
 
     void init(List<T> values, int initSelection) {
         this.values = values;
         this.selectedIndex = initSelection;
-        layoutResource = R.layout.list_view_row;
-        layoutInflater = LayoutInflater.from(ChessPad.getContext());
     }
 
     List<T> getValues() {
         return values;
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public View getView(final int position, View convertView, ViewGroup parent) {
         RowViewHolder rowViewHolder;
         if (convertView == null) {
-            convertView = layoutInflater.inflate(layoutResource, null);
+            convertView = LayoutInflater.from(MainActivity.getContext()).inflate(R.layout.list_view_row, null);
             convertView.setVisibility(View.VISIBLE);
             rowViewHolder = new RowViewHolder();
             convertView.setTag(rowViewHolder);
         } else {
-            rowViewHolder = (RowViewHolder) convertView.getTag();
+            rowViewHolder = (RowViewHolder)convertView.getTag();
         }
 
         rowViewHolder.convertView = convertView;
-        rowViewHolder.index = position;
+        rowViewHolder.position = position;
 
         convertView.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_UP) {
                 v.performClick();
-                onConvertViewClick(position);
+                onRowViewClick(position);
             }
             // true if the event was handled and should not be given further down to other views.
             return true;
         });
-        setRowViewHolder(rowViewHolder, position);
+
+
+        rowViewHolder.rowLabel = convertView.findViewById(R.id.row_label);
+        rowViewHolder.rowLabel.setTag(rowViewHolder);
+        rowViewHolder.rowLabel.setVisibility(View.VISIBLE);
+//        rowViewHolder.rowLabel.setEnabled(false);
+        if (rowViewHolder.rowLabel != null) {
+            rowViewHolder.rowLabel.setOnTouchListener((v, event) -> {
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    onRowViewClick(position);
+                }
+                // true if the event was handled and should not be given further down to other views.
+                return true;
+            });
+        }
+
+        rowViewHolder.rowValue = convertView.findViewById(R.id.row_value);
+        rowViewHolder.rowValue.setTag(rowViewHolder);
+        rowViewHolder.rowValue.setVisibility(View.VISIBLE);
+//        rowViewHolder.rowValue.setEnabled(false);
+        if (rowViewHolder.rowValue != null) {
+            rowViewHolder.rowValue.setOnTouchListener((v, event) -> {
+                if (event.getAction() == MotionEvent.ACTION_UP) {
+                    onRowViewClick(position);
+                }
+                // true if the event was handled and should not be given further down to other views.
+                return true;
+            });
+        }
+
+        rowViewHolder.actionButton = rowViewHolder.convertView.findViewById(R.id.row_action_button);
+        rowViewHolder.actionButton.setTag(rowViewHolder);
+
+        rowSetup(rowViewHolder);
         if (position == selectedIndex) {
             rowViewHolder.rowValue.setBackgroundColor(Color.CYAN);
         } else {
@@ -124,11 +149,11 @@ abstract class CPArrayAdapter<T> extends ArrayAdapter<T> {
     }
 
     static class RowViewHolder {
-        int index;
+        View convertView;
+        int position;
         TextView rowLabel;
         TextView rowValue;
         Button actionButton;
-        View convertView;
 
         @Override
         public String toString() {

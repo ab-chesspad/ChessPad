@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,9 +14,6 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * work with all relevant files
- * Concrete subclasses: PgnItem, PgnFile, Zip, Dir
- * List directory/zip/pgn files, extract individual game (PgnItem) and add/update/delete game
  * Created by Alexander Bootman on 7/30/16.
  */
 package com.ab.pgn.io;
@@ -26,41 +23,54 @@ import com.ab.pgn.Config;
 import com.ab.pgn.Pair;
 import com.ab.pgn.PgnLogger;
 
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+/**
+ * Concrete subclasses: PgnFile, Zip, Dir, PgnItem
+ * List directory/zip/pgn file, extract individual game (PgnItem) and add/update/delete game
+ */
 public abstract class CpFile implements Comparable<CpFile> {
     private static final boolean DEBUG = false;
     public static final String DEBUG_TAG = Config.DEBUG_TAG + "CpFile ";
 
     public static final String
-        EXT_TEMP = ".tmp",
+        COMMON_ITEM_NAME = "item",
         TAG_START = "[",
         TAG_END = "\"]",
-        SLASH = File.separator,
-        EXT_PGN = ".pgn",
-        EXT_ZIP = ".zip",
-        WRONG_PGN = SLASH + EXT_PGN,
-        WRONG_ZIP = SLASH + EXT_ZIP,
-        PARENT_ZIP = EXT_ZIP + SLASH,
+        PARENT_ZIP = FilAx.EXT_ZIP + FilAx.SLASH,
         TAG_NAME_VALUE_SEP = " \"",
-        DUMMY_PGN_NAME = "dummy" + CpFile.EXT_PGN,
+        DUMMY_PGN_NAME = ".dummy" + FilAx.EXT_PGN,
         dummy_prv_str = null;
 
     private final static PgnLogger logger = PgnLogger.getLogger(CpFile.class);
     private static int i = -1;
-
     public enum CpFileType {
         // in the order of sorting:
         Dir(++i),
         Zip(++i),
         Pgn(++i),
         Item(++i),
-        ItemName(++i),
         ;
 
         private static final CpFileType[] values = CpFileType.values();
@@ -75,50 +85,62 @@ public abstract class CpFile implements Comparable<CpFile> {
         }
     }
 
+    static FilAx.FilAxProvider filAxProvider;
     // all paths, including absPath are relative to rootDir!
+    @SuppressWarnings("StaticInitializerReferencesSubClass")
     private static final Dir rootDir = new Dir(null, "");
-    private static String rootPath;
 
-    private CpFile() {
+    public static final ProgressNotifier progressNotifier = new ProgressNotifier();
+
+    CpFile parent;
+    private String absPath;
+    int length = 0;
+    int totalChildren = -1;
+    protected int index = -1;
+
+    CpFile() {}
+
+/* uncomment to emulate OOM
+    int[] debugData = new int[4 * 1024];
+//*/
+
+    public static void setFilAxProvider(FilAx.FilAxProvider filAxProvider) {
+        CpFile.filAxProvider = filAxProvider;
     }
 
-    public static void setRoot(String path) {
-        rootPath = path;
+    public static FilAx.FilAxProvider getFilAxProvider() {
+        return filAxProvider;
     }
 
-    public static String getRootPath() {
-        return rootPath;
+    public static void setProgressObserver(ProgressObserver progressObserver) {
+        progressNotifier.setProgressObserver(progressObserver);
     }
 
-    // todo: verify if the path is legal
-    public static boolean isPgnOk(String path) {
-        path = path.toLowerCase();
-        return path.endsWith(EXT_PGN) && !path.endsWith(WRONG_PGN);
+    protected CpFile(CpFile parent, String name) {
+        if (parent == null) {
+            this.parent = rootDir;
+            this.setAbsolutePath(name);    // init root
+        } else {
+            this.parent = parent;
+            this.setAbsolutePath(concat(parent.getAbsolutePath(), name));
+        }
     }
 
-    private static boolean isZipOk(String path) {
-        path = path.toLowerCase();
-        return path.endsWith(EXT_ZIP) && !path.endsWith(WRONG_ZIP);
-    }
-
-    public static String concat(String parent, String name) {
-        if (parent.endsWith(SLASH)) {
+    private static String concat(String parent, String name) {
+        if (parent.endsWith(FilAx.SLASH)) {
             return parent + name;
         }
-        return parent + SLASH + name;
+        return parent + FilAx.SLASH + name;
     }
 
-    public static File newFile(String path) {
-        return new File(concat(getRootPath(), path));
+    public static FilAx newFile(String path) {
+        return filAxProvider.newFilAx(path);
     }
-
-    public static File newFile(String parent, String name) {
-        return new File(concat(getRootPath(), parent), name);
-    }
-
-    public abstract String getDisplayLength();
 
     private static String getDisplayLength(int length) {
+        if (length <= 0) {
+            return "";
+        }
         char suffix = 'B';
         double len = length;
         if (length >= 1000000) {
@@ -133,6 +155,39 @@ public abstract class CpFile implements Comparable<CpFile> {
             format = "%.2f %c";
         }
         return String.format(Locale.getDefault(), format, len, suffix);
+    }
+
+    private static int compareNames(String name1, String name2) {
+        Pattern p = Pattern.compile("^(\\d+)");
+        Matcher m1 = p.matcher(name1);
+        Matcher m2 = p.matcher(name2);
+        int res;
+        if (m1.find() && m2.find()) {
+            String g1 = m1.group(1);
+            String g2 = m2.group(1);
+            res = g1.length() - g2.length();
+            if (res != 0) {
+                return res;
+            }
+        }
+        res = name1.compareTo(name2);
+        return res;
+    }
+
+    private CpFile(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            this.length = reader.read(32);
+            this.index = reader.read(24);
+            if (index == 0x0ffffff) {
+                index = -1;
+            }
+            this.totalChildren = reader.read(32);
+            this.setAbsolutePath(reader.readString());
+            CpFile tmp = fromPath(getAbsolutePath());
+            this.parent = tmp.parent;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
 
     public static CpFile unserialize(BitStream.Reader reader) throws Config.PGNException {
@@ -154,7 +209,7 @@ public abstract class CpFile implements Comparable<CpFile> {
 
                 case Dir:
                     unserialized = new Dir(reader);
-                    if (((Dir)unserialized).absPath == null) {
+                    if (isRoot(unserialized.absPath)) {
                         unserialized = rootDir;
                     }
                     break;
@@ -164,10 +219,152 @@ public abstract class CpFile implements Comparable<CpFile> {
             throw new Config.PGNException(e);
         }
     }
+
+    public static CpFile fromPath(String path) {
+        if (isRoot(path)) {
+            return rootDir;
+        }
+        String[] names = path.split(FilAx.SLASH);
+        CpFile res = rootDir;
+        String inZipPath = null;
+        String zipPathSep = "";
+        for (String name : names) {
+            if (name.isEmpty()) {
+                continue;
+            }
+            if (inZipPath == null) {
+                if (res instanceof PgnFile) {
+                    // e.g. /a/b/1.pgn/2.pgn, correct
+                    res = new Dir(res.parent, res.getName());
+                }
+                FilAx filAx = filAxProvider.newFilAx(concat(res.getAbsolutePath(), name));
+                if (filAx.isDirectory()) {
+                    res = new Dir(res, name);
+                } else if (FilAx.isPgnOk(name)) {
+                    res = new PgnFile(res, name);
+                } else if (FilAx.isZipOk(name)) {
+                    res = new Zip(res, name);
+                    inZipPath = "";
+                } else {
+                    res = new Dir(res, name);
+                }
+            } else {
+                inZipPath += zipPathSep + name;
+                zipPathSep = FilAx.SLASH;
+            }
+        }
+        if (inZipPath != null && !inZipPath.isEmpty()) {
+            if (FilAx.isPgnOk(inZipPath)) {
+               res = new PgnFile(res, inZipPath);
+            } else {
+                res = new Dir(res, inZipPath);
+            }
+        }
+        return res;
+    }
+
+    // when parseItems == false return raw pgn item text in item.moveText
+    public static synchronized void parsePgnFile(CpFile parent, InputStream is, EntryHandler entryHandler, boolean parseItems) throws Config.PGNException {
+        if (is == null) {
+            return; // crashes otherwise
+        }
+
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(is));
+            int totalLength = is.available();
+            if (parent != null) {
+                totalLength = parent.getLength();
+            }
+            progressNotifier.setTotalLength(totalLength);
+            int index = 0;
+
+            PgnItem pgnItem = new PgnItem(parent);
+            StringBuilder sb = new StringBuilder(Config.STRING_BUF_SIZE);
+            boolean inText = false;
+            String line;
+            int fileOffset = 0, lineCount = 0;
+
+            while ((line = br.readLine()) != null) {
+                ++lineCount;
+                fileOffset += line.length() + 1;
+                line = line.trim();
+                if (line.isEmpty()) {
+                    continue;
+                }
+                if (DEBUG) {
+                    System.out.println(String.format("line %s, fileOffset %s", lineCount, fileOffset));
+                    if (totalLength > 0 && fileOffset > totalLength) {
+                        System.out.println(String.format("fileOffset %s > %s, \"%s\"", fileOffset, totalLength, line));
+                    }
+                }
+                progressNotifier.setOffset(fileOffset);
+                if (line.startsWith(TAG_START) && line.endsWith(TAG_END)) {
+                    if (inText) {
+                        pgnItem.moveText = new String(sb);
+                        pgnItem.index = index;
+                        if (!entryHandler.handle(index, pgnItem)) {
+                            return;
+                        }
+                        sb.delete(0, sb.length());
+                        if (parseItems) {
+                            pgnItem = new PgnItem(parent);
+                        }
+                        ++index;
+                        inText = false;
+                    }
+                    if (parseItems) {
+                        if (!entryHandler.skip(index)) {
+                            parseTag(pgnItem, line);
+                        }
+                    } else {
+                        sb.append(line).append("\n");
+                    }
+                } else {
+                    inText = true;
+                    if (entryHandler.getMovesText(index)) {
+                        sb.append(line).append("\n");
+                    }
+                }
+            }
+            pgnItem.moveText = new String(sb);
+            pgnItem.index = index;
+            entryHandler.handle(index, pgnItem);
+        } catch (OutOfMemoryError e) {
+            throw e;
+        } catch (Throwable e) {
+            if (e.getCause() != null) {
+                e = e.getCause();
+            }
+            logger.error(e);
+            if (e instanceof OutOfMemoryError) {
+                throw (OutOfMemoryError)e;
+            } else {
+                throw new Config.PGNException(e);
+            }
+        }
+    }
+
+    public static void parseTag(PgnItem pgnItem, String line) {
+        int i = line.indexOf(TAG_NAME_VALUE_SEP);
+        if (i > 0) {
+            try {
+                String tLabel = unescapeTag(line.substring(TAG_START.length(), i));
+                String tValue = unescapeTag(line.substring(i + TAG_NAME_VALUE_SEP.length(), line.length() - TAG_END.length()));
+                if (tLabel.equals(Config.TAG_FEN)) {
+                    pgnItem.setFen(tValue);
+                } else {
+                    pgnItem.setTag(tLabel, tValue);
+                }
+            } catch (Exception e) {
+                logger.error(e);
+            }
+        }
+    }
+
     // https://en.wikipedia.org/wiki/Portable_Game_Notation#Tag_pairs
     // A quote inside a tag value is represented by the backslash immediately followed by a quote.
     // A backslash inside a tag value is represented by two adjacent backslashes.
-    static String unescapeTag(String src) {
+    public static String unescapeTag(String src) {
         // looks like Regex on each tag lead to memory fragmentation
         StringBuilder sb = new StringBuilder(src.length());
         final String DELIMITERS = "\\";
@@ -187,140 +384,273 @@ public abstract class CpFile implements Comparable<CpFile> {
         return sb.toString();
     }
 
-    static String escapeTag(String src) {
+    public static String escapeTag(String src) {
         return src.replaceAll("([\\\\\"])", "\\\\$1");
     }
 
-    // when parseItems == false return raw pgn item text in item.moveText
-    public static synchronized List<CpFile.PgnItem> parsePgnFile(InputStream is, boolean parseItems) throws Config.PGNException {
-        final List<CpFile.PgnItem> pgnItems = new LinkedList<>();
-        if (is == null) {
-            return pgnItems; // crashes otherwise
-        }
-
-        parsePgnFile(is, new CpFile.EntryHandler() {
-            @Override
-            public boolean addOffset(int length, int totalLength) {
-                return false;
-            }
-
-            @Override
-            public boolean handle(int index, CpFile.PgnItem entry) {
-                pgnItems.add(entry);
-                return true;
-            }
-
-            @Override
-            public boolean getMovesText(int index) {
-                return true;
-            }
-        }, parseItems);
-
-        return pgnItems;
-    }
-
-    // when parseItems == false return raw pgn item text in item.moveText
-    public static synchronized void parsePgnFile(InputStream is, EntryHandler entryHandler, boolean parseItems) throws Config.PGNException {
-        if (is == null) {
-            return; // crashes otherwise
-        }
-
-        try {
-            BufferedReader br = new BufferedReader(new InputStreamReader(is));
-            int totalLength = is.available();
-            int index = 0;
-            PgnItem item = new PgnItem((PgnFile)null);
-            StringBuilder sb = new StringBuilder(Config.STRING_BUF_SIZE);
-            boolean inText = false;
-            String line;
-            int fileOffset = 0, lineCount = 0;
-
-            while ((line = br.readLine()) != null) {
-                ++lineCount;
-                fileOffset += line.length() + 1;
-                line = line.trim();
-                if (DEBUG) {
-                    System.out.println(String.format("line %s, fileOffset %s", lineCount, fileOffset));
-                    if (totalLength > 0 && fileOffset > totalLength) {
-                        System.out.println(String.format("fileOffset %s > %s, \"%s\"", fileOffset, totalLength, line));
-                    }
-                }
-                if (entryHandler.addOffset(line.length() + 1, totalLength)) {
+    public static String getTitle(List<Pair<String, String>> tags) {
+        StringBuilder sb = new StringBuilder();
+        String sep = "";
+        for (String h : Config.titleTags) {
+            String v = null;
+            for (Pair<String, String> lt : tags) {
+                if (h.equals(lt.first)) {
+                    v = lt.second;
                     break;
                 }
-                if (line.startsWith(TAG_START) && line.endsWith(TAG_END)) {
-                    if (inText) {
-                        item.moveText = new String(sb);
-                        if (!entryHandler.handle(index, item)) {
-                            return;
-                        }
-                        sb.delete(0, sb.length());
-                        if (parseItems) {
-                            item = new PgnItem((PgnFile)null);
-                        }
-                        ++index;
-                        inText = false;
-                    }
-                    if (parseItems) {
-                        if (!entryHandler.skip(index)) {
-                            parseTag(item, line);
-                        }
-                    } else {
-                        sb.append(line).append("\n");
-                    }
-                } else {
-                    inText = true;
-                    if (entryHandler.getMovesText(index)) {
-                        sb.append(line).append("\n");
-                    }
-                }
             }
-            item.moveText = new String(sb);
-            entryHandler.handle(index, item);
-        } catch (Throwable e) {
-            logger.error(e);
-            throw new Config.PGNException(e);
+            if (v == null) {
+                v = Config.TAG_UNKNOWN_VALUE;
+            }
+            sb.append(sep).append(v);
+            sep = " - ";
+        }
+        return new String(sb);
+    }
+
+    public static void copy(FilAx src, FilAx dst) throws IOException {
+        try (InputStream inStream = src.getInputStream();
+                OutputStream outStream = dst.getOutputStream()) {
+            copy(inStream, outStream);
         }
     }
 
-    static void parseTag(PgnItem item, String line) {
-        int i = line.indexOf(TAG_NAME_VALUE_SEP);
-        if (i > 0) {
-            try {
-                String tLabel = unescapeTag(line.substring(TAG_START.length(), i));
-                String tValue = unescapeTag(line.substring(i + TAG_NAME_VALUE_SEP.length(), line.length() - TAG_END.length()));
-                if (tLabel.equals(Config.TAG_FEN)) {
-                    item.setFen(tValue);
-                } else {
-                    item.setTag(tLabel, tValue);
-                }
-            } catch (Exception e) {
-                logger.error(e);
-            }
+    public static void copy(InputStream inStream, OutputStream outStream) throws IOException {
+        byte[] buffer = new byte[16384];
+        while (true) {
+            int len = inStream.read(buffer);
+            if (len <= 0)
+                break;
+            outStream.write(buffer, 0, len);
         }
     }
 
+    // relative to parent
     public String getRelativePath() {
-        return toString();
+        if (this == rootDir) {
+            return "";
+        }
+        String parentPath = parent.getAbsolutePath();
+        int len = parentPath.length();
+        String res = this.getAbsolutePath().substring(len);
+        if (res.startsWith(FilAx.SLASH)) {
+            res = res.substring(FilAx.SLASH.length());
+        }
+        return res;
     }
 
-    protected abstract CpFileType getType();
-    public abstract CpParent getParent();
-    public abstract void setParent(PgnFile parent);
-    abstract void copy(CpFile trg);
-
-    public void serialize(BitStream.Writer writer) throws Config.PGNException {
+    public static void serializeTagList(BitStream.Writer writer, List<Pair<String, String>> tags) throws Config.PGNException {
         try {
-            writer.write(getType().getValue(), 3);
+            if (tags == null) {
+                writer.write(0, 8);
+                return;
+            }
+            writer.write(tags.size(), 8);
+            for (Pair<String, String> tag : tags) {
+                writer.writeString(tag.first);
+                writer.writeString(tag.second);
+            }
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
-        _serialize(writer);
     }
 
-    protected void _serialize(BitStream.Writer writer) throws Config.PGNException {
-        throw new RuntimeException("stub!");
+    public static List<Pair<String, String>> unserializeTagList(BitStream.Reader reader) throws Config.PGNException {
+        try {
+            int totalTags = reader.read(8);
+            if (totalTags == 0) {
+                return null;
+            }
+            List<Pair<String, String>> tags = new LinkedList<>();
+            for (int i = 0; i < totalTags; ++i) {
+                String label = reader.readString();
+                if (label == null) {
+                    label = "";         // should never happen
+                }
+                String value = reader.readString();
+                if (value == null) {
+                    value = "";         // for editTags
+                }
+                tags.add(new Pair<>(label, value));
+            }
+            return tags;
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
     }
+
+    public abstract List<CpFile> getChildrenNames() throws Config.PGNException;
+
+    protected Dir getRealParent() {
+        Dir parent = (Dir)getParent();
+        while (parent != null) {
+            if (parent instanceof Zip) {
+                break;
+            }
+            parent = (Dir)parent.parent;
+        }
+        if (parent == null) {
+            parent = (Dir)getParent();
+        }
+        return parent;
+    }
+
+    public boolean isRoot() {
+        return this == rootDir;
+    }
+
+    public static boolean isRoot(String path) {
+        return path == null || path.isEmpty() || path.equals(FilAx.SLASH);
+    }
+
+    public int getLength() {
+        if (this.length == 0) {
+            List<CpFile> children;
+            try {
+                children = getChildrenNames();
+                this.length = children.size();
+            } catch (Config.PGNException e) {
+                logger.error(e.getMessage(), e);
+            }
+        }
+        return this.length;
+    }
+
+    public String getDisplayLength() {
+        int len = getLength();
+        if (len > 0) {
+            return "" + len;
+        }
+        return "";
+    }
+
+    public String getName() {
+        String absPath = getAbsolutePath();
+        int slash = absPath.lastIndexOf(FilAx.SLASH);
+        if (slash < 0) {
+            return absPath;
+        }
+        return absPath.substring(slash + 1);
+    }
+
+    // path relative to root
+    public void setAbsolutePath(String absPath) {
+        this.absPath = absPath;
+    }
+
+    // path relative to root
+    public String getAbsolutePath() {
+        return this.absPath;
+    }
+
+    public CpFile getParent() {
+        return parent;
+    }
+
+    void setParent(CpFile parent) {
+        this.parent = parent;
+        String name = getName();
+        this.setAbsolutePath(concat(parent.getAbsolutePath(), name));
+    }
+
+    public int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int index) {
+        this.index = index;
+    }
+
+    @Override
+    public String toString() {
+        return getName();
+    }
+
+    public boolean differs(CpFile item) {
+        if (item == null) {
+            return true;
+        }
+        String thisPath = getAbsolutePath();
+        String thatPath = item.getAbsolutePath();
+        if (thisPath == null) {
+            return thatPath == null;
+        }
+        return !getAbsolutePath().equals(item.getAbsolutePath());
+    }
+
+    @Override
+    public boolean equals(Object that) {
+        if (that == null) {
+            return false;
+        }
+        if (!this.getClass().getName().equals(that.getClass().getName())) {
+            return false;
+        }
+        String thisAbsPath = this.getAbsolutePath();
+        String thatAbsPath = ((CpFile)that).getAbsolutePath();
+        boolean res = true;
+        if (thisAbsPath == null) {
+            if (thatAbsPath != null) {
+                return false;
+            }
+        } else if (!this.getAbsolutePath().equals(((CpFile)that).getAbsolutePath())) {
+            return false;
+        }
+        if (this.parent == null) {
+            return ((CpFile)that).parent == null;
+        }
+        return this.parent.equals(((CpFile) that).parent);
+    }
+
+    public int parentIndex(CpFile parent) throws Config.PGNException {
+        String myPath = getAbsolutePath();
+        if (myPath == null || parent == null || parent.getAbsolutePath() == null) {
+            return -1;
+        }
+        if (!myPath.startsWith(parent.getAbsolutePath())) {
+            return -1;
+        }
+
+        String parentPath = parent.getAbsolutePath();
+        String relativePath = myPath.substring(parentPath.length() + 1);
+        if (parent.getType() == CpFileType.Zip) {
+            // SicilianGrandPrix.pgn/item
+            String[] parts = relativePath.split("/");
+            for (String part : parts) {
+                if (FilAx.isPgnOk(part)) {
+                    relativePath = part;
+                    break;
+                }
+            }
+        }
+        List<CpFile> siblings = parent.getChildrenNames();
+        for (int i = 0; i < siblings.size(); ++i) {
+            CpFile sibling = siblings.get(i);
+            String siblingName = sibling.getName();
+            if (relativePath.startsWith(siblingName)) {
+                if (relativePath.length() == siblingName.length() || relativePath.charAt(siblingName.length()) == '/') {
+                    return i;
+                }
+            }
+        }
+        return -1;      // should not be here;
+    }
+
+    void serializeBase(BitStream.Writer writer) throws Config.PGNException {
+        try {
+            writer.write(getType().getValue(), 3);
+            writer.write(length, 32);
+            writer.write(index, 24);
+            writer.write(totalChildren, 32);
+            writer.writeString(getAbsolutePath());
+        } catch (IOException e) {
+            throw new Config.PGNException(e);
+        }
+    }
+
+    public abstract void serialize(BitStream.Writer writer) throws Config.PGNException;
+
+    protected abstract CpFileType getType();
 
     @Override
     public int compareTo(CpFile that) {
@@ -331,100 +661,72 @@ public abstract class CpFile implements Comparable<CpFile> {
         return res;
     }
 
-    public static void copy(InputStream is, OutputStream os) throws IOException {
-        byte[] buffer = new byte[16384];
-        int len;
-        while ((len = is.read(buffer)) > 0) {
-            os.write(buffer, 0, len);
-        }
+    public int getTotalChildren() {
+        return totalChildren;
     }
 
-    public static class PgnItemName extends CpFile {
-        // list of PgnItem can be rather large, tens of thousands entries
-        // so the idea is to reduce the size of the entry as much as possible
-        String name;
+    public void setTotalChildren(int totalChildren) {
+        this.totalChildren = totalChildren;
+    }
 
-//        public PgnItemName(String name) {
-//            this.name = name;
-//        }
-
-        public PgnItemName(int index, PgnItem pgnItem) {
-            name = "" + ++index + ". " + pgnItem.toString();
-        }
-
-        @Override
-        protected CpFileType getType() {
-            return CpFileType.ItemName;
-        }
-
-        @Override
-        public CpParent getParent() {
-            throw new RuntimeException(DEBUG_TAG + "Invalid use");
-        }
-
-        @Override
-        public void setParent(PgnFile parent) {
-            throw new RuntimeException(DEBUG_TAG + "Invalid use");
-        }
-
-        @Override
-        void copy(CpFile trg) {
-            ((PgnItemName)trg).name = name;     // do I need this?
-        }
-
-        @Override
-        public String toString() {
-            return name;
-        }
-
-        @Override
-        public String getDisplayLength() {
-            return "";
-        }
-
+    void copy(CpFile trg) {
+        trg.parent = parent;
+        trg.setAbsolutePath(getAbsolutePath());
+        trg.length = length;
+        trg.totalChildren = totalChildren;
+        trg.index = index;
     }
 
     public static class PgnItem extends CpFile {
-        CpParent parent;
-        private List<Pair<String, String>> tags = new ArrayList<>();
+        private String[] tagArray;
         private String fen;
         private String moveText = "";
-        transient private Map<String, String> tagMap;
 
-        public PgnItem(PgnFile parent) {
-            setParent(parent);
+        @Override
+        public void setAbsolutePath(String absPath) {
+            // do nothing
         }
 
-        protected void _serialize(BitStream.Writer writer) throws Config.PGNException {
-            try {
-                writer.writeString(parent.absPath);
-                writer.writeString(this.fen);
-// do I need this?                writer.writeString(this.moveText);
-                serializeTagList(writer, tags);
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
+        @Override
+        public String getAbsolutePath() {
+            return null;
+        }
+
+        public PgnItem(CpFile parent) {
+            super(parent, COMMON_ITEM_NAME);
+            if (parent == null) {
+                this.parent = new CpFile.PgnFile(null, DUMMY_PGN_NAME);
             }
+            initTags();
         }
 
         private PgnItem(BitStream.Reader reader) throws Config.PGNException {
+            super(reader);
             try {
-                this.parent = (PgnFile) CpParent.fromPath(reader.readString());
-                this.fen = reader.readString();
-                // moveText?
-                this.tags = unserializeTagList(reader);
+                String parentPath = reader.readString();
+                parent = fromPath(parentPath);
+                parent.totalChildren = reader.read(32);
+                initTags();
+                int size = reader.read(6);
+                for (int i = 0; i < size; ++i) {
+                    String name = reader.readString();
+                    String value = reader.readString();
+                    setTag(name, value);
+                }
             } catch (IOException e) {
                 throw new Config.PGNException(e);
             }
         }
 
-        public static void serializeTagList(BitStream.Writer writer, List<Pair<String, String>> tags) throws Config.PGNException {
+        @Override
+        public void serialize(BitStream.Writer writer) throws Config.PGNException {
             try {
-                if (tags == null) {
-                    writer.write(0, 8);
-                    return;
-                }
-                writer.write(tags.size(), 8);
-                for (Pair<String, String> tag : tags) {
+                serializeBase(writer);
+                writer.writeString(parent.getAbsolutePath());
+                writer.write(parent.totalChildren, 32);
+                List<Pair<String, String>>  tags = getTags();
+                writer.write(tags.size(), 6);
+                for (Pair<String, String>  tag : tags) {
                     writer.writeString(tag.first);
                     writer.writeString(tag.second);
                 }
@@ -433,45 +735,14 @@ public abstract class CpFile implements Comparable<CpFile> {
             }
         }
 
-        public static List<Pair<String, String>> unserializeTagList(BitStream.Reader reader) throws Config.PGNException {
-            try {
-                int totalTags = reader.read(8);
-                if (totalTags == 0) {
-                    return null;
-                }
-                List<Pair<String, String>> tags = new ArrayList<>();
-                for (int i = 0; i < totalTags; ++i) {
-                    String label = reader.readString();
-                    if (label == null) {
-                        label = "";         // should never happen
-                    }
-                    String value = reader.readString();
-                    if (value == null) {
-                        value = "";         // for editTags
-                    }
-                    tags.add(new Pair<>(label, value));
-                }
-                return tags;
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
+        private void initTags() {
+            if (this.parent instanceof PgnFile) {
+                PgnFile parent = (PgnFile)this.parent;
+                tagArray = new String[parent.totalTags()];
+            } else {
+                tagArray = new String[Config.STR.size()];
             }
-        }
-
-        @Override
-        public String getDisplayLength() {
-            return "";
-        }
-
-        public CpParent getParent() {
-            return parent;
-        }
-
-        @Override
-        public void setParent(PgnFile parent) {
-            if (parent == null) {
-                parent = (PgnFile)CpParent.fromPath(DUMMY_PGN_NAME);
-            }
-            this.parent = parent;
+            Arrays.fill(tagArray, Config.TAG_UNKNOWN_VALUE);
         }
 
         @Override
@@ -495,58 +766,33 @@ public abstract class CpFile implements Comparable<CpFile> {
             this.moveText = moveText;
         }
 
-        @Override
-        public boolean equals(Object that) {
-            if (that == null) {
-                return false;
+        public String getTitle() {
+            StringBuilder sb = new StringBuilder();
+            if (index >= 0) {
+                sb.append(String.format("%s. ", index + 1));
             }
-            if (!this.getClass().getName().equals(that.getClass().getName())) {
-                return false;
-            }
-            return this.toString().equals(that.toString());
-        }
-
-        @Override
-        public String getRelativePath() {
-            return toString();
-        }
-
-        private Map<String, String> getTagMap() {
-            if (tagMap == null) {
-                tagMap = new HashMap<>();
-                for (Pair<String, String> h : tags) {
-                    tagMap.put(h.first, h.second);
+            String sep = "";
+            for (int i : Config.titleTagIndexes) {
+                String value = null;
+                if (i < this.tagArray.length) {
+                    value = this.tagArray[i];
                 }
+                if (value == null) {
+                    value = Config.TAG_UNKNOWN_VALUE;
+                }
+                sb.append(sep).append(value);
+                sep = " - ";
             }
-            return tagMap;
+            return new String(sb);
         }
 
         @Override
         public String toString() {
-            return titleTagsToString(tags);
+            return getTitle();
         }
 
-        public static String titleTagsToString(List<Pair<String, String>> tags) {
-            if (tags == null) {
-                tags = new ArrayList<>();
-            }
-            StringBuilder sb = new StringBuilder();
-            String sep = "";
-            for (String h : Config.titleTags) {
-                String v = null;
-                for (Pair<String, String> lt : tags) {
-                    if (h.equals(lt.first)) {
-                        v = lt.second;
-                        break;
-                    }
-                }
-                if (v == null) {
-                    v = Config.TAG_UNKNOWN_VALUE;
-                }
-                sb.append(sep).append(v);
-                sep = " - ";
-            }
-            return new String(sb);
+        public String toPgnString() {
+            return toString(true, false);
         }
 
         public StringBuilder tagsToString(boolean cr2Space, boolean escapeTags) {
@@ -556,19 +802,23 @@ public abstract class CpFile implements Comparable<CpFile> {
         public StringBuilder tagsToString(boolean cr2Space, boolean escapeTags, boolean skipEmptySTR) {
             StringBuilder sb = new StringBuilder();
             String sep = "";
-            for (Pair<String, String> h : tags) {
-                String hName = h.first;
+            PgnFile parent = (PgnFile)this.parent;
+            for (int i = 0; i < tagArray.length; ++i) {
+                String tValue = tagArray[i];
+                if (tValue == null || tValue.isEmpty() || tValue.equals(Config.TAG_UNKNOWN_VALUE)) {
+                    if (skipEmptySTR || i >= Config.STR.size()) {
+                        continue;       // skip empty non-STR tags
+                    }
+                    tValue = Config.TAG_UNKNOWN_VALUE;
+                }
                 if (escapeTags) {
-                    hName = escapeTag(hName);
+                    tValue = escapeTag(tValue);
                 }
-                String hValue = h.second;
-                if (hValue == null || hValue.isEmpty()) {
-                    hValue = Config.TAG_UNKNOWN_VALUE;
-                }
+                String tName = parent.tagIndexes.get(i);
                 if (escapeTags) {
-                    hValue = escapeTag(hValue);
+                    tName = escapeTag(tName);
                 }
-                sb.append(sep).append("[").append(hName).append(" \"").append(hValue).append("\"]");
+                sb.append(sep).append("[").append(tName).append(" \"").append(tValue).append("\"]");
                 sep = "\n";
             }
             if (this.fen != null) {
@@ -577,7 +827,7 @@ public abstract class CpFile implements Comparable<CpFile> {
             return sb;
         }
 
-        public String toString(boolean cr2Space, boolean escapeTags) {
+        String toString(boolean cr2Space, boolean escapeTags) {
             StringBuilder sb = tagsToString(cr2Space, escapeTags);
             if (moveText != null && !moveText.isEmpty()) {
                 sb.append("\n");
@@ -589,78 +839,105 @@ public abstract class CpFile implements Comparable<CpFile> {
             }
             return new String(sb);
         }
-        public void save(int index, ProgressObserver progressObserver) throws Config.PGNException {
-            Dir grandParent = parent.getRealParent();
-            grandParent.saveGrandChild((PgnFile)parent, index, this, new ProgressNotifier(progressObserver));
+
+        @Override
+        public int getLength() {
+            return this.length;
         }
 
         @Override
-        public void copy(CpFile _trg) {
-            //            throw new Config.PGNException("method not applicable!");
-            PgnItem trg = (PgnItem) _trg;
-            trg.tags = cloneTags();
-            trg.fen = fen;
-            trg.moveText = moveText;
+        public List<CpFile> getChildrenNames() {
+            throw new RuntimeException("PgnFile.PgnItem cannot contain children");
         }
 
-        public String getTag(String label) {
-            return getTagMap().get(label);
+        public void save() throws Config.PGNException {
+            Dir grandParent = parent.getRealParent();
+            grandParent.saveGrandChild(this);
         }
 
         public void setTag(String tagName, String tagValue) {
-            if (getTag(tagName) == null) {
-                tags.add(new Pair<>(tagName, tagValue));
-                tagMap.put(tagName, tagValue);
+            int i = ((PgnFile)this.parent).getTagIndex(tagName);
+            if (i >= this.tagArray.length) {
+                String[] newTagArray = new String[2 * this.tagArray.length];    // todo: check if it's not too wasteful
+                System.arraycopy(this.tagArray, 0, newTagArray, 0, this.tagArray.length);
+                for (int j = this.tagArray.length; j < newTagArray.length; ++j) {
+                    newTagArray[j] = Config.TAG_UNKNOWN_VALUE;
+                }
+                this.tagArray = newTagArray;
             }
+            this.tagArray[i] = tagValue;
         }
 
+        public String getTag(String tagName) {
+            int i = ((PgnFile)this.parent).getTagIndex(tagName);
+            if (i >= this.tagArray.length) {
+                return Config.TAG_UNKNOWN_VALUE;
+            }
+            return this.tagArray[i];    // check on null?
+        }
         public List<Pair<String, String>> getTags() {
+            List<Pair<String, String>> tags = new LinkedList<>();
+            PgnFile parent = (PgnFile)this.parent;
+            for (int i = 0; i < tagArray.length; ++i) {
+                String tValue = tagArray[i];
+                if (tValue == null || tValue.isEmpty() || tValue.equals(Config.TAG_UNKNOWN_VALUE)) {
+                    if (i >= Config.STR.size()) {
+                        continue;       // skip empty non-STR tags
+                    }
+                    tValue = Config.TAG_UNKNOWN_VALUE;
+                }
+                String tName = parent.tagIndexes.get(i);
+                tags.add(new Pair<>(tName, tValue));
+            }
             return tags;
         }
 
         public void setTags(List<Pair<String, String>> tags) {
-            this.tags = tags;
-            tagMap = null;
+            // remove old values
+            Arrays.fill(tagArray, Config.TAG_UNKNOWN_VALUE);
+            for (Pair<String, String> tag : tags) {
+                setTag(tag.first, tag.second);
+            }
         }
 
-        // clone adding STR first, then the rest
-        public static List<Pair<String, String>> cloneTags(List<Pair<String, String>> tags) {
-            Map<String, String> tagMap = new HashMap<>();
-            // 1. copy DTR
-            for (String t : Config.STR) {
-                tagMap.put(t, Config.TAG_UNKNOWN_VALUE);
+        @Override
+        public int parentIndex(CpFile parent) throws Config.PGNException {
+            CpFile thisParent = this.getParent();
+            if (thisParent == null ||
+                    !thisParent.getAbsolutePath().startsWith(parent.getAbsolutePath())) {
+                return -1;
             }
-            // 2. Override with tags
-            for (Pair<String, String> tag : tags) {
-                tagMap.put(tag.first, tag.second);
+            if (thisParent.getAbsolutePath().equals(parent.getAbsolutePath())) {
+                return index;
             }
-            List<Pair<String, String>> res = new ArrayList<>();
-            // 3. put STR tags first
-            for (String t : Config.STR) {
-                String v = tagMap.remove(t);
-                res.add(new Pair<>(t, v));
-            }
-            // 3. put the remaining tags preserving the order
-            for (Pair<String, String> tag : tags) {
-                if (tagMap.remove(tag.first) != null) {
-                    res.add(tag);
-                }
-            }
-            return res;
+            return thisParent.parentIndex(parent);
         }
 
-        public List<Pair<String, String>> cloneTags() {
-            return cloneTags(this.tags);
+        @Override
+        public void copy(CpFile trg) {
+            super.copy(trg);
+            if (trg instanceof PgnItem) {
+                PgnItem pgnItem = (PgnItem)trg;
+                pgnItem.tagArray = tagArray;
+                pgnItem.fen = fen;
+                pgnItem.moveText = moveText;
+            }
+        }
+
+        @Override
+        public void setParent(CpFile parent) {
+            List<Pair<String, String>> tags = getTags();
+            this.parent = parent;
+            setTags(tags);
         }
 
         // if moveText == null -> delete item
         // if updIndex == -1 -> append item
         // returns number of all PgnItems
-        int modifyItem(final PgnFile parent, final int updIndex, InputStream is, final OutputStream os,
-                       final ProgressNotifier progressNotifier) throws Config.PGNException {
+        int modifyItem(InputStream is, final OutputStream os) throws Config.PGNException {
+            final int updIndex = this.index;
             try {
                 final int[] count = {0};
-                final int[] offset = {0};
                 if (is == null) {
                     // brand new parent, no file yet
                     if (parent.totalChildren >= 0) {
@@ -670,18 +947,10 @@ public abstract class CpFile implements Comparable<CpFile> {
                     }
                     byte[] buf = this.toString(false, true).getBytes("UTF-8");
                     os.write(buf, 0, buf.length);
+                    this.index = parent.totalChildren - 1;
                     ++count[0];
                 } else {
-                    parsePgnFile(is, new EntryHandler() {
-                        @Override
-                        public boolean addOffset(int length, int totalLength) {
-                            offset[0] += length;
-                            if (progressNotifier != null) {
-                                return progressNotifier.setOffset(offset[0], totalLength);
-                            }
-                            return false;
-                        }
-
+                    parsePgnFile(parent, is, new EntryHandler() {
                         @Override
                         public boolean handle(int index, CpFile.PgnItem entry) throws Config.PGNException {
                             try {
@@ -721,6 +990,7 @@ public abstract class CpFile implements Comparable<CpFile> {
                         if (parent.getTotalChildren() == -1) {
                             parent.setTotalChildren(count[0]);
                         }
+                        this.index = parent.totalChildren - 1;
                     }
                 }
                 return count[0];
@@ -728,257 +998,51 @@ public abstract class CpFile implements Comparable<CpFile> {
                 throw new Config.PGNException(e);
             }
         }
+
     }
 
-    public abstract static class CpParent extends CpFile {
-        CpParent parent;
-        String absPath;     // relative to root
-        int totalChildren = -1;
-        int length = 0;
-        transient public int offset = 0;
+    public static class PgnFile extends CpFile {
+        private final Map<String, Integer> tagNames = new HashMap<>(Config.STR.size() + 1);
+        private final List<String> tagIndexes = new ArrayList<>(Config.STR.size() + 1);
 
-        public abstract List<CpFile> getChildrenNames(ProgressObserver progressObserver) throws Config.PGNException;
-
-        public static CpParent fromPath(String path) {
-            if (path == null || path.isEmpty() || path.equals(SLASH)) {
-                return rootDir;
-            }
-            if (path.startsWith(SLASH)) {
-                path = path.substring(SLASH.length());
-            }
-
-            String rootPath = getRootPath();
-            String parentPath = getParentPath(path);
-            String relativePath = path.substring(parentPath.length());
-            if (relativePath.startsWith(SLASH)) {
-                relativePath = relativePath.substring(SLASH.length());
-            }
-            CpParent parent = fromPath(parentPath);
-            if (parent instanceof PgnFile) {
-                // correction for paths like a/b/1.pgn/2.pgn
-                Dir dir = new Dir(parent.parent, "");
-                dir.absPath = parent.absPath;
-                parent = dir;
-            }
-            CpParent res;
-            if (new File(rootPath + parentPath, path).isDirectory()) {
-                res = new Dir(parent, relativePath);
-            } else if (isPgnOk(path)) {
-                res = new PgnFile(parent, relativePath);
-            } else if (isZipOk(path)) {
-                res = new Zip(parent, relativePath);
-            } else {
-                res = new Dir(parent, relativePath);
-            }
-            return res;
-        }
-
-        static String getParentPath(String path) {
-            if (path.endsWith(SLASH)) {
-                path = path.substring(0, path.length() - SLASH.length());
-            }
-            String rootPath = getRootPath();
-            if (rootPath == null) {
-                rootPath = "";
-            }
-            path = concat(rootPath, path);
-            int i = path.lastIndexOf(SLASH);
-            path = path.substring(0, i);
-
-            if (!new File(path).isDirectory()) {
-                String[] parts = path.split(SLASH);
-                path = "";
-                String sep = "";
-                for (String part : parts) {
-                    path += sep + part;
-                    if (!new File(path).isDirectory()) {
-                        if (isZipOk(path)) {
-                            break;
-                        }
-                    }
-                    sep = SLASH;
-                }
-            }
-            if (path.length() <= rootPath.length()) {
-                return "";
-            }
-            return path.substring(rootPath.length());
-        }
-
-        private CpParent(CpParent parent, String name) {
-            if (parent == null) {
-                this.absPath = name;    // init root
-            } else {
-                this.parent = parent;
-                String path = parent.getAbsolutePath();
-                if (path.isEmpty()) {
-                    path = name;
-                } else {
-                    path = concat(parent.getAbsolutePath(), name);
-                }
-                this.absPath = path;
-            }
-        }
-
-        @Override
-        protected void _serialize(BitStream.Writer writer) throws Config.PGNException {
-            try {
-                writer.write(length, 32);
-                writer.write(offset, 32);
-                writer.write(totalChildren, 32);
-                writer.writeString(getAbsolutePath());
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
-
-        private CpParent(BitStream.Reader reader) throws Config.PGNException {
-            try {
-                this.length = reader.read(32);
-                this.offset = reader.read(32);
-                this.totalChildren = reader.read(32);
-                this.absPath = reader.readString();
-                CpFile.CpParent tmp = fromPath(absPath);
-                this.parent = tmp.parent;
-            } catch (IOException e) {
-                throw new Config.PGNException(e);
-            }
-        }
-
-        @Override
-        public CpParent getParent() {
-            return parent;
-        }
-
-        @Override
-        public void setParent(PgnFile parent) {
-            if (parent == null) {
-                parent = (PgnFile)CpParent.fromPath(DUMMY_PGN_NAME);
-            }
-            this.parent = parent;
-        }
-
-        @Override
-        public String getRelativePath() {
-            String parentPath = parent.getAbsolutePath();
-            int len = parentPath.length();
-//            if (parentPath.startsWith(SLASH)) {
-//                ++len;
-//            }
-            String res = this.absPath.substring(len);
-            if (res.startsWith(SLASH)) {
-                res = res.substring(SLASH.length());
-            }
-            return res;
-        }
-
-        protected Dir getRealParent() {
-            Dir parent = (Dir) getParent();
-            while (parent != null) {
-                if (parent instanceof Zip) {
-                    break;
-                }
-                parent = (Dir) parent.parent;
-            }
-            if (parent == null) {
-                parent = (Dir) getParent();
-            }
-            return parent;
-        }
-
-        public boolean isRoot() {
-            return this == rootDir;
-        }
-
-        public int getTotalChildren() {
-            return totalChildren;
-        }
-
-        public void setTotalChildren(int totalChildren) {
-            this.totalChildren = totalChildren;
-        }
-
-        public long lastModified() {
-            File file = new File(getRootPath() + absPath);
-            return file.lastModified();
-        }
-
-        public int getLength() throws Config.PGNException {
-            if (this.length == 0) {
-                List<CpFile> children = getChildrenNames(null);
-                this.length = children.size();
-            }
-            return this.length;
-        }
-
-        public String getDisplayLength() {
-            int len = 0;
-            try {
-                len = getLength();
-            } catch (Config.PGNException e) {
-                logger.error(e.getMessage(), e);
-            }
-            if (len > 0) {
-                return "" + len;
-            }
-            return "";
-        }
-
-        public String getAbsolutePath() {
-            return this.absPath;
-        }
-
-        public boolean differs(CpParent item) {
-            if (item == null) {
-                return true;
-            }
-            String absPath = getAbsolutePath();
-            if (absPath == null) {
-                absPath = "";
-            }
-            return !absPath.equals(item.getAbsolutePath());
-        }
-
-        @Override
-        public boolean equals(Object that) {
-            if (that == null) {
-                return false;
-            }
-            if (!this.getClass().getName().equals(that.getClass().getName())) {
-                return false;
-            }
-            if (!this.getAbsolutePath().equals(((CpParent) that).getAbsolutePath())) {
-                return false;
-            }
-            if (this.parent == null) {
-                return ((CpParent) that).parent == null;
-            }
-            return this.parent.equals(((CpParent) that).parent);
-        }
-
-        @Override
-        void copy(CpFile _trg) {
-            CpParent trg = (CpParent)_trg;
-            trg.parent = parent;
-            trg.absPath = absPath;
-            trg.totalChildren = totalChildren;
-            trg.length = length;
-        }
-    }
-
-    public static class PgnFile extends CpParent {
-
-        PgnFile(CpParent parent, String name) {
+        PgnFile(CpFile parent, String name) {
             super(parent, name);
+            initPgn();
         }
 
         private PgnFile(BitStream.Reader reader) throws Config.PGNException {
             super(reader);
+            try {
+                int totalTagIndexes = reader.read(6);
+                for (int i = 0; i < totalTagIndexes; ++i) {
+                    String tagName = reader.readString();
+                    tagIndexes.add(tagName);
+                    tagNames.put(tagName, i);
+                }
+            } catch (IOException e) {
+                logger.error(e.getMessage(), e);
+            }
+        }
+
+        private void initPgn() {
+            for (int i = 0; i < Config.STR.size(); ++i) {
+                String tagName = Config.STR.get(i);
+                tagIndexes.add(tagName);
+                tagNames.put(tagName, i);
+            }
         }
 
         @Override
-        public String getAbsolutePath() {
-            return this.absPath;
+        public void serialize(BitStream.Writer writer) throws Config.PGNException {
+            serializeBase(writer);
+            try {
+                writer.write(tagIndexes.size(), 6);
+                for (String tagName : tagIndexes) {
+                    writer.writeString(tagName);
+                }
+            } catch (IOException e) {
+                logger.error(e.getMessage(), e);
+            }
         }
 
         @Override
@@ -986,10 +1050,31 @@ public abstract class CpFile implements Comparable<CpFile> {
             return CpFileType.Pgn;
         }
 
+        public int getTagIndex(String tagName) {
+            Integer index = tagNames.get(tagName);
+            if (index == null) {
+                index = tagNames.size();
+                tagNames.put(tagName, index);
+                tagIndexes.add(tagName);
+            }
+            return index;
+        }
+
+        String getTagName(int index) {
+            return tagIndexes.get(index);
+        }
+
+        int totalTags() {
+            return tagNames.size();
+        }
+
         @Override
         public int getLength() {
+            if (this.parent instanceof Zip) {
+                return -1;
+            }
             if (this.length == 0) {
-                File self = newFile(absPath);
+                FilAx self = newFile(getAbsolutePath());
                 this.length = (int) self.length();   // truncate
             }
             return this.length;
@@ -1000,19 +1085,23 @@ public abstract class CpFile implements Comparable<CpFile> {
             return CpFile.getDisplayLength(getLength());
         }
 
-        // using searchIndex find PgnItem
-        // if not found, return the last entry
-        public PgnItem getPgnItem(final int searchIndex, ProgressObserver progressObserver) throws Config.PGNException {
-            final PgnItem[] pgnItem = {new PgnItem((PgnFile) null)};
-            final ProgressNotifier progressNotifier = new ProgressNotifier(progressObserver);
-            final PgnItem[] lastEntry = {new PgnItem((PgnFile) null)};
-            Dir parent = getRealParent();
-            parent.offset = 0;
-            final int[] entryIndex = {0};
-            parent.scrollGrandChildren(this, new EntryHandler() {
-                public boolean addOffset(int length, int totalLength) {
-                    parent.offset += length;
-                    return progressNotifier.setOffset(parent.offset, totalLength);
+        // using pgnItem.parent and pgnItem.index find the rest
+        // if not found (index is too large), return the last entry
+        public PgnItem getPgnItem(final int searchIndex) throws Config.PGNException {
+            final PgnItem lastEntry = new PgnItem(this);
+            final int[] entryIndex = {-1};
+            final int[] lastIndex = {-1};
+            Dir grandParent = (Dir)this.getRealParent();
+            long start0 = System.currentTimeMillis();
+            grandParent.scrollGrandChildren(this, new EntryHandler() {
+                @Override
+                public boolean skip(int index) {
+                    return searchIndex != index;
+                }
+
+                @Override
+                public boolean getMovesText(int index) {
+                    return index == searchIndex;
                 }
 
                 @Override
@@ -1021,56 +1110,38 @@ public abstract class CpFile implements Comparable<CpFile> {
                         PgnFile.this.totalChildren = index + 1;
                     }
                     entry.parent = PgnFile.this;
-                    lastEntry[0] = entry;
+                    entry.copy(lastEntry);
                     if (index != searchIndex) {
                         return true;    // continue
                     }
                     entryIndex[0] = searchIndex;
-                    pgnItem[0] = entry;
-                    pgnItem[0].parent = entry.parent;
                     return false;       // abort
                 }
-
-                @Override
-                public boolean getMovesText(int index) {
-                    return index == searchIndex;
-                }
             });
-            // in case item is not found, return the last entry
-            // todo: it does not contain any info, so m.b. return null??
-            if (searchIndex != entryIndex[0]) {
-                return lastEntry[0];
+
+            if (PgnFile.this.totalChildren < 0) {
+                PgnFile.this.totalChildren = lastIndex[0];
             }
-            return pgnItem[0];
+            long dur0 = System.currentTimeMillis() - start0;
+            logger.debug(String.format("getPgnItem %s, msec=%d", parent.getName(), dur0));
+            return lastEntry;
         }
 
         @Override
-        public List<CpFile> getChildrenNames(ProgressObserver progressObserver) {
-            final List<CpFile> items = new ArrayList<>();
-            String path = concat(getRootPath(), parent.absPath);
-            if (!new File(path).exists()) {
+        public List<CpFile> getChildrenNames() {
+            final List<CpFile> items = new LinkedList<>();
+            if (!newFile(parent.getAbsolutePath()).exists()) {
                 // this check needed for zipped PgnFile
                 return items;
             }
 
             final int[] offset = {0};
-            final ProgressNotifier progressNotifier = new ProgressNotifier(progressObserver);
-            Dir parent = getRealParent();
-
+            Dir grandParent = getRealParent();
             try {
-                parent.scrollGrandChildren(this, new EntryHandler() {
-                    @Override
-                    public boolean addOffset(int length, int totalLength) {
-                        offset[0] += length;
-                        if (offset[0] > totalLength) {
-                            System.out.println(String.format("%s > %s", offset[0], totalLength));
-                        }
-                        return progressNotifier.setOffset(offset[0], totalLength);
-                    }
-
+                grandParent.scrollGrandChildren(this, new EntryHandler() {
                     @Override
                     public boolean handle(int index, CpFile.PgnItem entry) {
-                        items.add(new PgnItemName(index, entry));
+                        items.add(entry);
                         return true;
                     }
 
@@ -1078,32 +1149,47 @@ public abstract class CpFile implements Comparable<CpFile> {
                     public boolean getMovesText(int index) {
                         return false;
                     }
+
                 });
+            } catch (OutOfMemoryError e) {
+                throw e;
             } catch (Throwable e) {
+                if (e.getCause() != null) {
+                    e = e.getCause();
+                }
+                if (e instanceof OutOfMemoryError) {
+                    throw (OutOfMemoryError)e;
+                }
                 e.printStackTrace();
-                progressNotifier.setOffset(ProgressNotifier.LIST_TRUNCATION, 0);
             }
             totalChildren = items.size();
             return items;
         }
 
-        @Override
         public long lastModified() {
-            try {
-                if (getParent() instanceof Zip) {
-                    return ((Zip)getParent()).getChildTS(this);
-                } else {
-                    return super.lastModified();
-                }
-            } catch (Config.PGNException e) {
-                logger.error(e.getMessage(), e);
+            FilAx self;
+            if (parent instanceof Zip) {
+                self = newFile(parent.getAbsolutePath());
+            } else {
+                self = newFile(getAbsolutePath());
             }
-            return 0;
+            return self.lastModified();
+        }
+
+        @Override
+        public String getName() {
+            if (parent instanceof Zip) {
+                String absPath = getAbsolutePath();
+                int i = absPath.indexOf(PARENT_ZIP);
+                return absPath.substring(parent.getAbsolutePath().length() + 1);
+            }
+            return super.getName();
         }
     }
 
-    public static class Dir extends CpParent {
-        public Dir(CpParent parent, String name) {
+    public static class Dir extends CpFile {
+
+        public Dir(CpFile parent, String name) {
             super(parent, name);
         }
 
@@ -1112,20 +1198,19 @@ public abstract class CpFile implements Comparable<CpFile> {
         }
 
         @Override
+        public void serialize(BitStream.Writer writer) throws Config.PGNException {
+            serializeBase(writer);
+        }
+
+        @Override
         protected CpFileType getType() {
             return CpFileType.Dir;
         }
 
         @Override
-        public List<CpFile> getChildrenNames(ProgressObserver progressObserver) throws Config.PGNException {
+        public List<CpFile> getChildrenNames() throws Config.PGNException {
             final List<CpFile> fileList = new ArrayList<>();
             scrollChildren(new EntryHandler() {
-                @Override
-                public boolean addOffset(int length, int totalLength) {
-                    logger.debug(String.format(Locale.getDefault(), "Dir addOffset %d, total %d", length, totalLength));
-                    return false;
-                }
-
                 @Override
                 public boolean getMovesText(int index) {
                     return false;
@@ -1139,7 +1224,7 @@ public abstract class CpFile implements Comparable<CpFile> {
 
                 @Override
                 public boolean handle(int index, CpFile.PgnItem item) {
-                    throw new RuntimeException(String.format(DEBUG_TAG + "Invalid entry %s in %s", item.toString(), Dir.this.absPath));
+                    throw new RuntimeException(String.format(DEBUG_TAG + "Invalid entry %s in %s", item.toString(), Dir.this.getAbsolutePath()));
                 }
 
             });
@@ -1150,57 +1235,68 @@ public abstract class CpFile implements Comparable<CpFile> {
 
         void scrollChildren(final EntryHandler handler) throws Config.PGNException {
             final int[] index = {-1};
-            File self = newFile(absPath);
-            File[] list = self.listFiles((file) -> {
-                String name = file.getName();
+            FilAx self = newFile(getAbsolutePath());
+            String[] list = self.listFiles();
+            if (list == null) {
+                return;
+            }
+
+            for (String name : list) {
                 if (name.startsWith("."))
-                    return false;
-                CpParent entry;
-                if (file.isDirectory()) {
+                    continue;   // skip
+
+                FilAx filAx = filAxProvider.newFilAx(self, name);
+                CpFile entry;
+                if (filAx.isDirectory()) {
                     entry = new Dir(Dir.this, name);
-                } else if (CpFile.isPgnOk(name)) {
+                } else if (FilAx.isPgnOk(name)) {
                     entry = new PgnFile(Dir.this, name);
-                } else if (CpFile.isZipOk(name)) {
+                } else if (FilAx.isZipOk(name)) {
                     entry = new Zip(Dir.this, name);
                 } else {
-                    return false;
+                    continue;   // skip
                 }
 
                 if (entry instanceof PgnFile || entry instanceof Zip) {
-                    entry.length = (int)file.length();
+                    entry.length = filAx.length();
                 }
 
                 ++index[0];
                 try {
                     if (entry instanceof PgnFile) {
-                        try (InputStream is = new FileInputStream(file)) {
+                        try (InputStream is = filAx.getInputStream()) {
+                            entry.index = index[0];
                             handler.handle(entry, is);
                         } catch (IOException e) {
-                            logger.debug(file.getAbsoluteFile(), e);
+                            logger.error(filAx.toString(), e);
+                        } catch (OutOfMemoryError e) {
+                            throw e;
+                        } catch (Throwable e) {
+                            if (e.getCause() != null) {
+                                e = e.getCause();
+                            }
+                            if (e instanceof OutOfMemoryError) {
+                                throw (OutOfMemoryError)e;
+                            } else {
+                                throw new Config.PGNException(e);
+                            }
                         }
                     } else {
+                        entry.index = index[0];
                         handler.handle(entry, null);
                     }
                 } catch (Config.PGNException e) {
-                    logger.debug(file.getAbsoluteFile(), e);
+                    throw new RuntimeException(e);
                 }
-                return false;    // drop it, save space
-            });
+            }
             this.totalChildren = ++index[0];
         }
 
         // scroll PgnFile child's children
         // this is a kludgy way to reuse the code for directory and zip
-        public void scrollGrandChildren(final PgnFile child, final EntryHandler entryHandler) throws Config.PGNException {
-            this.offset = 0;
+        public void scrollGrandChildren(final PgnFile gChild, final EntryHandler entryHandler) throws Config.PGNException {
+            long start0 = System.currentTimeMillis();
             scrollChildren(new EntryHandler() {
-                @Override
-                public boolean addOffset(int length, int totalLength) {
-                    Dir.this.offset += length;
-                    Dir.this.length = totalLength;
-                    return false;
-                }
-
                 @Override
                 public boolean getMovesText(int index) {
                     return true;
@@ -1208,9 +1304,9 @@ public abstract class CpFile implements Comparable<CpFile> {
 
                 @Override
                 public boolean handle(CpFile entry, InputStream is) throws Config.PGNException {
-                    if (child.absPath.equals(((CpParent) entry).absPath)) {
-                        child.length = ((CpParent) entry).length;
-                        parsePgnFile(is, entryHandler, true);
+                    if (gChild.getAbsolutePath().equals(entry.getAbsolutePath())) {
+                        gChild.length = entry.length;
+                        parsePgnFile(gChild, is, entryHandler, true);
                         return false;       // abort
                     }
                     return true;            // continue
@@ -1218,85 +1314,96 @@ public abstract class CpFile implements Comparable<CpFile> {
 
                 @Override
                 public boolean handle(int index, CpFile.PgnItem item) {
-                    throw new RuntimeException(String.format(DEBUG_TAG + "Invalid entry %s in %s", item.toString(), Dir.this.absPath));
+                    throw new RuntimeException(String.format(DEBUG_TAG + "Invalid entry %s in %s", item.toString(), Dir.this.getAbsolutePath()));
                 }
             });
+            long dur0 = System.currentTimeMillis() - start0;
+            logger.debug(String.format(Locale.getDefault(), "scrollGrandChildren %s, msec=%d", gChild.getRelativePath(), dur0));
         }
 
-        void saveGrandChild(PgnFile pgnFile, int index, PgnItem pgnItem, ProgressNotifier progressNotifier) throws Config.PGNException {
-            File dir = newFile(pgnFile.absPath).getParentFile();
+        void saveGrandChild(PgnItem pgnItem) throws Config.PGNException {
+            FilAx dir = newFile(this.getAbsolutePath());
             if (!dir.exists()) {
                 boolean ok = dir.mkdirs();
                 if (!ok) {
-                    throw new Config.PGNException(String.format("Cannot create directory %s", dir.getAbsoluteFile()));
+                    throw new Config.PGNException(String.format("Cannot create %s directory", dir.getName()));
                 }
             }
-            File oldFile = CpFile.newFile(pgnFile.absPath);
-            _saveGrandChild(pgnFile, index, pgnItem, oldFile, progressNotifier);
+            FilAx oldFile = CpFile.newFile(pgnItem.getParent().getAbsolutePath());
+            _saveGrandChild(pgnItem, oldFile);
         }
 
-        void _saveGrandChild(final PgnFile pgnFile, int index, final PgnItem pgnItem, File oldFile, ProgressNotifier progressNotifier) throws Config.PGNException {
-            String tmpFileName = oldFile.getAbsolutePath() + EXT_TEMP;
-            File tmpFile = new File(tmpFileName);
-            int count = 0;  //
-            try (FileOutputStream fos = new FileOutputStream(tmpFile)) {
-                // create a new file with updated item
-                count = saveGrandChild(pgnFile, index, pgnItem, fos, progressNotifier);
-
+        void _saveGrandChild(PgnItem pgnItem, FilAx oldFile) throws Config.PGNException {
+            String oldName = oldFile.getName();
+            String tmpFileName = oldName + FilAx.EXT_TEMP;
+            if (FilAx.isPgnOk(oldName)) {
+                tmpFileName += FilAx.EXT_PGN;
+            } else if (FilAx.isZipOk(oldName)) {
+                tmpFileName += FilAx.EXT_ZIP;
+            }
+            FilAx tmpFile = filAxProvider.newFilAx(oldFile.getParent(), tmpFileName);
+            int count = 0;
+            try (OutputStream fos = tmpFile.getOutputStream()) {
+                // create a new file with updated pgnItem
+                count = saveGrandChild(pgnItem, fos);
             } catch (IOException e) {
                 throw new Config.PGNException(e);
             }
 
             if (oldFile.exists()) {
-                // delete old file
+                // delete old file then rename tmp to original name
                 if (!oldFile.delete()) {
-                    throw new Config.PGNException("Cannot delete " + oldFile.getAbsolutePath());
+                    throw new Config.PGNException("Cannot delete " +  oldName);
                 }
             }
-            boolean delete = this.totalChildren == 0 && pgnFile.totalChildren == 0 && pgnItem.moveText == null;
+
+            boolean res;
+            boolean delete = this.totalChildren == 0 && pgnItem.getParent().totalChildren == 0 && pgnItem.moveText == null;
             if (delete) {
-                boolean res = tmpFile.delete();
-                logger.debug(String.format("deleting %s, %s", tmpFile.getAbsolutePath(), res));
-                File rootFile = new File(CpFile.getRootPath());
-                File parent = new File(concat(CpFile.getRootPath(), this.getParent().absPath));
-                while (!parent.getAbsolutePath().equals(rootFile.getAbsolutePath())) {
-                    if( parent.listFiles().length > 0) {
+                res = tmpFile.delete();
+                logger.debug(String.format("deleting %s, %s", oldName, res));
+                CpFile cpFile = this;
+                FilAx dir = newFile(cpFile.getAbsolutePath());
+                String[] children;
+                while ((children = dir.listFiles()) == null || children.length == 0) {
+                    if (cpFile == rootDir) {
                         break;
                     }
-                    File dir = parent.getParentFile();
-                    if (!parent.delete()) {
-                        throw new Config.PGNException("Cannot delete " + parent.getAbsolutePath());
-                    }
-                    parent = dir;
+                    dir.delete();
+                    cpFile = cpFile.getParent();
+                    dir = newFile(cpFile.getAbsolutePath());
                 }
+                logger.debug("deleted all empty directories");
             } else {
-                // rename tmp to original name
-                boolean res = tmpFile.renameTo(oldFile);
-                logger.debug(String.format("renamed %s, res=%s", oldFile.getAbsolutePath(), res));
+                res = tmpFile.renameTo(oldName);
+                logger.debug(String.format("renaming %s, %s", oldName, res));
             }
         }
 
-        // return entry count
-        int saveGrandChild(final PgnFile parent, int index, PgnItem item, FileOutputStream fos, ProgressNotifier progressNotifier) throws Config.PGNException {
+        // return number of entries
+        int saveGrandChild(PgnItem pgnItem, OutputStream fos) throws Config.PGNException {
+            PgnFile parent = (PgnFile)pgnItem.getParent();
             int count = 0;
-            try (FileInputStream fis = new FileInputStream(concat(getRootPath(), parent.absPath))) {
-                count += item.modifyItem(parent, index, fis, fos, progressNotifier);
+            FilAx f = filAxProvider.newFilAx(parent.getAbsolutePath());
+            try (InputStream fis = f.getInputStream()) {
+                count += pgnItem.modifyItem(fis, fos);
                 if (parent.totalChildren == 0) {
                     if (this.totalChildren > 0) {
                         --this.totalChildren;
                     }
                 }
             } catch (FileNotFoundException e) {
-                count += item.modifyItem(parent, index, null, fos, progressNotifier);
+                count += pgnItem.modifyItem(null, fos);
             } catch (IOException e) {
-                logger.debug(parent.absPath, e);
+                logger.debug(parent.getAbsolutePath(), e);
             }
             return count;
         }
     }
 
     public static class Zip extends Dir {
-        Zip(CpParent parent, String name) {
+
+        Zip(CpFile parent, String name) {
             super(parent, name);
         }
 
@@ -1312,7 +1419,7 @@ public abstract class CpFile implements Comparable<CpFile> {
         @Override
         public int getLength() {
             if (this.length == 0) {
-                File self = new File(getRootPath() + absPath);
+                FilAx self = newFile(getAbsolutePath());
                 this.length = (int) self.length();   // truncate
             }
             return this.length;
@@ -1325,26 +1432,22 @@ public abstract class CpFile implements Comparable<CpFile> {
 
         @Override
         void scrollChildren(EntryHandler zipEntryHandler) throws Config.PGNException {
-            String path = concat(getRootPath(), absPath);
-            File f = new File(path);
+            FilAx f = newFile(getAbsolutePath());
             if (!f.exists()) {
                 return;
             }
             this.length = (int)f.length();
-            try (ZipFile zipFile = new ZipFile(path)) {
-                Enumeration<? extends ZipEntry> entries = zipFile.entries();
-                int index = -1;
-                while (entries.hasMoreElements()) {
-                    ++index;
-                    ZipEntry ze = entries.nextElement();
-                    if (ze.isDirectory() || !CpFile.isPgnOk(ze.getName())) {
+//* have to use it in Android in spite of the Java bug
+            try (ZipInputStream zipInputStream = new ZipInputStream(f.getInputStream())) {
+                ZipEntry ze;
+                while ((ze = zipInputStream.getNextEntry()) != null) {
+                    if (ze.isDirectory() || !FilAx.isPgnOk(ze.getName())) {
                         continue;
                     }
                     PgnFile pgnFile = new PgnFile(Zip.this, ze.getName());
-                    pgnFile.length = (int) ze.getSize();
-                    pgnFile.length = (int) ze.getSize();    // truncate!
-                    InputStream is = zipFile.getInputStream(ze);
-                    if (!zipEntryHandler.handle(pgnFile, is)) {
+                    pgnFile.length = (int) ze.getSize();    // Java bug, always -1
+                    pgnFile.index = index;
+                    if (!zipEntryHandler.handle(pgnFile, zipInputStream)) {
                         break;
                     }
                 }
@@ -1353,52 +1456,34 @@ public abstract class CpFile implements Comparable<CpFile> {
             }
         }
 
-        long getChildTS(CpFile child) throws Config.PGNException {
-            long ts = 0;
-            String name = child.toString();
-            try (ZipFile zipFile = new ZipFile(getRootPath() + absPath)) {
-                ZipEntry ze = zipFile.getEntry(name);
-                ts = ze.getTime();
-            } catch (IOException t) {
-                throw new Config.PGNException(t);
-            }
-            return ts;
+        @Override
+        void saveGrandChild(PgnItem pgnItem) throws Config.PGNException {
+            FilAx dir = newFile(parent.getAbsolutePath());
+            boolean res = dir.mkdirs();
+            _saveGrandChild(pgnItem, newFile(this.getAbsolutePath()));
         }
 
+        /**
+         * @param pgnItem to replace, set moveText = null to delete; set pgnItem.index = -1 to add a new PgnItem
+         * @param fos  resulting OutputStream
+         * @throws Config.PGNException
+         */
         @Override
-        void saveGrandChild(PgnFile pgnFile, int index, PgnItem pgnItem, ProgressNotifier progressNotifier) throws Config.PGNException {
-            File dir = newFile(parent.absPath);
-            if (!dir.exists()) {
-                boolean ok = dir.mkdirs();
-                if (!ok) {
-                    throw new Config.PGNException(String.format("Cannot create directory %s", dir.getAbsoluteFile()));
-                }
-            }
-            // call super:
-            _saveGrandChild(pgnFile, index, pgnItem, newFile(this.absPath), progressNotifier);
-        }
-
-        @Override
-        int saveGrandChild(final PgnFile pgnFile, final int updIndex, final PgnItem item, FileOutputStream fos, ProgressNotifier progressNotifier) throws Config.PGNException {
+        int saveGrandChild(final PgnItem pgnItem, OutputStream fos) throws Config.PGNException {
+            final PgnFile pgnFile = (PgnFile)pgnItem.getParent();
+            final int updIndex = pgnItem.getIndex();
             final byte[] data = new byte[Config.MY_BUF_SIZE];
             final boolean[] found = {false};
             final int[] count = {0};
-            Zip.this.offset = 0;
             try (final ZipOutputStream zos = new ZipOutputStream(new BufferedOutputStream(fos))) {
                 scrollChildren(new EntryHandler() {
                     @Override
-                    public boolean addOffset(int length, int totalLength) {
-                        Zip.this.offset += length;
-                        return false;
-                    }
-
-                    @Override
                     public boolean handle(CpFile entry, InputStream is) throws Config.PGNException {
                         try {
-                            if (pgnFile.absPath.equals(((CpParent)entry).absPath)) {
-                                if (item.moveText == null && updIndex == 0 && pgnFile.totalChildren == 1) {
+                            if (pgnFile.getAbsolutePath().equals(entry.getAbsolutePath())) {
+                                if (pgnItem.moveText == null && updIndex == 0 && pgnFile.totalChildren == 1) {
                                     // remove the last item
-                                    item.modifyItem(pgnFile, updIndex, is, null, progressNotifier);
+                                    pgnItem.modifyItem(is, null);
                                     logger.debug(pgnFile.getAbsolutePath() + " removing the last item!");
                                     pgnFile.length = 0;
                                     found[0] = true;
@@ -1413,10 +1498,9 @@ public abstract class CpFile implements Comparable<CpFile> {
                             String relativePath = entry.getRelativePath();
                             ZipEntry zeOut = new ZipEntry(relativePath);
                             zos.putNextEntry(zeOut);
-                            if (pgnFile.absPath.equals(((CpParent)entry).absPath)) {
-                                // mofified PgnFile
-                                progressNotifier.setOffset(ProgressNotifier.SET_TOTAL_LENGTH, ((CpParent) entry).getLength());
-                                count[0] += item.modifyItem(pgnFile, updIndex, is, zos, progressNotifier);
+                            if (pgnFile.getAbsolutePath().equals(entry.getAbsolutePath())) {
+                                // modified PgnFile
+                                count[0] += pgnItem.modifyItem(is, zos);
                                 found[0] = true;
                             } else {
                                 // blind copy
@@ -1425,8 +1509,6 @@ public abstract class CpFile implements Comparable<CpFile> {
                                     zos.write(data, 0, _count);
                                 }
                             }
-                            zos.flush();
-                            zos.closeEntry();
                             return true;
                         } catch (IOException e) {
                             throw new Config.PGNException(e);
@@ -1435,7 +1517,7 @@ public abstract class CpFile implements Comparable<CpFile> {
 
                     @Override
                     public boolean handle(int index, CpFile.PgnItem entry) {
-                        throw new RuntimeException(String.format(DEBUG_TAG + "Invalid entry %s, %s in %s", index, item.toString(), Zip.this.absPath));
+                        throw new RuntimeException(String.format(DEBUG_TAG + "Invalid entry %s, %s in %s", index, pgnItem.toString(), Zip.this.getAbsolutePath()));
                     }
 
                     @Override
@@ -1447,75 +1529,101 @@ public abstract class CpFile implements Comparable<CpFile> {
                     String relativePath = pgnFile.getRelativePath();
                     ZipEntry zeOut = new ZipEntry(relativePath);
                     zos.putNextEntry(zeOut);
-                    count[0] += item.modifyItem(pgnFile, updIndex, null, zos, progressNotifier);
+                    count[0] += pgnItem.modifyItem(null, zos);
                 }
             } catch (IOException e) {
                 throw new Config.PGNException(e);
             }
             return count[0];
         }
+
     }
 
     public static class ProgressNotifier {
-        private static final int SET_TOTAL_LENGTH = -1;
-        private static final int LIST_TRUNCATION = -2;
-        private final ProgressObserver progressObserver;
-        private int totalLength;
+        private ProgressObserver progressObserver;
+        private int totalLength, previousProgress, previousOffset;
 
-        public ProgressNotifier(ProgressObserver progressObserver) {
-            this.progressObserver = progressObserver;
+        public ProgressNotifier() {
             totalLength = 0;
             if (DEBUG) {
                 System.out.println(String.format("New ProgressNotifier %s", this));
             }
         }
 
-        public boolean setOffset(int offset, int totalLength) {       // return true to abort
-            if (offset == SET_TOTAL_LENGTH) {
-                this.totalLength = totalLength;
-                return false;
-            }
-            if (offset == LIST_TRUNCATION) {
-                boolean done = false;
-                if (progressObserver != null) {
-                    done = progressObserver.setProgress(-1);
-                }
-                return done;
-            }
-            if (totalLength == 0) {
-                totalLength = this.totalLength;
-            }
-            boolean done = false;
-            if (progressObserver != null) {
-                done = progressObserver.setProgress(getRelativeOffset(offset, totalLength));
-            }
-            return done;
+        public void setProgressObserver(ProgressObserver progressObserver) {
+            this.progressObserver = progressObserver;
+            totalLength = 0;
         }
 
-        private int getRelativeOffset(int offset, int totalLength) {
+        public void setTotalLength(int totalLength) {
+            this.totalLength = totalLength;
+            previousOffset = 0;
+        }
+
+        public void addOffset(int increment) {
+            setOffset(previousOffset + increment);
+        }
+
+        public void setOffset(int offset) {
+            if (progressObserver != null) {
+                int progress = getProgress(offset, totalLength);
+                if (previousProgress != progress) {
+                    progressObserver.setProgress(progress);
+                    previousProgress = progress;
+                }
+                previousOffset = offset;
+            }
+        }
+
+        private int getProgress(int offset, int totalLength) {
             if (totalLength == 0) {
                 return 0;
             }
-            if (offset > totalLength) {
-                offset = totalLength;
+            int res = (int)((long)offset * 100 / (long)totalLength);
+            if (res > 100) {
+                return 100;
             }
-            return (int) ((long) offset * 100 / (long) totalLength);
+            return res;
         }
     }
 
     public interface ProgressObserver {
-        boolean setProgress(int progress);  // return true to abort
+        void setProgress(int progress);
     }
 
     public interface EntryHandler {
-        boolean addOffset(int length, int totalLength);     // return true to abort
         boolean getMovesText(int index);
         default boolean skip(int index) {               // return true to skip
             return false;
         }
-        boolean handle(int index, CpFile.PgnItem entry) throws Config.PGNException;    // return false to break iteration
+        boolean handle(int index, CpFile.PgnItem entry) throws Config.PGNException;         // return false to break iteration
         default boolean handle(CpFile entry, InputStream is) throws Config.PGNException {   // return false to break iteration
             return true;
         }
     }
+
+/* should we do it to save memory?
+    public static class CpName {
+        final String name;
+        final int length;
+
+        public CpName(String name) {
+            this.name = name;
+            this.length = 0;
+        }
+
+        public CpName(String name, int length) {
+            this.name = name;
+            this.length = length;
+        }
+
+        String getName() {
+            return name;
+        }
+
+        int getLength() {
+            return length;
+        }
+    }
+*/
 }

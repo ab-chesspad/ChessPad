@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ package com.ab.pgn.io;
 import com.ab.pgn.BaseTest;
 import com.ab.pgn.BitStream;
 import com.ab.pgn.Config;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -38,83 +39,97 @@ import java.util.List;
 public class CpFileTest extends BaseTest {
 
     @Test
-//    @Ignore("Just prints results")
     public void testSort() {
         List<CpFile> list = new ArrayList<>(Arrays.asList(
-            CpFile.CpParent.fromPath("1.pgn"),
-            CpFile.CpParent.fromPath("2.pgn"),
-            CpFile.CpParent.fromPath("MaxLange-0.pgn"),
-            CpFile.CpParent.fromPath("20170523.pgn"),
+            CpFile.fromPath("1.pgn"),
+            CpFile.fromPath("2.pgn"),
+            CpFile.fromPath("MaxLange-0.pgn"),
+            CpFile.fromPath("20170523.pgn"),
 
-            CpFile.CpParent.fromPath("abc.pgn"),
-            CpFile.CpParent.fromPath("xyz.pgn"),
-            CpFile.CpParent.fromPath("3abc.pgn"),
-            CpFile.CpParent.fromPath("12abc.pgn"),
-            CpFile.CpParent.fromPath("3xyz.pgn"),
-            CpFile.CpParent.fromPath("12xyz.pgn"),
+            CpFile.fromPath("abc.pgn"),
+            CpFile.fromPath("xyz.pgn"),
+            CpFile.fromPath("3abc.pgn"),
+            CpFile.fromPath("12abc.pgn"),
+            CpFile.fromPath("3xyz.pgn"),
+            CpFile.fromPath("12xyz.pgn"),
 
-            CpFile.CpParent.fromPath("abc-dir"),
-            CpFile.CpParent.fromPath(".dir"),
-            CpFile.CpParent.fromPath(".zip"),
-            CpFile.CpParent.fromPath("xyz-dir"),
-            CpFile.CpParent.fromPath("3abc-dir"),
-            CpFile.CpParent.fromPath("12abc-dir"),
-            CpFile.CpParent.fromPath("3xyz-dir"),
-            CpFile.CpParent.fromPath("12xyz-dir"),
+            CpFile.fromPath("abc-dir"),
+            CpFile.fromPath(".dir"),
+            CpFile.fromPath(".zip"),
+            CpFile.fromPath("xyz-dir"),
+            CpFile.fromPath("3abc-dir"),
+            CpFile.fromPath("12abc-dir"),
+            CpFile.fromPath("3xyz-dir"),
+            CpFile.fromPath("12xyz-dir"),
 
-            CpFile.CpParent.fromPath("abc.zip"),
-            CpFile.CpParent.fromPath("xyz.zip"),
-            CpFile.CpParent.fromPath("3abc.zip"),
-            CpFile.CpParent.fromPath("12abc.zip"),
-            CpFile.CpParent.fromPath("3xyz.zip"),
-            CpFile.CpParent.fromPath("12xyz.zip")
+            CpFile.fromPath("abc.zip"),
+            CpFile.fromPath("xyz.zip"),
+            CpFile.fromPath("3abc.zip"),
+            CpFile.fromPath("12abc.zip"),
+            CpFile.fromPath("3xyz.zip"),
+            CpFile.fromPath("12xyz.zip")
         ));
         Collections.sort(list);
         for (CpFile item : list) {
-            System.out.println(String.format("%s, %s", item.getClass().toString(), ((CpFile.CpParent)item).getAbsolutePath()));
+            System.out.println(String.format("%s, %s", item.getClass().toString(), ((CpFile)item).getAbsolutePath()));
         }
         logger.debug("finish");
     }
 
     @Test
-    public void testParentPath() {
-        String[][] pairs = {
-            // not existing:
-            {"1.pgn", "", CpFile.CpFileType.Dir.name()},
-            {"a/1.pgn", "a", CpFile.CpFileType.Dir.name()},
-            {"a/b/1.pgn", "a/b", CpFile.CpFileType.Dir.name()},
-            {"a/b/c", "a/b", CpFile.CpFileType.Dir.name()},
-            {"a/b/c.zip", "a/b", CpFile.CpFileType.Dir.name()},
-            {"a/b.zip/c", "a/b.zip", CpFile.CpFileType.Zip.name()},
-            {"a/b.zip/c.pgn", "a/b.zip", CpFile.CpFileType.Zip.name()},
-            {"a/b.zip/d/c.pgn", "a/b.zip", CpFile.CpFileType.Zip.name()},
-            {"a/b.zip/d/e/c.pgn", "a/b.zip", CpFile.CpFileType.Zip.name()},
-            {"a/b.zip/d/e/c.pgn/d.pgn", "a/b.zip", CpFile.CpFileType.Zip.name()},
-            {"a/b/1.pgn/2.pgn", "a/b/1.pgn", CpFile.CpFileType.Dir.name()},
-            {"a/b/1.pgn/2.pgn/3.pgn", "a/b/1.pgn/2.pgn", CpFile.CpFileType.Dir.name()},
-            {"x/dir/z", "x/dir", CpFile.CpFileType.Dir.name()},
-            {"x/dir/c.zip", "x/dir", CpFile.CpFileType.Dir.name()},
-            {"x/dir/b.zip/c", "x/dir/b.zip", CpFile.CpFileType.Zip.name()},
-            {"xyz/aaa.zip/abc/edf/aa.pgn", "xyz/aaa.zip", CpFile.CpFileType.Zip.name()},
-            {"x/dir/b.zip/d/c.pgn", "x/dir/b.zip", CpFile.CpFileType.Zip.name()},
-            {"x/dir/.zip/d/c.pgn", "x/dir/.zip/d", CpFile.CpFileType.Dir.name()},
-            {"x/dir/.zip", "x/dir", CpFile.CpFileType.Dir.name()},
-            {"x/dir/.pgn", "x/dir", CpFile.CpFileType.Dir.name()},
-            {"a/b/.pgn", "a/b", CpFile.CpFileType.Dir.name()},
+    public void testFromPath() {
+        Object[][] allFileData = {
+            // path, type, parent path, parent type
+            // non-existing:
+            {"1.pgn", CpFile.CpFileType.Pgn, "", CpFile.CpFileType.Dir},
+            {"a/1.pgn", CpFile.CpFileType.Pgn, "a", CpFile.CpFileType.Dir},
+            {"a/b/1.pgn", CpFile.CpFileType.Pgn, "a/b", CpFile.CpFileType.Dir},
+            {"a/b/c", CpFile.CpFileType.Dir, "a/b", CpFile.CpFileType.Dir},
+            {"a/b/c.zip", CpFile.CpFileType.Zip, "a/b", CpFile.CpFileType.Dir},
+            {"a/b.zip/c", CpFile.CpFileType.Dir, "a/b.zip", CpFile.CpFileType.Zip},
+            {"a/b.zip/c.pgn", CpFile.CpFileType.Pgn, "a/b.zip", CpFile.CpFileType.Zip},
+            {"a/b.zip/d/c.pgn", CpFile.CpFileType.Pgn, "a/b.zip", CpFile.CpFileType.Zip},
+            {"a/b.zip/d/e/c.pgn", CpFile.CpFileType.Pgn, "a/b.zip", CpFile.CpFileType.Zip},
+            {"a/b.zip/d/e/c.pgn/d.pgn", CpFile.CpFileType.Pgn, "a/b.zip", CpFile.CpFileType.Zip},
+            {"a/b/1.pgn/2.pgn", CpFile.CpFileType.Pgn, "a/b/1.pgn", CpFile.CpFileType.Dir},
+            {"a/b/1.pgn/2.pgn/3.pgn", CpFile.CpFileType.Pgn, "a/b/1.pgn/2.pgn", CpFile.CpFileType.Dir},
+            {"x/dir/z", CpFile.CpFileType.Dir, "x/dir", CpFile.CpFileType.Dir},
+            {"x/dir/c.zip", CpFile.CpFileType.Zip, "x/dir", CpFile.CpFileType.Dir},
+            {"x/dir/b.zip/c", CpFile.CpFileType.Dir, "x/dir/b.zip", CpFile.CpFileType.Zip},
+            {"xyz/aaa.zip/abc/edf/aa.pgn", CpFile.CpFileType.Pgn, "xyz/aaa.zip", CpFile.CpFileType.Zip},
+            {"x/dir/b.zip/d/c.pgn", CpFile.CpFileType.Pgn, "x/dir/b.zip", CpFile.CpFileType.Zip},
+            {"x/dir/.zip/d/c.pgn", CpFile.CpFileType.Pgn, "x/dir/.zip/d", CpFile.CpFileType.Dir},
+            {"x/dir/.zip", CpFile.CpFileType.Dir, "x/dir", CpFile.CpFileType.Dir},
+            {"x/dir/.pgn", CpFile.CpFileType.Dir, "x/dir", CpFile.CpFileType.Dir},
+            {"a/b/.pgn", CpFile.CpFileType.Dir, "a/b", CpFile.CpFileType.Dir},
             // existing:
-            {"x/dir", "x", CpFile.CpFileType.Dir.name()},
-            {"x/dir/books.zip", "x/dir", CpFile.CpFileType.Dir.name()},
-            {"x/dir/books.zip/t.pgn", "x/dir/books.zip", CpFile.CpFileType.Zip.name()},
-            {"x/dir/books.zip/masters/list1.pgn", "x/dir/books.zip", CpFile.CpFileType.Zip.name()},
+            {"x/dir", CpFile.CpFileType.Dir, "x", CpFile.CpFileType.Dir},
+            {"x/dir/books1.zip", CpFile.CpFileType.Zip, "x/dir", CpFile.CpFileType.Dir},
+            {"x/dir/books1.zip/t.pgn", CpFile.CpFileType.Pgn, "x/dir/books1.zip", CpFile.CpFileType.Zip},
+            {"x/dir/books1.zip/masters/list1.pgn", CpFile.CpFileType.Pgn, "x/dir/books1.zip", CpFile.CpFileType.Zip},
+/*/
+            {"famous_games.zip/famous_games.pgn/item", CpFile.CpFileType.Item, "famous_games.zip/famous_games.pgn", CpFile.CpFileType.Pgn},
+//*/
         };
 
-        for (String[] pair : pairs) {
-            String path = pair[0];
-            String parentPath = pair[1];
-            CpFile.CpFileType parentType = CpFile.CpFileType.valueOf(pair[2]);
-            String result = CpFile.CpParent.getParentPath(path);
-            Assert.assertEquals("error in " + path, parentPath, result);
-            CpFile.CpParent cpFile = CpFile.CpParent.fromPath(path);
+        for (Object[] fileData : allFileData) {
+            String path = (String)fileData[0];
+            if (!path.isEmpty()) {
+                path = "/" + path;
+            }
+            CpFile.CpFileType type = (CpFile.CpFileType)fileData[1];
+            String parentPath = (String)fileData[2];
+            if (!parentPath.isEmpty()) {
+                parentPath = "/" + parentPath;
+            }
+            CpFile.CpFileType parentType = (CpFile.CpFileType)fileData[3];
+
+            CpFile cpFile = CpFile.fromPath(path);
+            Assert.assertEquals("error in " + path, type, cpFile.getType());
+            Assert.assertEquals("error in " + path, path, cpFile.getAbsolutePath());
+
+            String resultParentPath = cpFile.getParent().getAbsolutePath();
+            Assert.assertEquals("error in " + path, parentPath, resultParentPath);
             Assert.assertEquals("error in " + path, parentType, cpFile.parent.getType());
         }
     }
@@ -127,7 +142,7 @@ public class CpFileTest extends BaseTest {
             null,
         };
         for (String rootName : rootNames) {
-            CpFile.CpParent root = CpFile.CpParent.fromPath("/");
+            CpFile root = CpFile.fromPath("/");
             Assert.assertTrue("error for " + rootName, root.isRoot());
         }
     }
@@ -135,7 +150,7 @@ public class CpFileTest extends BaseTest {
     @Test
     public void testNewDir() {
         String path = "xyz";
-        CpFile.CpParent cpParent = CpFile.CpParent.fromPath(path);
+        CpFile cpParent = CpFile.fromPath(path);
         Assert.assertTrue(cpParent.getParent().isRoot());
     }
 
@@ -143,16 +158,15 @@ public class CpFileTest extends BaseTest {
 //    @Ignore("Just prints dir content")
     public void testDir() throws Exception {
         int testItemIndex = 1;
-        CpFile.Dir topDir = (CpFile.Dir)CpFile.CpParent.fromPath("test_subdir");
-        List<CpFile> topDirChildren= topDir.getChildrenNames(null);
+        CpFile.Dir topDir = (CpFile.Dir)CpFile.fromPath("test_subdir");
+        List<CpFile> topDirChildren = topDir.getChildrenNames();
         for (CpFile topDirChild : topDirChildren) {
-            CpFile.CpParent topDirItem = (CpFile.CpParent)topDirChild;
-//            topDirItem.parent = topDir;
-            List<CpFile> topDirGrandchildren = topDirItem.getChildrenNames(null);
-            logger.debug(String.format("%s, %s", topDirItem.getClass().toString(), topDirItem.absPath));
+            CpFile topDirItem = (CpFile)topDirChild;
+            List<CpFile> topDirGrandchildren = topDirItem.getChildrenNames();
+            logger.debug(String.format("%s, %s", topDirItem.getClass().toString(), topDirItem.getAbsolutePath()));
             if (topDirItem instanceof CpFile.PgnFile) {
                 if (testItemIndex < topDirGrandchildren.size()) {
-                    CpFile.PgnItem pgnItem = ((CpFile.PgnFile)topDirItem).getPgnItem(testItemIndex, null);
+                    CpFile.PgnItem pgnItem = ((CpFile.PgnFile)topDirItem).getPgnItem(testItemIndex);
                     logger.debug(String.format("\t%s", pgnItem.toString()));
                 }
             } else if (topDirItem instanceof CpFile.Zip) {
@@ -160,7 +174,7 @@ public class CpFileTest extends BaseTest {
                     CpFile.PgnFile topDirGrandchild = (CpFile.PgnFile)p;
                     logger.debug(String.format("\t%s", topDirGrandchild.toString()));
                     // PgnFiles
-                    List<CpFile> zipPgnItemNames = topDirGrandchild.getChildrenNames(null);
+                    List<CpFile> zipPgnItemNames = topDirGrandchild.getChildrenNames();
                     int index = -1;
                     for (CpFile zipPgnItemName : zipPgnItemNames) {
                         // PgnItems
@@ -168,7 +182,7 @@ public class CpFileTest extends BaseTest {
                             logger.debug(String.format("\t\t%s", zipPgnItemName.toString()));
                         }
                         if (++index == testItemIndex) {
-                            CpFile.PgnItem testPgnItem = topDirGrandchild.getPgnItem(testItemIndex, null);
+                            CpFile.PgnItem testPgnItem = topDirGrandchild.getPgnItem(testItemIndex);
                             if (DEBUG) {
                                 logger.debug(String.format("\t%s", testPgnItem.getMoveText()));
                             }
@@ -180,36 +194,48 @@ public class CpFileTest extends BaseTest {
     }
 
     @Test
+    public void testPgnFileList() throws Exception {
+        final String[] fileNames = {
+            "lichess_puzzles-0.pgn",
+            "SicilianTaimanovMain.pgn",
+        };
+
+        for (String fileName : fileNames) {
+            CpFile.PgnFile pgnFile = (CpFile.PgnFile) CpFile.fromPath(fileName);
+            long start0 = System.currentTimeMillis();
+            List<CpFile> pgnItems = pgnFile.getChildrenNames();
+            long dur0 = System.currentTimeMillis() - start0;
+            logger.debug(String.format("msec=%d", dur0));
+            logger.debug(String.format("%s children=%s", fileName, pgnItems.size()));
+        }
+    }
+
+    @Test
     public void testPgnItemUpdate() throws Exception {
         // remove comments from all pgn files, including within zip
-        CpFile.setRoot(TEST_TMP_ROOT);
+        currentRootPath = TEST_TMP_ROOT;
 
         final String[] fileNames = {
-            "x/dir/books1.zip",
             "x/dir/y",
+            "x/dir/books1.zip",
         };
 
         for (String fileName : fileNames) {
             File testFile = toTempTest(fileName);
-            CpFile.Dir dir = (CpFile.Dir) CpFile.CpParent.fromPath(fileName);
-            List<CpFile> list = dir.getChildrenNames(null);
+            CpFile.Dir dir = (CpFile.Dir) CpFile.fromPath(fileName);
+            List<CpFile> list = dir.getChildrenNames();
             for (CpFile _pgnFile : list) {
-//            logger.debug(String.format("%s, %s", pgn.getClass().toString(), pgn.getName()));
                 CpFile.PgnFile pgnFile = (CpFile.PgnFile)_pgnFile;
                 // 1. get all PgnItem entries
-                List<CpFile> items = pgnFile.getChildrenNames(null);
+                List<CpFile> items = pgnFile.getChildrenNames();
                 for (int i = 0; i < items.size(); ++i) {
                     // 2. for each PgnItem get its text, remove comments and save
-                    CpFile.PgnItem pgnItem = pgnFile.getPgnItem(i, null);
+                    CpFile.PgnItem pgnItem = pgnFile.getPgnItem(i);
                     String moveText = pgnItem.getMoveText().replaceAll("(?s)\\{.*?}", "");
                     if (!moveText.equals(pgnItem.getMoveText())) {
                         final int[] pgnOffset = {0};
                         pgnItem.setMoveText(moveText);
-                        pgnItem.save(i, progress -> {
-                            pgnOffset[0] = progress;
-                            return false;
-                        });
-//                logger.debug(String.format("\t%s", item.getMoveText()));
+                        pgnItem.save();
                         if (DEBUG) {
                             logger.debug(String.format("%s offset=%s", pgnItem.toString(), pgnOffset[0]));
                         }
@@ -223,45 +249,47 @@ public class CpFileTest extends BaseTest {
     public void testPgnItemDelete() throws Exception {
         // remove 1st (0-indexed) PgnItem from all pgn files, including within zip, until its deletion
         // test that all empty directories are removed up to the root
-        CpFile.setRoot(TEST_TMP_ROOT);
+        currentRootPath = TEST_TMP_ROOT;
 
         final String[] fileNames = {
+            "x/dir/y",
             "x/dir/books1.zip",
-// todo!            "x/dir/y",
         };
 
         for (String fileName : fileNames) {
             File testFile = toTempTest(fileName);
-            CpFile.Dir dir = (CpFile.Dir) CpFile.CpParent.fromPath(fileName);
-            File realFile = new File(CpFile.getRootPath() + dir.absPath);
-            List<CpFile> list = dir.getChildrenNames(null);
+            CpFile.Dir dir = (CpFile.Dir) CpFile.fromPath(fileName);
+            FilAx realFile = CpFile.newFile(dir.getAbsolutePath());
+            List<CpFile> list = dir.getChildrenNames();
             for (CpFile _pgnFile : list) {
                 CpFile.PgnFile pgnFile = (CpFile.PgnFile)_pgnFile;
-                List<CpFile> items = pgnFile.getChildrenNames(null);
+                List<CpFile> items = pgnFile.getChildrenNames();
                 while (items.size() > 0) {
-                    final int[] pgnOffset = {0};
                     CpFile.PgnItem pgnItem = new CpFile.PgnItem(pgnFile);
-//                    pgnItem.index = 0;
+                    pgnItem.index = 0;
                     pgnItem.setMoveText(null);      // delete it
-                    pgnItem.save(0, progress -> {
-                        pgnOffset[0] = progress;
-                        return false;
-                    });
+                    pgnItem.save();
                     if (!realFile.exists()) {
                         break;
                     }
-                    List<CpFile> items1 = pgnFile.getChildrenNames(null);
+                    List<CpFile> items1 = pgnFile.getChildrenNames();
                     Assert.assertEquals(items.size() - 1, items1.size());
                     items = items1;
                 }
             }
-            Assert.assertFalse(realFile.getAbsolutePath() + " was not deleted", realFile.exists());
-            Assert.assertEquals(0, new File(CpFile.getRootPath()).list().length);
+            Assert.assertFalse(realFile.getName() + " was not deleted", realFile.exists());
+//            Assert.assertEquals(0, new File(CpFile.getRootPath()).list().length);
         }
     }
 
     @Test
     public void testPgnItemAdd() throws Exception {
+        String pgnText =
+            "[White \"SicilianTaimanov\"]\n" +
+            "[Black \"Main\"]\n" +
+            "1. e4 c5 " +
+            "\n";
+
         final String[] fileNames = {
             "x/dir/books1.zip",
             "x/dir/y",
@@ -275,55 +303,42 @@ public class CpFileTest extends BaseTest {
             "a4/b4/z.zip/a/b/1.pgn",
         };
 
-        String pgnText =
-            "[White \"SicilianTaimanov\"]\n" +
-            "[Black \"Main\"]\n" +
-            "1. e4 c5 " +
-            "\n";
-
-        CpFile.setRoot(TEST_TMP_ROOT);
+        currentRootPath = TEST_TMP_ROOT;
         InputStream is = new ByteArrayInputStream(StandardCharsets.UTF_8.encode(pgnText).array());
-        final List<CpFile.PgnItem> items = CpFile.parsePgnFile(is, true);
-        Assert.assertEquals(1, items.size());
-        CpFile.PgnItem item = items.get(0);
+        List<CpFile.PgnItem> pgnItems = parsePgnFile(null, is, true);
+        Assert.assertEquals(1, pgnItems.size());
+        CpFile.PgnItem pgnItem = pgnItems.get(0);
 
         for (String fileName : fileNames) {
-            CpFile.CpParent parent = CpFile.CpParent.fromPath(fileName);
-//            if (parent instanceof CpFile.PgnFile) {
-//                CpFile.CpParent par = parent.getRealParent();
-//            }
-//            File testFile = toTempTest(fileName);
-            File testFile = toTempTest(parent.parent.absPath);
+            CpFile parent = CpFile.fromPath(fileName);
+            File testFile = toTempTest(parent.parent.getAbsolutePath());
             // Dir or Zip
-//            CpFile.CpParent parent = CpFile.CpParent.fromPath(fileName);
             logger.debug(parent.toString());
             if (parent instanceof CpFile.PgnFile) {
-                testPgnItemAdd(item, fileName);
+                testPgnItemAdd(pgnItem, (CpFile.PgnFile)parent);
                 continue;
             }
-            List<CpFile> childrenNames = parent.getChildrenNames(null);
+            List<CpFile> childrenNames = parent.getChildrenNames();
             for (CpFile childName : childrenNames) {
                 CpFile.PgnFile pgnFile = (CpFile.PgnFile)childName;
-                pgnFile.parent = parent;
                 logger.debug("\t" + pgnFile.toString());
-                testPgnItemAdd(item, pgnFile.absPath);
+                testPgnItemAdd(pgnItem, pgnFile);
             }
-            testPgnItemAdd(item, CpFile.concat(parent.absPath, "added.pgn"));
+            testPgnItemAdd(pgnItem, new CpFile.PgnFile(parent, "added.pgn"));
         }
         logger.debug("finish");
     }
 
-    private void testPgnItemAdd(CpFile.PgnItem pgnItem, String path) throws Config.PGNException {
-        CpFile.PgnFile pgnFile = (CpFile.PgnFile) CpFile.CpParent.fromPath(path);
-//        pgnItem.index = -1;     // to append
-        List<CpFile> items = pgnFile.getChildrenNames(null);
+    private void testPgnItemAdd(CpFile.PgnItem pgnItem, CpFile.PgnFile pgnFile) throws Config.PGNException {
+        pgnItem.parent = pgnFile;
+        List<CpFile> items = pgnFile.getChildrenNames();
         // m.b. update tag names in pgnFile?
-        pgnItem.setParent(pgnFile);
-        pgnItem.save(-1, null);     // append
-        List<CpFile> updatedItems = pgnFile.getChildrenNames(null);
+        pgnItem.setIndex(-1);
+        pgnItem.save();     // append
+        List<CpFile> updatedItems = pgnFile.getChildrenNames();
         Assert.assertEquals("error in " + pgnFile.getAbsolutePath(), updatedItems.size(), items.size() + 1);
 
-        CpFile.PgnItem addedItem = pgnFile.getPgnItem(items.size(), null);
+        CpFile.PgnItem addedItem = pgnFile.getPgnItem(items.size());
         Assert.assertEquals("error in " + pgnFile.getAbsolutePath(), pgnItem, addedItem);
     }
 
@@ -396,42 +411,20 @@ public class CpFileTest extends BaseTest {
             "test_subdir/x/dir/books1.zip/masters/list1.pgn",
         };
         for (String path : paths) {
-            CpFile.CpParent parent = CpFile.CpParent.fromPath(path);
+            CpFile cpFile = CpFile.fromPath(path);
             BitStream.Writer writer = new BitStream.Writer();
-            parent.serialize(writer);
+            cpFile.serialize(writer);
             writer.close();
             BitStream.Reader reader = new BitStream.Reader(writer.getBits());
-            CpFile.CpParent unserializedParent = (CpFile.CpParent) CpFile.unserialize(reader);
+            CpFile unserializedCpFile = (CpFile) CpFile.unserialize(reader);
             Assert.assertEquals("Error in " + path,
-                    parent, unserializedParent);
-//            Assert.assertEquals("Error in " + path,
-//                    parent.index, unserializedParent.index);
+                    cpFile, unserializedCpFile);
             Assert.assertEquals("Error in " + path,
-                    parent.length, unserializedParent.length);
+                    cpFile.length, unserializedCpFile.length);
             Assert.assertEquals("Error in " + path,
-                    parent.totalChildren, unserializedParent.totalChildren);
+                    cpFile.totalChildren, unserializedCpFile.totalChildren);
         }
     }
-
-/*
-    @Test
-    public void testFindIndex() {
-        Object[][] pathData = {
-                {"test_subdir/x/dir/m8n3.pgn", "test_subdir/x/dir", 1},
-                {"test_subdir/x/dir/m8n3.pgn", "test_subdir/x", 0},
-
-        };
-
-        for (Object[] objects : pathData) {
-            CpFile.CpParent pgnFile = CpFile.CpParent.fromPath((String) objects[0]);
-            String curPath = (String) objects[1];
-            int index = (int) objects[2];
-            int found =
-            Assert.assertEquals(String.format("Error in " + path,
-                    parent.length, unserializedParent.length);
-        }
-    }
-*/
 
     @Test
     public void testEscapeTag() {
@@ -451,12 +444,12 @@ public class CpFileTest extends BaseTest {
             "[White \"white\\\\spec chars, checkmate\"]\n",
         };
 
-        CpFile.PgnFile pgnFile = (CpFile.PgnFile) CpFile.CpParent.fromPath("abc.pgn");
-        CpFile.PgnItem pgnItem = new CpFile.PgnItem(null);
+        CpFile.PgnFile pgnFile = (CpFile.PgnFile) CpFile.fromPath("abc.pgn");
+        CpFile.PgnItem pgnItem = new CpFile.PgnItem((CpFile)null);
         Runtime runtime = Runtime.getRuntime();
         long initFreeMemory = runtime.freeMemory();
         int count = 0;
-        for(String tag : tags) {
+        for (String tag : tags) {
             ++count;
             System.out.println(tag.trim());
             CpFile.parseTag(pgnItem, tag);
@@ -464,5 +457,21 @@ public class CpFileTest extends BaseTest {
             System.out.println(String.format("%s, used %s", count, (initFreeMemory - freeMemory)));
         }
         logger.debug("done");
+    }
+    @Test
+    public void testRename() throws Exception {
+        currentRootPath = TEST_TMP_ROOT;
+
+        final String[][] fileItems = {
+            {"x/dir/y", "z"},
+            {"x/dir/books1.zip", "b2.zip"},
+        };
+
+        for (String[] fileItem : fileItems) {
+            File testFile = toTempTest(fileItem[0]);
+            FilAx filAx = CpFile.getFilAxProvider().newFilAx(fileItem[0]);
+            filAx.renameTo(fileItem[1]);
+// todo: assert results
+        }
     }
 }

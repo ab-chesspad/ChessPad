@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ class GameView extends ChessPadLayout.CpView {
             // true if the event was handled and should not be given further down to other views.
             return true;
         });
-//        glyph.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        glyph.setInputType(InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         glyph.setFocusable(false);
 
         comment = createTextView();
@@ -214,8 +214,8 @@ class GameView extends ChessPadLayout.CpView {
         this.chessPadLayout.title.setText(chessPad.getPgnGraph().getTitle());
         if (chessPad.mode == ChessPad.Mode.Puzzle) {
             this.chessPadLayout.boardView.setSelected(new Square());
-        } else if(chessPad.selectedSquare == null) {
-            if(chessPad.getPgnGraph().moveLine.size() > 1) {
+        } else if (chessPad.selectedSquare == null) {
+            if (chessPad.getPgnGraph().moveLine.size() > 1) {
                 this.chessPadLayout.boardView.setSelected(chessPad.getPgnGraph().getCurrentMove().getTo());
             }
         } else {
@@ -250,11 +250,11 @@ class GameView extends ChessPadLayout.CpView {
                 if (puzzleMode) {
                     setButtonEnabled(ChessPad.Command.Start, false);
                 } else {
-                    setButtonEnabled(ChessPad.Command.Start, chessPad.getPgnGraph().getPgnItemIndex() > 0);
+                    setButtonEnabled(ChessPad.Command.Start, chessPad.getPgnGraph().getPgnItem().getIndex() > 0);
                 }
                 setButtonEnabled(ChessPad.Command.Prev, false);
                 setButtonEnabled(ChessPad.Command.PrevVar, false);
-                setButtonEnabled(ChessPad.Command.Delete, !puzzleMode);
+                setButtonEnabled(ChessPad.Command.Delete, !puzzleMode && chessPad.getPgnGraph().isDeletable());
             } else {
                 imageButtons.get(ChessPad.Command.Start).setImageResource(R.drawable.game_start);
                 setButtonEnabled(ChessPad.Command.Start, true);
@@ -270,7 +270,7 @@ class GameView extends ChessPadLayout.CpView {
                 if (puzzleMode) {
                     setButtonEnabled(ChessPad.Command.End, true);
                 } else {
-                    setButtonEnabled(ChessPad.Command.End, chessPad.getPgnGraph().getPgnItemIndex() < chessPad.lastItemIndex());
+                    setButtonEnabled(ChessPad.Command.End, chessPad.getPgnGraph().getPgnItem().getIndex() < chessPad.lastItemIndex());
                 }
             } else {
                 setButtonEnabled(ChessPad.Command.Next, true);

@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -19,6 +19,14 @@
  */
 package com.ab.pgn;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+
+import com.ab.pgn.BaseTest;
+
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,14 +38,10 @@ import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
 
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-
+//@Ignore("Seems like a problem with Mockito 2022/08/3")
 @RunWith(PowerMockRunner.class)
 @PrepareForTest({Board.class, BitStream.Reader.class, ByteArrayInputStream.class})
 public class BoardTest extends BaseTest {
@@ -45,34 +49,15 @@ public class BoardTest extends BaseTest {
     public final ExpectedException expectedEx = ExpectedException.none();
 
     @Test
-    public void testBoard() throws Config.PGNException {
+    public void testBoard() {
         int[][] pieces = Board.init;
         Board board = new Board(pieces);
-        for(int i = 0; i < pieces.length; ++i) {
-            for(int j = 0; j < pieces[i].length; ++j) {
+        for (int i = 0; i < pieces.length; ++i) {
+            for (int j = 0; j < pieces[i].length; ++j) {
                 Assert.assertEquals(String.format("(%s,%s): 0x%02x != 0x%02x", i, j, pieces[j][i], board.getPiece(i, j)),
                         pieces[j][i], board.getPiece(i, j));
             }
         }
-
-        Map<Pack, Board> positions = new HashMap<>();
-        board.setMove(null);
-        int[] packData = board.pack();
-        positions.put(new Pack(packData), board);
-
-        Assert.assertFalse(board.getVisited());
-//        board.setVisited(true);
-//        Assert.assertTrue(board.wasVisited());
-//
-//        Pack p = new Pack(board.pack());
-//        positions.put(p, board);
-
-        for (Board b : positions.values()) {
-            b.setVisited(false);
-        }
-
-        board = positions.get(new Pack(packData));
-        Assert.assertFalse(board.getVisited());
     }
 
     @Test
@@ -81,17 +66,14 @@ public class BoardTest extends BaseTest {
         int[] p = board.pack();
         Assert.assertEquals(0, board.validateSetup());
         board.toEmpty();
-        for(int i = 0; i < 8; ++i) {
-            for(int j=0; j <8; ++j) {
+        for (int i = 0; i < 8; ++i) {
+            for (int j=0; j <8; ++j) {
                 Assert.assertEquals(Config.EMPTY, board.getPiece(i, j));
             }
         }
-//        assertNotEquals(board, new Board());  bug in junit?
         Assert.assertFalse(board.equals(new Board()));
         String fen = "rnbqkbnr/pppppppp/8/q/8/8/PPPPPPPP/RNBQKBNR w - - 0 1";
         Board invalid = new Board(fen);
-//        assertNotEquals(board, invalid);  bug in junit?
-//        assertNotEquals(invalid, board);  bug in junit?
         Assert.assertFalse(board.equals(invalid));
         Assert.assertFalse(invalid.equals(board));
     }
@@ -122,6 +104,27 @@ public class BoardTest extends BaseTest {
     }
 
     @Test
+    public void testSerialization() throws Config.PGNException, IOException {
+        String[] fens = {
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "8/8/8/8/8/8/8/8 w - - 0 1",
+            "rnbqkbnr/pppppppp/PPPPPPPP/pppppppp/PPPPPPPP/pppppppp/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            "kkkkkkkk/kkkkkkkk/kkkkkkkk/kkkkkkkk/KKKKKKKK/KKKKKKKK/KKKKKKKK/KKKKKKKK w - - 0 1",
+            "pppppppp/pppppppp/pppppppp/pppppppp/pppppppp/pppppppp/pppppppp/pppppppp w - - 0 1",
+        };
+
+        for (String fen : fens) {
+            Board b = new Board(fen);
+            logger.debug(b.toFEN());
+            BitStream.Writer writer = new BitStream.Writer();
+            b.serializeAnyBoard(writer);
+            BitStream.Reader reader = new BitStream.Reader(writer);
+            Board bu = Board.unserializeAnyBoard(reader);
+            Assert.assertEquals(b.toFEN(), bu.toFEN());   // cannot compare possibly illegal positions
+        }
+    }
+
+    @Test
     public void testFEN_invalid_enpassant() throws Config.PGNException{
         String fen = "r1bq1rk1/4bppp/p1n2n2/1pppp3/4P3/2PP1N2/PPB2PPP/R1BQRNK1 w - - 0 1";
         Board board = new Board(fen);
@@ -138,23 +141,24 @@ public class BoardTest extends BaseTest {
         expectedEx.expect(Config.PGNException.class);
         expectedEx.expectMessage(String.format("invalid FEN %s", fen));
         Board board = new Board(fen);
+        logger.debug(board.toString());
     }
 
     private List<Board> testFEN(Pair<String, Integer>[] fens, boolean updateResult) throws Config.PGNException {
         List<Board> boards = new LinkedList<>();
-        for(Pair<String, Integer> pair : fens) {
+        for (Pair<String, Integer> pair : fens) {
             String fen = pair.first;
             Board board = new Board(fen);
             boards.add(board);
             int res = pair.second;
-            Assert.assertEquals(String.format("%s\n%s", fen, board.toString()), res, board.validateSetup());
+            Assert.assertEquals(String.format("%s\n%s", fen, board), res, board.validateSetup());
             Board inv = invert(board);
             String invFen = inv.toFEN();
             int invRes = res;
-            if(updateResult && res != 0) {
+            if (updateResult && res != 0) {
                 invRes = res + 1;   // error always for White!
             }
-            Assert.assertEquals(String.format("Inverted %s\n%s", invFen, inv.toString()), invRes, inv.validateSetup());
+            Assert.assertEquals(String.format("Inverted %s\n%s", invFen, inv), invRes, inv.validateSetup());
             if (res == 0) {
                 Board clone = board.clone();
                 String resFen = clone.toFEN();
@@ -193,7 +197,7 @@ public class BoardTest extends BaseTest {
         Board board = boards.get(0);
         board.setReversiblePlyNum(0);
         board.setEnpassant(new Square());
-        Assert.assertEquals(String.format("Invalid enpass %s\n%s", board.toFEN(), board.toString()), 14, board.validateSetup());
+        Assert.assertEquals(String.format("Invalid enpass %s\n%s", board.toFEN(), board), 14, board.validateSetup());
     }
 
     @Test(expected = Config.PGNException.class)

@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ class Pack {
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         try {
-            for(int j : ints) {
+            for (int j : ints) {
                 writer.write(j, 32);
             }
         } catch (IOException e) {

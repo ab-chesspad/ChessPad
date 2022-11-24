@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ import android.view.View;
 
 import com.ab.droid.chesspad.BoardHolder;
 import com.ab.droid.chesspad.ChessPad;
+import com.ab.droid.chesspad.MainActivity;
 import com.ab.droid.chesspad.R;
 import com.ab.pgn.Board;
 import com.ab.pgn.Config;
@@ -52,7 +53,7 @@ public class BoardView extends View {
     private final static String[] colorStrings = {"#FFFF0000", "#80B00000"};
     private final static int[] colors = new int[colorStrings.length];
     static {
-        for(int i = 0; i < colors.length; ++i) {
+        for (int i = 0; i < colors.length; ++i) {
             colors[i] = Color.parseColor(colorStrings[i]);
         }
     }
@@ -76,7 +77,7 @@ public class BoardView extends View {
     }
 
     public BoardView(ChessPad chessPad) {
-        this(chessPad, chessPad);
+        this(MainActivity.getContext(), chessPad);
     }
 
     private void initBitmaps(int... bgResources) {
@@ -146,11 +147,11 @@ public class BoardView extends View {
 
     public void setHints(String pv) {
         hints.clear();
-        if(pv == null) {
+        if (pv == null) {
             return;
         }
         String[] tokens = pv.split("\\s+");
-        for(String token : tokens) {
+        for (String token : tokens) {
             Square from = new Square(token.substring(0, 2));
             Square to = new Square(token.substring(2, 4));
             hints.add(new Pair<>(from, to));
@@ -208,6 +209,9 @@ public class BoardView extends View {
         drawHints(canvas);
     }
 
+    final String vertNotation = "12345678";
+    final String horizNotation = "abcdefgh";
+
     private void drawBoard(Canvas canvas) {
         if (DEBUG) {
             Log.d(DEBUG_TAG, "BoardView.drawBoard()");
@@ -216,11 +220,59 @@ public class BoardView extends View {
         if (board == null) {
             return;
         }
+        boolean drawNotation = board.getXSize() == Config.BOARD_SIZE && board.getYSize() == Config.BOARD_SIZE;
+        Paint paint = new Paint();
+        paint.setColor(Color.BLACK);
+        int textSize = squareSize / 2;
+        int textWidth = 2 * textSize / 3;
+        paint.setTextSize(textSize);
+
         for (int x = 0; x < board.getXSize(); ++x) {
             for (int y = 0; y < board.getYSize(); ++y) {
                 int i = (x + y) % bgBitmaps.length;
                 Point where = board2screen(x, y);
                 canvas.drawBitmap(bgBitmaps[i], where.x, where.y, null);
+                if (drawNotation) {
+                    float xT, yT;
+                    if (x == 0) {
+                        if (boardHolder.isFlipped()) {
+                            xT = where.x + squareSize - textWidth;
+                            yT = where.y + textSize;
+                        } else {
+                            xT = where.x;
+                            yT = where.y + textSize;
+                        }
+                        canvas.drawText(vertNotation.substring(y, y + 1), xT, yT, paint);
+                    } else if (x == board.getXSize() - 1) {
+                        if (boardHolder.isFlipped()) {
+                            xT = where.x;
+                            yT = where.y + textSize;
+                        } else {
+                            xT = where.x + squareSize - textWidth;
+                            yT = where.y + textSize;
+                        }
+                        canvas.drawText(vertNotation.substring(y, y + 1), xT, yT, paint);
+                    }
+                    if (y == 0) {
+                        if (boardHolder.isFlipped()) {
+                            xT = where.x + squareSize / 3;
+                            yT = where.y + squareSize / 3;
+                        } else {
+                            xT = where.x + squareSize / 3;
+                            yT = where.y + squareSize - 2;
+                        }
+                        canvas.drawText(horizNotation.substring(x, x + 1), xT, yT, paint);
+                    } else if (y == board.getYSize() - 1) {
+                        if (boardHolder.isFlipped()) {
+                            xT = where.x + squareSize / 3;
+                            yT = where.y + squareSize - 2;
+                        } else {
+                            xT = where.x + squareSize / 3;
+                            yT = where.y + squareSize / 3;
+                        }
+                        canvas.drawText(horizNotation.substring(x, x + 1), xT, yT, paint);
+                    }
+                }
 
                 int piece;
                 if ((piece = board.getPiece(x, y)) != Config.EMPTY) {
@@ -249,7 +301,7 @@ public class BoardView extends View {
         double sinv = Math.sin(v);
         double tanv = Math.tan(v);
 
-        for(int i = 0; i < hints.size(); ++i) {
+        for (int i = 0; i < hints.size(); ++i) {
             Pair<Square, Square> hint = hints.get(i);
             Point from = board2screen(hint.first.getX(), hint.first.getY());
             Point to = board2screen(hint.second.getX(), hint.second.getY());
@@ -283,7 +335,7 @@ public class BoardView extends View {
             mtx.postTranslate(x0, y0);
             path.transform(mtx);
             int j = i;
-            if(i >= colors.length) {
+            if (i >= colors.length) {
                 j = colors.length - 1;
             }
             p.setColor(colors[j]);
@@ -301,7 +353,7 @@ public class BoardView extends View {
         public boolean onTouch(View v, MotionEvent event) {
             Square clicked = screen2board((int) event.getX(), (int) event.getY());
             if (DEBUG) {
-                Log.d(DEBUG_TAG, String.format("BoardView (%s) %s", clicked.toString(), event.toString()));
+                Log.d(DEBUG_TAG, String.format("BoardView (%s) %s", clicked, event));
             }
             Board board = boardHolder.getBoard();
             if (board == null) {

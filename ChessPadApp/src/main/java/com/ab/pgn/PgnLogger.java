@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,10 +38,10 @@ public class PgnLogger {
     }
 
     public static void setFile(String fileName) throws FileNotFoundException {
-        if(ps != System.out) {
+        if (ps != System.out) {
             close();
         }
-        if(fileName == null) {
+        if (fileName == null) {
             ps = System.out;
         } else {
             ps = new PrintStream(new FileOutputStream(fileName));
@@ -85,7 +85,7 @@ public class PgnLogger {
 
     private String getTS() {
         String ts = "";
-        if(includeTimeStamp) {
+        if (includeTimeStamp) {
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat("MM-dd HH:mm:ss.SSS ", Locale.getDefault());
             ts = simpleDateFormat.format(new Date());
         }
@@ -95,7 +95,7 @@ public class PgnLogger {
     public void debug(Object message, Throwable t) {
         StringWriter sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw));
-        ps.println(String.format("%sD/%s: %s\n%s", getTS(), name, message.toString(), sw.toString()));
+        ps.println(String.format("%sD/%s: %s\n%s", getTS(), name, message.toString(), sw));
     }
 
     public void error(Object message) {
@@ -105,6 +105,6 @@ public class PgnLogger {
     public void error(Object message, Throwable t) {
         StringWriter sw = new StringWriter();
         t.printStackTrace(new PrintWriter(sw));
-        ps.println(String.format("%sE/%s: %s\n%s", getTS(), name, message.toString(), sw.toString()));
+        ps.println(String.format("%sE/%s: %s\n%s", getTS(), name, message.toString(), sw));
     }
 }

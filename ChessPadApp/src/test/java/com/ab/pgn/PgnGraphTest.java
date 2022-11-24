@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * unit tests
  * Created by Alexander Bootman on 10/29/17.
  */
 package com.ab.pgn;
@@ -24,13 +23,17 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.*;
-import java.util.HashMap;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
+import java.util.ListIterator;
 
-//@Ignore
 public class PgnGraphTest extends BaseTest {
     private static final String LOG_DIR_NAME = "log/";
     private static final String LOG_FILE_WRITER_NAME = TEST_TMP_ROOT + LOG_DIR_NAME + "graph-w.log";
@@ -38,7 +41,36 @@ public class PgnGraphTest extends BaseTest {
 
     private static final int TEST_GLYPH = 79;
     private static final String TEST_COMMENT = "Test comment";
-    static final int TEST_MOVELINE_SERIALIZATION_VERSION = 3;
+
+    private List<PgnGraph> testParsing(String pgn) throws Config.PGNException {
+        List<PgnGraph> pgnGraphs = parse2PgnGraphs(pgn);
+        for (PgnGraph pgnGraph : pgnGraphs) {
+            if (DEBUG) {
+                logger.debug(pgnGraph.getInitBoard().toFEN());
+                logger.debug(pgnGraph.getBoard().toFEN());
+            }
+            String finalFen = pgnGraph.pgnItem.getTag(MY_TAG);
+            if (!finalFen.equals(Config.TAG_UNKNOWN_VALUE)) {
+                Assert.assertEquals(finalFen, pgnGraph.getBoard().toFEN());
+            }
+            String tags = new String(pgnGraph.getPgnItem().tagsToString(true, false));
+            String resPgn = tags + "\n" + pgnGraph.toPgn();
+            if (DEBUG) {
+                System.out.println(resPgn);
+            }
+            Assert.assertEquals(0, pgnGraph.getNumberOfMissingVertices());
+
+            List<PgnGraph> resPgnGraphs = parse2PgnGraphs(resPgn);
+            Assert.assertEquals(1, resPgnGraphs.size());
+            PgnGraph resPgnGraph = resPgnGraphs.get(0);
+            Assert.assertTrue(String.format("diff:\n%s\n%s", resPgn, resPgnGraph.toPgn()), areEqual(pgnGraph, resPgnGraph));
+        }
+
+        for (PgnGraph pgnGraph: pgnGraphs) {
+            testFindMove(pgnGraph);
+        }
+        return pgnGraphs;
+    }
 
     @Test
     public void testParsingSimple() throws Config.PGNException {
@@ -107,9 +139,29 @@ public class PgnGraphTest extends BaseTest {
             "Bxe7+ $16) (11... g6 12. Bg5 12... Ng8 13. Bc1 (13. Bxg8 Bxg5 14. Rxe8+ Rxe8\n" +
             "15. Rxe8+ 15... Kxe8 $19) 13... -- {there is no avoiding Bxg8.\n" +
             "} (13... Nf6\n" +
-            "14. Bh6#) 14. Bxg8) 12. Rxe8+ Rxe8 13. Rxe8+ Nxe8 14. Bc2 $18 1-0\n" +
+            "14. Bh6#) 14. Bxg8) 12. Rxe8+ Rxe8 13. Rxe8+ Nxe8 14. Bc2 $18 1-0\n"+
             "";
         testParsing(pgn);
+    }
+
+    private void testFindMove(PgnGraph pgnGraph) {
+        ListIterator<Move> li = pgnGraph.moveLine.listIterator(pgnGraph.moveLine.size());
+        Board nextBoard = null;
+        Move nextMove = null;
+        while (li.hasPrevious()) {
+            Move move = li.previous();
+            Board board = pgnGraph.getBoard();
+            System.out.println(String.format("%s\n%s", move, board));
+            if (nextBoard != null) {
+                Move _move = board.findMove(nextBoard);
+                Assert.assertTrue(nextMove.isSameAs(_move));
+            }
+            nextMove = move;
+            nextBoard = board;
+            if (move != pgnGraph.rootMove) {
+                li.remove();
+            }
+        }
     }
 
     @Test
@@ -130,13 +182,19 @@ public class PgnGraphTest extends BaseTest {
             "\n" +
             "1. e4 Nf6 (1. ... Nc6 (1. ... e5 2. Bc4) 2. Nf3 (2. Nc3 Nf6) 2. ... Nf6 3. Nc3 e6) 2. Nc3 Nc6 3. Nf3 e5" +
             "\n";
-        List<PgnGraph> graphs = testParsing(pgn);
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(3, graphs.size());
+        Assert.assertTrue(areEqual(graphs.get(2), graphs.get(1)));
 
         PgnGraph pgnGraph = graphs.get(0);
         String s = pgnGraph.toPgn();
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
         Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} *"));
+        System.out.println(s);
+        List<String> movesText = pgnGraph.getMovesText();
+        for (String part : movesText) {
+            System.out.println(part);
+        }
     }
 
     @Test
@@ -147,7 +205,7 @@ public class PgnGraphTest extends BaseTest {
             "{Merge variations test}" +
             "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
             "\n";
-        List<PgnGraph> graphs = testParsing(pgn);
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         String s = graph.toPgn();
@@ -155,7 +213,6 @@ public class PgnGraphTest extends BaseTest {
         Assert.assertTrue(s.indexOf("Nf6 $5 {main; v1}") > 0);
         Assert.assertTrue(s.trim().endsWith("4. c3 $21 {main; v2; v1} *"));
 
-        graph.toEnd();
         graph.delCurrentMove();
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
@@ -213,8 +270,8 @@ public class PgnGraphTest extends BaseTest {
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Assert.assertTrue(graph.isModified());
-        graph.setModified(false);
-        Assert.assertFalse(graph.isModified());
+//        graph.setModified(false);
+//        Assert.assertFalse(graph.isModified());
     }
 
     @Test
@@ -225,10 +282,9 @@ public class PgnGraphTest extends BaseTest {
             "{Merge variations test}" +
             "1.e4 e5 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4.c3{v1} $7) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
             "\n";
-        List<PgnGraph> graphs = testParsing(pgn);
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
-        graph.toEnd();
         Assert.assertTrue(graph.isEnd());
         Assert.assertTrue(graph.okToSetGlyph());
         graph.setGlyph(TEST_GLYPH);
@@ -266,19 +322,18 @@ public class PgnGraphTest extends BaseTest {
         List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
-        // 2/12 ??
-        Assert.assertTrue(graph.getParsingError().startsWith("com.ab.pgn.Config$PGNException: invalid move 4. c5 "));
+        Assert.assertTrue(graph.getParsingError().startsWith("invalid move 4. c5  for:"));
         Assert.assertEquals(0, graph.getParsingErrorNum());
     }
 
     @Test
     public void testRepetition() throws Config.PGNException {
         String pgn =
-                "[White \"white\\\\repetition, promotion\"]\n" +
-                        "[Black \"black \\\"black\\\"\"]\n" +
-                        "[FEN \"r3kbnr/pPp2p1p/4p3/3pP3/8/5P2/P1PP2pP/RNBQK2R w KQkq - 92 3\"]\n" +
-                        "3. Nc3 Bd6 4. Nb1 Bf8 5. Nc3 Bd6 6. Nb1 Bf8 {creates 3-fold repetition}" +
-                        "\n";
+            "[White \"white\\\\repetition, promotion\"]\n" +
+            "[Black \"black \\\"black\\\"\"]\n" +
+            "[FEN \"r3kbnr/pPp2p1p/4p3/3pP3/8/5P2/P1PP2pP/RNBQK2R w KQkq - 92 3\"]\n" +
+            "3. Nc3 Bd6 4. Nb1 Bf8 5. Nc3 Bd6 6. Nb1 Bf8 {creates 3-fold repetition}" +
+            "\n";
         List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
@@ -297,93 +352,29 @@ public class PgnGraphTest extends BaseTest {
     }
 
     @Test
-//    @Ignore("Android Studio 2020.3.1 Patch 2 hangs on this test")
     public void testMerge_SicilianMisc2() throws Config.PGNException {
-        if (ANDROID_TESTING) {
-            logger.debug("Android Studio 2020.3.1 Patch 2 hangs on testMerge_SicilianMisc2()");
-            return;
-        }
-        String pgnText =
-                "[White \"Staunton, Howard\"]\n" +
-                        "[Black \"Cochrane, John Miles\"]\n" +
-                        "1.e4 c5 2.c4" +
-                        "\n";
-        List<PgnGraph> graphs = parse2PgnGraphs(pgnText);
+        String pgn =
+            "[White \"Staunton, Howard\"]\n" +
+            "[Black \"Cochrane, John Miles\"]\n" +
+            "1.e4 c5 2.c4" +
+            "\n";
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         Move m = graph.getCurrentMove();
         Board b = graph.getBoard();
 
-        CpFile.PgnFile pgn = (CpFile.PgnFile) CpFile.CpParent.fromPath("SicilianMisc2.pgn");
-        PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
-        md.end = md.start = -1;
-        md.annotate = true;
-        graph.merge(md, null);
-//        logger.debug(String.format("merged %s items", md.merged));
-        Assert.assertEquals(3404, md.merged);
-        Assert.assertTrue(graph.isModified());
-        Assert.assertEquals(4, graph.moveLine.size());
-        Assert.assertEquals(218623, graph.positions.size());
-        Assert.assertEquals(0, graph.getParsingErrorNum());
-        Assert.assertNull(graph.getParsingError());
-
-        String s = graph.toPgn();
-        Assert.assertEquals(1551609, s.length());
-//        logger.debug(s);
-        Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-    }
-
-    @Test
-//    @Ignore("Android Studio 2020.3.1 Patch 2 hangs on this test")
-    public void testMerge_SicilianTaimanovMain() throws Config.PGNException, IOException {
-        if (ANDROID_TESTING) {
-            logger.debug("Android Studio 2020.3.1 Patch 2 hangs on testMerge_SicilianTaimanovMain()");
-            return;
-        }
-        String _pgnFileName = "SicilianTaimanovMain";
-        String pgnFileName = _pgnFileName + ".pgn";
-        String pgnText =
-                "[White \"SicilianTaimanov\"]\n" +
-                        "[Black \"Main\"]\n" +
-                        "1. e4 c5 " +
-                        "\n";
-        List<PgnGraph> graphs = parse2PgnGraphs(pgnText);
-        Assert.assertEquals(1, graphs.size());
-        PgnGraph graph = graphs.get(0);
-//        Move m = graph.getCurrentMove();
-//        Board b = graph.getBoard();
-
-        File origFile = new File(TEST_ROOT + pgnFileName);
-        String root = TEST_TMP_ROOT;
-        File testFile = new File(root + pgnFileName);
-        fullCopy(origFile, testFile);
-        CpFile.setRoot(root);
-
-        CpFile.PgnFile pgnFile = (CpFile.PgnFile) CpFile.CpParent.fromPath(pgnFileName);
+        CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.fromPath("SicilianMisc2.pgn");
         PgnGraph.MergeData md = new PgnGraph.MergeData(pgnFile);
         md.end = md.start = -1;
         md.annotate = true;
-        graph.merge(md, (progress) -> {
-            if (DEBUG) {
-                logger.debug(String.format("\t offset=%s", progress));
-            }
-            return false;
-        });
-        Assert.assertEquals(29942, md.merged);
-        Assert.assertTrue(graph.isModified());
-        Assert.assertEquals(3, graph.moveLine.size());
-        Assert.assertEquals(1729980, graph.positions.size());
-        Assert.assertEquals(0, graph.getParsingErrorNum());
-        Assert.assertNull(graph.getParsingError());
-
+        graph.merge(md);
+        logger.debug(String.format("merged %s items", md.merged));
         String s = graph.toPgn();
-        Assert.assertEquals(12251856, s.length());
-        PrintStream ps = new PrintStream(new FileOutputStream(root + pgnFile + "-merged.pgnText"));
-        ps.print(s);
-        ps.flush();
-        ps.close();
-        CpFile.setRoot(TEST_ROOT);
+        logger.debug(s);
+        Assert.assertEquals(0, graph.getNumberOfMissingVertices());
     }
+
 
     // e.g. " 1.e4 c5 2. Nf3 Nc6 3.d4 e6"
     private List<Move> navigate(PgnGraph graph, String sMoveLine) {
@@ -408,9 +399,12 @@ public class PgnGraphTest extends BaseTest {
 
     @Test
     public void test_SicilianTaimanovMain_merged() throws Config.PGNException, IOException {
-        List<PgnGraph> graphs = testParsingFile("SicilianTaimanovMain-merged.pgn");
-        Assert.assertEquals(1, graphs.size());
-        PgnGraph graph = graphs.get(0);
+        String fName = TEST_ROOT + "SicilianTaimanovMain-merged.pgn";
+        InputStream is = new FileInputStream(fName);
+        List<CpFile.PgnItem> pgnItems = parsePgnFile(null, is, true);
+
+        Assert.assertEquals(1, pgnItems.size());
+        PgnGraph graph = new PgnGraph((CpFile.PgnItem)pgnItems.get(0));
         logger.debug(graph.toPgn());
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
@@ -418,201 +412,174 @@ public class PgnGraphTest extends BaseTest {
         logger.debug(moveLine);
     }
 
-    private PgnGraph testMerge(String pgnText, String mergeFileName) throws Config.PGNException, FileNotFoundException {
-        List<PgnGraph> graphs = parse2PgnGraphs(pgnText);
+    @Test
+    public void testMerge_SicilianGranPrix() throws Config.PGNException {
+        String pgnFileName = "SicilianGrandPrix.pgn";
+
+        Object[][] allMergeData = {
+            {"e4 c5 Nc3 Nc6 f4", new int[]{6, 620472, 10407}},
+            {"Nc3 Nf6 Nb1 Ng8 Nc3 c5 f4 Nc6 e4", new int[]{10, 620476, 10407}},
+        };
+        PgnGraph[] mergedGraphs = new PgnGraph[allMergeData.length];
+
+        int i = -1;
+        for (Object[] data : allMergeData) {
+            String moveLine = (String)data[0];
+            int[] metrics = (int[])data[1];
+            List<PgnGraph> graphs = parse2PgnGraphs(moveLine);
+            Assert.assertEquals(1, graphs.size());
+            PgnGraph graph = graphs.get(0);
+
+            CpFile.PgnFile pgn = (CpFile.PgnFile)CpFile.fromPath(pgnFileName);
+            PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
+            md.end = md.start = -1;
+            md.annotate = true;
+            graph.merge(md);
+            Assert.assertEquals(metrics[2], md.merged);
+            Assert.assertEquals(metrics[1], graph.positions.size());
+            Assert.assertEquals(metrics[0], graph.moveLine.size());
+
+            // remove all moves preceding merge:
+            Pack pack = null;
+            for (Move m : graph.moveLine) {
+                if (pack == null) {
+                    pack = new Pack(m.packData);  // init board
+                    continue;
+                }
+                Board b = graph.positions.remove(pack);
+                String x = b.toString();
+                logger.debug(x);
+                pack = new Pack(m.packData);  // init board
+            }
+            graph.rootMove.packData = graph.moveLine.getLast().packData;
+            mergedGraphs[++i] = graph;
+        }
+        for (i = 1; i < mergedGraphs.length; ++i) {
+            Assert.assertTrue(areEqual(mergedGraphs[0], mergedGraphs[i]));
+        }
+    }
+
+    @Test
+    public void testMerge_MaxLangeAttack() throws Config.PGNException, FileNotFoundException {
+        String pgn =
+            "[White \"Max Lange\"]\n" +
+            "[Black \"Attack\"]\n" +
+            "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4.d4" +
+            "\n";
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(1, graphs.size());
         PgnGraph graph = graphs.get(0);
         Move m = graph.getCurrentMove();
         Board b = graph.getBoard();
 
-        CpFile.PgnFile pgn = (CpFile.PgnFile) CpFile.CpParent.fromPath(mergeFileName);
-        PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
+        String fName = "GiuocoPiano";
+        CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.fromPath("GiuocoPiano.zip/" + fName + ".pgn");
+        PgnGraph.MergeData md = new PgnGraph.MergeData(pgnFile);
         md.end = md.start = -1;
         md.annotate = true;
-        graph.merge(md, (progress) -> {
-            if (DEBUG) {
-                logger.debug(String.format("\t offset=%s", progress));
-            }
-            return false;
-        });
-        logger.debug(String.format("merged %s items", md.merged));
-        String s = graph.toPgn();   // moves only
+        graph.merge(md);
+        Assert.assertEquals(108, md.merged);
+        Assert.assertEquals(6302, graph.positions.size());
+        Assert.assertEquals(8, graph.moveLine.size());
+        String s = graph.toPgn();
+        logger.debug(s);
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        String resPath = mergeFileName.replaceAll("/", "~");
-        try (PrintStream ps = new PrintStream(new FileOutputStream(TEST_TMP_ROOT + resPath + "-merged.pgnText"))) {
-            ps.print(s);
-            ps.flush();
-        }
-        return graph;
+        PrintStream ps = new PrintStream(new FileOutputStream(TEST_TMP_ROOT + pgnFile + "-merged.pgn"));
+        ps.print(s);
+        ps.flush();
+        ps.close();
     }
 
     @Test
-    public void testMerge_0() throws Config.PGNException, FileNotFoundException {
-        if (ANDROID_TESTING) {
-            logger.debug("Android Studio 2020.3.1 Patch 2 hangs on testMerge_0()");
-            return;
-        }
-        String[][] pgnTexts = {
-                {"[White \"Max Lange\"]\n" +
-                        "[Black \"Attack\"]\n" +
-                        "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4.d4" +
-                        "\n", "GiuocoPiano.zip/GiuocoPiano.pgn"
-                },
-        };
+    public void testMerge_MaxLangeAttackMain() throws Config.PGNException {
+        Board.DEBUG = false;
+        PgnGraph.DEBUG = DEBUG;
+        String pgn =
+            "[White \"Max Lange Attack\"]\n" +
+            "[Black \"Main\"]\n" +
+            "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. d4 exd4 5. O-O Bc5" +
+            "\n";
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
+        Assert.assertEquals(1, graphs.size());
+        PgnGraph targetGraph = graphs.get(0);
+        Move m = targetGraph.getCurrentMove();
+        Board b = targetGraph.getBoard();
 
-        for (String[] pgnData : pgnTexts) {
-            PgnGraph graph = testMerge(pgnData[0], pgnData[1]);
-            String s = graph.toPgn();
-            Assert.assertEquals(43438, s.length());
-
-//            Assert.assertEquals(29942, md.merged);
-            Assert.assertTrue(graph.isModified());
-            Assert.assertEquals(8, graph.moveLine.size());
-            Assert.assertEquals(6302, graph.positions.size());
-            Assert.assertEquals(0, graph.getParsingErrorNum());
-            Assert.assertNull(graph.getParsingError());
-
-            break;
-        }
+        CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.fromPath("MaxLange-0.pgn");
+        PgnGraph.MergeData md = new PgnGraph.MergeData(pgnFile);
+        md.end = md.start = -1;
+        md.annotate = true;
+        targetGraph.merge(md);
+        Assert.assertEquals(1, md.merged);
+        Assert.assertEquals(11, targetGraph.positions.size());
+        Assert.assertEquals(11, targetGraph.moveLine.size());
+        String s = targetGraph.toPgn();
+        logger.debug(s);
+        Assert.assertEquals(0, targetGraph.getNumberOfMissingVertices());
     }
 
+    //*
     @Test
-    public void testMerge_1() throws Config.PGNException, FileNotFoundException {
-        if (ANDROID_TESTING) {
-            logger.debug("Android Studio 2020.3.1 Patch 2 hangs on testMerge_1()");
-            return;
-        }
-        String[][] pgnTexts = {
-                {"[White \"Max Lange Attack\"]\n" +
-                        "[Black \"Main\"]\n" +
-                        "1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 4.d4 exd4 5.O-O Bc5" +
-                        "\n", "TwoKnights.pgn"
-                },
-        };
+//    @Ignore("lond test")
+    public void testMerge_SicilianTaimanovMain() throws Config.PGNException, IOException {
+        String fName = "SicilianTaimanovMain.pgn";
+        String pgn =
+            "[White \"SicilianTaimanov\"]\n" +
+            "[Black \"Main\"]\n" +
+            "1. e4 c5 " +
+            "\n";
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
+        Assert.assertEquals(1, graphs.size());
+        PgnGraph graph = graphs.get(0);
+        Move m = graph.getCurrentMove();
+        Board b = graph.getBoard();
 
-        for (String[] pgnData : pgnTexts) {
-            PgnGraph graph = testMerge(pgnData[0], pgnData[1]);
+        CpFile.PgnFile pgnFile = (CpFile.PgnFile)CpFile.fromPath(fName);
+        PgnGraph.MergeData md = new PgnGraph.MergeData(pgnFile);
+        md.end = md.start = -1;
+        md.annotate = true;
+        graph.merge(md);
+        Assert.assertEquals(29942, md.merged);
+        Assert.assertEquals(1729980, graph.positions.size());
+        Assert.assertEquals(3, graph.moveLine.size());
+        List<Move> moveLine = navigate(graph, "1.e4 c5 2. Nf3 Nc6 3.d4 e6");
+        logger.debug(moveLine);
 
-            String s = graph.toPgn();
-            Assert.assertEquals(93113, s.length());
-
-//            Assert.assertEquals(29942, md.merged);
-            Assert.assertTrue(graph.isModified());
-            Assert.assertEquals(11, graph.moveLine.size());
-            Assert.assertEquals(12531, graph.positions.size());
-            Assert.assertEquals(0, graph.getParsingErrorNum());
-            Assert.assertNull(graph.getParsingError());
-
-            break;
-        }
+        String s = graph.toPgn();
+        PrintStream ps = new PrintStream(new FileOutputStream(TEST_TMP_ROOT + "SicilianTaimanovMain-merged.pgn"));
+        ps.print(s);
+        ps.flush();
+        ps.close();
     }
-
-    @Test
-    public void testMerge_SicilianGranPrix() throws Config.PGNException, FileNotFoundException {
-        String pgnFile = "SicilianGrandPrix.zip/SicilianGrandPrix.pgn";
-        Object[][] moveLines = {
-                {"e4 c5 Nc3 Nc6 f4", 4351124, 6, 620472},
-                {"Nc3 Nf6 Nb1 Ng8 Nc3 c5 f4 Nc6 e4", 4362249, 10, 620476},
-        };
-
-        for (Object[] objects : moveLines) {
-            String moveLine = (String) objects[0];
-            int len = (int) objects[1];
-            int mlLength = (int) objects[2];
-            int totalPositions = (int) objects[3];
-            PgnGraph graph = testMerge(moveLine, pgnFile);
-            String s = graph.toPgn();
-            Assert.assertEquals(len, s.length());
-            Assert.assertTrue(graph.isModified());
-            Assert.assertEquals(mlLength, graph.moveLine.size());
-            Assert.assertEquals(totalPositions, graph.positions.size());
-            Assert.assertEquals(0, graph.getParsingErrorNum());
-            Assert.assertNull(graph.getParsingError());
-        }
-    }
-
-    @Test
-    @Ignore("Android Studio 2020.3.1 Patch 2 hangs on this test, so it is split on two, testMerge_0 and testMerge_1")
-    public void testMerge() throws Config.PGNException, FileNotFoundException {
-        String[][] pgnTexts = {
-                {"[White \"Max Lange\"]\n" +
-                        "[Black \"Attack\"]\n" +
-                        "1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4.d4" +
-                        "\n", "GiuocoPiano.zip/GiuocoPiano.pgn"
-                },
-                {"[White \"Max Lange Attack\"]\n" +
-                        "[Black \"Main\"]\n" +
-                        "1.e4 e5 2.Nf3 Nc6 3.Bc4 Nf6 4.d4 exd4 5.O-O Bc5" +
-                        "\n", "TwoKnights.pgn"
-                },
-        };
-        for (String[] pgnData : pgnTexts) {
-            testMerge(pgnData[0], pgnData[1]);
-            String pgnText = pgnData[0];
-            String pgnFileName = pgnData[1];
-            List<PgnGraph> graphs = parse2PgnGraphs(pgnText);
-            Assert.assertEquals(1, graphs.size());
-            PgnGraph graph = graphs.get(0);
-            Move m = graph.getCurrentMove();
-            Board b = graph.getBoard();
-
-            CpFile.PgnFile pgn = (CpFile.PgnFile) CpFile.CpParent.fromPath(pgnFileName);
-            PgnGraph.MergeData md = new PgnGraph.MergeData(pgn);
-            md.end = md.start = -1;
-            md.annotate = true;
-            graph.merge(md, (progress) -> {
-                if (DEBUG) {
-                    logger.debug(String.format("\t offset=%s", progress));
-                }
-                return false;
-            });
-            logger.debug(String.format("merged %s items", md.merged));
-            String s = graph.toPgn();   // moves only
-            logger.debug(s);
-            Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-            String resPath = pgnFileName.replaceAll("/", "~");
-            try (PrintStream ps = new PrintStream(new FileOutputStream(TEST_TMP_ROOT + resPath + "-merged.pgnText"))) {
-                ps.print(s);
-                ps.flush();
-            }
-        }
-    }
-
 
     @Test
     public void testSerializeGraph_0() throws Config.PGNException, IOException {
-        String pgnText =
-                "[White \"merge\"]\n" +
-                        "[Black \"variations\"]\n" +
-                        "[CustomTag1 \"custom tag 1\"]\n" +
-                        "[CustomTag2 \"custom tag 2\"]\n" +
-                        "{Merge variations test}" +
-                        "1.e4{1.} e5{..1} 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4. d4 {v1} (4.c3{v11} $7) 4. ... exd4 {v1}) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) (2.d4 {v3} exd4 {v3}) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
-                        "\n";
+        String pgn =
+            "[White \"merge\"]\n" +
+            "[Black \"variations\"]\n" +
+            "[CustomTag1 \"custom tag 1\"]\n" +
+            "[CustomTag2 \"custom tag 2\"]\n" +
+            "{Merge variations test}" +
+            "1.e4{1.} e5{..1} 2.Nf3 {main} (2.Bc4 {v1} Nc6 {v1} 3.Nf3 {v1} Nf6 {v1} $4 4. d4 {v1} (4.c3{v11} $7) 4. ... exd4 {v1}) (2.Bc4 {v2} Nf6 {v2} 3.Nf3 {v2} Nc6 {v2} $20 4.c3{v2} $21) (2.d4 {v3} exd4 {v3}) 2. ... Nc6 {main} 3.Bc4{main} Nf6{main} $5 4.c3{main}\n" +
+            "\n";
 
-        List<PgnGraph> graphs = parse2PgnGraphs(pgnText);
+        List<PgnGraph> graphs = parse2PgnGraphs(pgn);
         Assert.assertEquals(1, graphs.size());
         for (PgnGraph graph : graphs) {
-            graph.toInit();
-            graph.toEnd();
             logger.debug(graph.toPgn());
+            PgnGraph unserialized;
             PgnGraph.DEBUG = DEBUG;
             BitStream.Writer writer = new BitStream.Writer();
             graph.serializeGraph(writer, TEST_SERIALIZATION_VERSION);
-            graph.serializeMoveLine(writer, TEST_MOVELINE_SERIALIZATION_VERSION);
             writer.close();
             Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-            BitStream.Reader reader = new BitStream.Reader(writer.getBits());
-            PgnGraph unserialized = new PgnGraph(reader, TEST_SERIALIZATION_VERSION, null);
-            unserialized.unserializeMoveLine(reader, TEST_MOVELINE_SERIALIZATION_VERSION);
-            unserialized.toInit();
-            unserialized.toEnd();
+            BitStream.Reader reader = new BitStream.Reader(writer);
+            unserialized = new PgnGraph(reader, TEST_SERIALIZATION_VERSION);
             logger.debug(graph.toPgn());
             Assert.assertEquals(0, graph.getNumberOfMissingVertices());
             logger.debug(unserialized.toPgn());
             Assert.assertEquals(0, unserialized.getNumberOfMissingVertices());
             Assert.assertTrue(areEqual(graph, unserialized));
-            Assert.assertEquals(0, verifyMoveLinesEqual(graph.moveLine, unserialized.moveLine));
         }
     }
 
@@ -621,63 +588,56 @@ public class PgnGraphTest extends BaseTest {
         File tmpLog = new File(TEST_TMP_ROOT + LOG_DIR_NAME);
         tmpLog.mkdirs();
         String[] fNames = {
-                "MaxLange-0.pgn",
-                "MaxLange-00.pgn",
+            "MaxLange-0.pgn",
+            "MaxLange-00.pgn",
+//            "SicilianTaimanovMain-merged.pgn",    // long file, crashes with Java heap space
         };
 
         for (final String fName : fNames) {
-            List<PgnGraph> pgnGraphs = testParsingFile(fName);
-            for (PgnGraph graph : pgnGraphs) {
+            FileInputStream fis = new FileInputStream(TEST_ROOT + fName);
+            final List<CpFile.PgnItem> pgnItems = new LinkedList<>();
+            CpFile.parsePgnFile(null, fis, new CpFile.EntryHandler() {
+                @Override
+                public boolean skip(int index) {
+                    return false;
+                }
+
+                @Override
+                public boolean getMovesText(int index) {
+                    return true;
+                }
+
+                @Override
+                public boolean handle(int index, CpFile.PgnItem entry) throws Config.PGNException {
+                    pgnItems.add(entry);
+                    return true;
+                }
+            }, true);
+
+            for (CpFile.PgnItem pgnItem : pgnItems) {
+                PgnGraph graph = new PgnGraph(pgnItem);
+                logger.debug(graph.toPgn());
+                Assert.assertEquals(0, graph.getNumberOfMissingVertices());
+
                 PgnLogger.setFile(LOG_FILE_WRITER_NAME);
-                graph.toInit();
-                graph.toEnd();
                 String serFileName = TEST_TMP_ROOT + fName + ".ser";
+                PgnGraph unserialized;
                 BitStream.Writer writer = new BitStream.Writer(new FileOutputStream(serFileName));
                 graph.serializeGraph(writer, TEST_SERIALIZATION_VERSION);
-                graph.serializeMoveLine(writer, TEST_MOVELINE_SERIALIZATION_VERSION);
                 writer.close();
                 Assert.assertEquals(0, graph.getNumberOfMissingVertices());
                 PgnLogger.setFile(LOG_FILE_READER_NAME);
 
                 BitStream.Reader reader = new BitStream.Reader(new FileInputStream(serFileName));
-                PgnGraph unserialized = new PgnGraph(reader, TEST_SERIALIZATION_VERSION, (progress) -> {
-                    if (DEBUG) {
-                        System.out.println(String.format("%s, unserialized %d%%", fName, progress));
-                    }
-                    return false;
-                });
-                unserialized.unserializeMoveLine(reader, TEST_MOVELINE_SERIALIZATION_VERSION);
+                unserialized = new PgnGraph(reader, TEST_SERIALIZATION_VERSION);
                 Assert.assertEquals(writer.bitCount, reader.bitCount);
-                unserialized.toInit();
-                unserialized.toEnd();
                 PgnLogger.setFile(null);
                 logger.debug(unserialized.toPgn());
                 Assert.assertEquals(0, unserialized.getNumberOfMissingVertices());
                 Assert.assertTrue(areEqual(graph, unserialized));
-                Assert.assertEquals(0, verifyMoveLinesEqual(graph.moveLine, unserialized.moveLine));
             }
         }
-    }
-
-    @Test
-    public void testSerializeEmptyGraph() throws Config.PGNException, IOException {
-        PgnGraph graph = new PgnGraph();
-        PgnGraph.DEBUG = DEBUG;
-        Board board = graph.getInitBoard();
-        for (Board b : graph.positions.values()) {
-            b.setVisited(false);
-        }
-        Assert.assertFalse(board.getVisited());
-
-        BitStream.Writer writer = new BitStream.Writer();
-        graph.serializeGraph(writer, TEST_SERIALIZATION_VERSION);
-        writer.close();
-        Assert.assertEquals(0, graph.getNumberOfMissingVertices());
-        BitStream.Reader reader = new BitStream.Reader(writer.getBits());
-        PgnGraph unserialized = new PgnGraph(reader, TEST_SERIALIZATION_VERSION, null);
-        logger.debug(unserialized.toPgn());
-        Assert.assertEquals(0, unserialized.getNumberOfMissingVertices());
-        Assert.assertTrue(areEqual(graph, unserialized));
+        PgnLogger.setFile(null);
     }
 
     @Test
@@ -711,64 +671,36 @@ public class PgnGraphTest extends BaseTest {
         logger.debug(String.format("draw, %s", move.comment));
     }
 
-    @Test
-//    @Ignore("todo: move this code to buildSrc to use with com.ab.pgn package")
-    public void runBookBuilder() throws Config.PGNException, IOException {
-        final String ecoFileName = bookPath + "eco.pgn";
-        final String internalBookFileName = CpFile.getRootPath() + bookPath + "internal_openings.txt";
-        final String outputFileName = CpFile.getRootPath() + bookPath + "combined.book";
-        Book.Builder.build(ecoFileName, internalBookFileName, outputFileName);
-        testBook();
-    }
-
     // can run only after runBookBuilder()
-//    @Test
+    @Test
+    @Ignore
     public void testBook() throws Config.PGNException, IOException {
-        String fileName = CpFile.getRootPath() + bookPath + "combined.book";
+        String fileName = BOOK_PATH;
         File f = new File(fileName);
         long length = f.length();
         InputStream is = new FileInputStream(f);
         Book book = new Book(is, length);
 
-        String[][] moveLineData = {
-                {"e4 c5 Nc3 Nc6 f4",
-                        "g6 {~559~543~564}", "B23; Sicilian; Grand Prix attack, Schofman variation",
-                        "d6 {~559~543~552}", "B23; Sicilian; Grand Prix attack",
-                },
-                {"Nc3 Nf6 Nb1 Ng8 Nc3 c5 f4 Nc6 e4",
-                        "", ""  // todo: search positions regardless of plyNum
-                },
+        String[] moveLines = {
+                "e4 c5 Nc3 Nc6 f4",
+                "Nc3 Nf6 Nb1 Ng8 Nc3 c5 f4 Nc6 e4",
         };
 
-        for (String[] mlData : moveLineData) {
-            Map<String, String> mlDataMap = new HashMap<>();
-            for (int j = 1; j < mlData.length; j += 2) {
-                mlDataMap.put(mlData[j], mlData[j + 1]);
-            }
-            String moveLine = mlData[0];
+        for (int i = 0; i < moveLines.length; ++i) {
+            String moveLine = moveLines[i];
             PgnGraph graph = new PgnGraph();
-            graph.parseMoves(moveLine, null);
+            graph.parseMoves(moveLine);
             Board board = graph.getBoard();
             List<Move> moves = book.getMoves(board);
             System.out.print(board.toString());
             if (moves == null) {
-                System.out.printf("%s, no book moves", moveLine);
+                System.out.println("no book moves");
             } else {
                 for (Move m : moves) {
-                    String s = m.toCommentedString();
-                    String comment = mlDataMap.get(s);
-                    Assert.assertNotNull(comment);
-                    System.out.printf("\t%s, %s\n", s, comment);
+                    System.out.printf("\t%s\n", m.toCommentedString());
                 }
             }
             System.out.println();
         }
     }
-
-    @Test
-    public void testSomething() throws Config.PGNException, IOException {
-        int i = 1 << 24;
-        System.out.printf("%d, %08x\n", i, i);
-    }
-
 }

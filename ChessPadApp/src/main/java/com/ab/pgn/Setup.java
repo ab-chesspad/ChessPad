@@ -1,5 +1,5 @@
 /*
-     Copyright (C) 2021	Alexander Bootman, alexbootman@gmail.com
+     Copyright (C) 2021-2022	Alexander Bootman, alexbootman@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
- * data for position setup
+ * Setup data
  * Created by Alexander Bootman on 11/26/16.
  */
 package com.ab.pgn;
@@ -28,75 +28,75 @@ import java.util.List;
 public class Setup {
     private final PgnLogger logger = PgnLogger.getLogger(PgnGraph.class);
 
+    public enum PredefinedPosition {
+        User,
+        Empty,
+        Init,
+    }
+
     private int errNum;
-    private Board board;
+    private Board board, savedBoard;
     private List<Pair<String, String>> tags;
     private String enPass = "";
+    private boolean flipped = false;
+    private PredefinedPosition currentPredefinedPosition = PredefinedPosition.User;
 
     public Setup(PgnGraph pgnGraph) {
         this.board = pgnGraph.getBoard().clone();
         this.board.setMove(null);
-        this.tags = pgnGraph.getPgnItem().cloneTags();
+        this.tags = pgnGraph.getPgnItem().getTags();
+        savedBoard = board;
+        int index = ((CpFile.PgnFile)pgnGraph.getPgnItem().getParent()).getTagIndex(Config.TAG_Round);
+        int round = 1;
+        try {
+            round = Integer.valueOf(this.tags.get(index).second);
+        } catch (Exception e) {
+            // ignore
+        }
+        this.tags.set(index, new Pair<>(Config.TAG_Round, "" + round));
         setEnPass();
+        currentPredefinedPosition = PredefinedPosition.User;
     }
 
     public void serialize(BitStream.Writer writer) throws Config.PGNException {
         serializeSetupBoard(writer);
-        CpFile.PgnItem.serializeTagList(writer, tags);
+        CpFile.serializeTagList(writer, tags);
     }
 
     public Setup(BitStream.Reader reader) throws Config.PGNException {
-        this.board = unserializeSetupBoard(reader);
-        this.tags = CpFile.PgnItem.unserializeTagList(reader);
+        unserializeSetupBoard(reader);
+        this.tags = CpFile.unserializeTagList(reader);
         setEnPass();
     }
 
     private void serializeSetupBoard(BitStream.Writer writer) throws Config.PGNException {
         try {
-            board.pack(writer);
-            List<Square> wKings = new LinkedList<>();
-            List<Square> bKings = new LinkedList<>();
-            for (int x = 0; x < Config.BOARD_SIZE; x++) {
-                for (int y = 0; y < Config.BOARD_SIZE; y++) {
-                    int piece = board.getPiece(x, y);
-                    if (piece == Config.WHITE_KING) {
-                        wKings.add(new Square(x, y));
-                    }
-                    if (piece == Config.BLACK_KING) {
-                        bKings.add(new Square(x, y));
-                    }
-                }
-            }
-            writer.write(wKings.size(), 6);
-            for (Square sq : wKings) {
-                sq.serialize(writer);
-            }
-            writer.write(bKings.size(), 6);
-            for (Square sq : bKings) {
-                sq.serialize(writer);
-            }
+            board.serializeAnyBoard(writer);
+            writer.write(flipped ? 1 : 0, 1);
+            writer.write(currentPredefinedPosition.ordinal(), 2);
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
     }
 
-    private Board unserializeSetupBoard(BitStream.Reader reader) throws Config.PGNException {
+    private void unserializeSetupBoard(BitStream.Reader reader) throws Config.PGNException {
         try {
-            Board board = Board.unpack(reader);
-            int n = reader.read(6);
-            for (int i = 0; i < n; ++i) {
-                Square sq = new Square(reader);
-                board.setPiece(sq, Config.WHITE_KING);
-            }
-            n = reader.read(6);
-            for (int i = 0; i < n; ++i) {
-                Square sq = new Square(reader);
-                board.setPiece(sq, Config.BLACK_KING);
-            }
-            return board;
+            board = Board.unserializeAnyBoard(reader);
+            flipped = reader.read(1) == 1;
+            int index = reader.read(2);
+            currentPredefinedPosition = PredefinedPosition.values()[index];
+            savedBoard = board;
         } catch (IOException e) {
             throw new Config.PGNException(e);
         }
+    }
+
+    public boolean isFlipped() {
+        return flipped;
+    }
+
+    public void setFlipped(boolean  flipped) {
+        this.flipped = flipped;
     }
 
     public Board getBoard() {
@@ -112,8 +112,12 @@ public class Setup {
         validate();
     }
 
+    public List<Pair<String, String>> getTags() {
+        return tags;
+    }
+
     public String getTitleText() {
-        return CpFile.PgnItem.titleTagsToString(tags);
+        return CpFile.getTitle(tags);
     }
 
     public PgnGraph toPgnGraph() throws Config.PGNException {
@@ -123,15 +127,12 @@ public class Setup {
             return new PgnGraph();
         }
         PgnGraph pgnGraph = new PgnGraph(board);
+        pgnGraph.getPgnItem().setTags(tags);
         Board initBoard = pgnGraph.getInitBoard();
         if (!initBoard.equals(new Board())) {
             pgnGraph.getPgnItem().setFen(initBoard.toFEN());
         }
         return pgnGraph;
-    }
-
-    public List<Pair<String, String>> cloneTags() {
-        return CpFile.PgnItem.cloneTags(tags);      // preserve tags, so editing can be cancelled
     }
 
     public void setTags(List<Pair<String, String>> tags) {
@@ -185,4 +186,30 @@ public class Setup {
     public String getEnPass() {
         return enPass;
     }
+
+    public PredefinedPosition getCurrentPredefinedPosition() {
+        return currentPredefinedPosition;
+    }
+
+    public void setNextPredefinedPosition() {
+        PredefinedPosition[] predefinedPositions = PredefinedPosition.values();
+        int nextIndex = (currentPredefinedPosition.ordinal() + 1) % predefinedPositions.length;
+        currentPredefinedPosition = predefinedPositions[nextIndex];
+        switch (currentPredefinedPosition) {
+            case Init:
+                board = new Board();
+                break;
+
+            case User:
+                board = savedBoard;
+                break;
+
+            case Empty:
+                savedBoard = board;
+                board = new Board();
+                board.toEmpty();
+                break;
+        }
+    }
+
 }
