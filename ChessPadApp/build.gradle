@@ -9,8 +9,8 @@ android {
         applicationId "com.ab.droid.chesspad"
         minSdk 19
         targetSdk 33
-        versionCode 14
-        versionName "2.0"
+        versionCode 15
+        versionName "2.0.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {

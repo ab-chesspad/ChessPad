@@ -592,10 +592,10 @@ public class ChessPad implements Serializable, BoardHolder {
             writer.write(versionCode, 8);
             if (rootFilAx == null) {
                 writer.write(0, 1);
-            } else {
-                writer.write(1, 1);
-                rootFilAx.serialize(writer);
+                return;
             }
+            writer.write(1, 1);
+            rootFilAx.serialize(writer);
             currentPath.serialize(writer);
             writer.write(mode.getValue(), 3);
             if (mode == Mode.Setup) {
@@ -636,9 +636,10 @@ public class ChessPad implements Serializable, BoardHolder {
             if (versionCode != oldVersionCode) {
                 throw new Config.PGNException(String.format("Old serialization %d ignored", oldVersionCode));
             }
-            if (reader.read(1) == 1) {
-                rootFilAx = new DocFilAx(reader);
+            if (reader.read(1) == 0) {
+                return;
             }
+            rootFilAx = new DocFilAx(reader);
             currentPath = CpFile.unserialize(reader);
             if (currentPath == null) {
                 currentPath = CpFile.fromPath(DEFAULT_DIRECTORY);

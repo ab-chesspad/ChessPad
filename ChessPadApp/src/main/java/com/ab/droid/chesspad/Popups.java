@@ -1289,7 +1289,7 @@ public class Popups {
 
             rowViewHolder.rowValue.setOnTouchListener((v, event) -> {
                 if (event.getAction() == MotionEvent.ACTION_UP) {
-                    if (position < values.size()) {
+                    if (values != null && position < values.size()) {
                         // sanity check, happens, on a slow phone, quick clicks
                         // screen was not re-drawn yet, but values were updated already
                         onRowViewClick(position);
