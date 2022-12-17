@@ -28,11 +28,13 @@ import android.content.res.Resources;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 import android.widget.RelativeLayout;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResult;
 import androidx.core.content.pm.PackageInfoCompat;
 import androidx.documentfile.provider.DocumentFile;
 
@@ -244,6 +246,7 @@ public class ChessPad implements Serializable, BoardHolder {
         popups = new Popups(this);
 
         try {
+            @SuppressWarnings("deprecation")
             PackageInfo pinfo = MainActivity.getContext().getPackageManager().getPackageInfo(MainActivity.getContext().getPackageName(), 0);
             versionName = pinfo.versionName;
             versionCode = (int) PackageInfoCompat.getLongVersionCode(pinfo);
@@ -386,17 +389,20 @@ public class ChessPad implements Serializable, BoardHolder {
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
 //                        Intent.FLAG_GRANT_WRITE_URI_PERMISSION |
                         Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        MainActivity.getInstance().startActivityForResult(intent, OPEN_DIRECTORY_REQUEST_CODE);
+
+        Intent chooserIntent = Intent.createChooser(intent, "Open URL...");
+        MainActivity.getLauncher().launch(chooserIntent);
     }
 
-    void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        if (requestCode == OPEN_DIRECTORY_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+    void onActivityResult(ActivityResult result) {
+        if (result.getResultCode() == Activity.RESULT_OK) {
+            Uri uri = result.getData().getData();
             MainActivity.getContext().getContentResolver().takePersistableUriPermission(
-                    intent.getData(),
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
             );
             try {
-                DocFilAx.setRoot(MainActivity.getContext(), intent.getDataString());
+                DocFilAx.setRoot(MainActivity.getContext(), uri.toString());
                 rootFilAx = new DocFilAx((String)null);
                 launch();
             } catch (Config.PGNException e) {
@@ -1722,6 +1728,7 @@ public class ChessPad implements Serializable, BoardHolder {
         boolean stopAnimation;
 
         AnimationHandler(int timeout, TimeoutObserver observer) {
+            super(Looper.getMainLooper());
             this.timeout = timeout;
             this.observer = observer;
             timeoutDelta = timeout / 4;
@@ -1793,6 +1800,7 @@ public class ChessPad implements Serializable, BoardHolder {
         private final WeakReference<ChessPad> mActivity;
 
         CpHandler(ChessPad activity) {
+            super(Looper.getMainLooper());
             mActivity = new WeakReference<>(activity);
         }
 

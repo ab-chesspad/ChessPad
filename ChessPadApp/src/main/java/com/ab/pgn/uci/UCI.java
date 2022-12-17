@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.util.Locale;
 
 public class UCI {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     public static final String
         // to UCI engine:
@@ -206,7 +206,9 @@ public class UCI {
                     break;
 
                 case IDLE:
-                    System.out.printf("Engine idle: %s\n", line);   // log engine options
+                    if (DEBUG) {
+                        System.out.printf("Engine idle: %s\n", line);   // log engine message
+                    }
                     break;
 
                 case ANALYZE: {
@@ -226,7 +228,9 @@ public class UCI {
     }
 
     private void parseInfoMsg(String s) {
-        System.out.println(s);
+        if (DEBUG) {
+            System.out.println(s);
+        }
         String[] tokens = s.split("\\s+");
         IncomingInfoMessage incomingInfoMessage = new IncomingInfoMessage();
         incomingInfoMessage.isBlackMove = isBlackMove;

@@ -23,18 +23,21 @@ import android.content.ComponentCallbacks2;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
-import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
-import androidx.annotation.RequiresApi;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class MainActivity extends AppCompatActivity implements ComponentCallbacks2 {
+public class MainActivity extends AppCompatActivity {
     private final String DEBUG_TAG = "cpfilemanager." + this.getClass().getSimpleName();
     private static final boolean DEBUG_RESOURCES = true;
 
     private ChessPad chessPad;
+    private static ActivityResultLauncher<Intent> launcher;
 
     transient private static AppCompatActivity instance;
     public static AppCompatActivity getInstance() {
@@ -42,6 +45,9 @@ public class MainActivity extends AppCompatActivity implements ComponentCallback
     }
     public static Context getContext() {
         return instance;
+    }
+    public static ActivityResultLauncher<Intent> getLauncher() {
+        return launcher;
     }
 
     // Always followed by onStart()
@@ -62,6 +68,14 @@ public class MainActivity extends AppCompatActivity implements ComponentCallback
         }
 
         chessPad = new ChessPad();
+        launcher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    chessPad.onActivityResult(result);
+                }
+            });
     }
 
 //    // Called when the activity will start interacting with the user
@@ -181,14 +195,6 @@ public class MainActivity extends AppCompatActivity implements ComponentCallback
                   from the system. Treat this as a generic low-memory message.
                 */
                 break;
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        super.onActivityResult(requestCode, resultCode, intent);
-        if (chessPad != null) {
-            chessPad.onActivityResult(requestCode, resultCode, intent);
         }
     }
 }

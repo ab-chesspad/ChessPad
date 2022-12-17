@@ -22,16 +22,24 @@ package com.ab.droid.chesspad;
 import com.ab.pgn.io.CpFile;
 
 import android.os.AsyncTask;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import com.ab.droid.chesspad.layout.ProgressBarHolder;
 import com.ab.pgn.Config;
 
-public class CPAsyncTask extends AsyncTask<Void, Integer, Throwable> implements CpFile.ProgressObserver {
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public class CPAsyncTask implements CpFile.ProgressObserver {
     private final String DEBUG_TAG = Config.DEBUG_TAG + this.getClass().getSimpleName();
 
     private final CPExecutor cpExecutor;
     private int oldProgress;
     private static ProgressBarHolder progressBarHolder;
+
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
     public static void setProgressBarHolder(ProgressBarHolder progressBarHolder) {
         CPAsyncTask.progressBarHolder = progressBarHolder;
@@ -44,21 +52,28 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Throwable> implements 
 
     public void execute() {
         oldProgress = 0;
-        super.execute((Void)null);
-    }
-
-    @Override
-    protected void onPreExecute() {
-        super.onPreExecute();
         if (progressBarHolder != null) {
             progressBarHolder.showProgressBar(true);
             progressBarHolder.updateProgressBar(oldProgress);
         }
+
+        executor.execute(() -> {
+            Throwable t = null;
+            try {
+                cpExecutor.doInBackground(this);
+            } catch (Throwable e) {
+                Log.e(this.DEBUG_TAG, String.format("doInBackground, thread %s", Thread.currentThread().getName()), e);
+                t = e;
+            }
+            final Throwable param = t;
+            handler.post(() -> {
+                //UI Thread work here
+                onPostExecute(param);
+            });
+        });
     }
 
-    @Override
-    protected void onPostExecute(Throwable param) {
-        super.onPostExecute(param);
+    private void onPostExecute(Throwable param) {
         if (progressBarHolder != null) {
             progressBarHolder.showProgressBar(false);
         }
@@ -74,38 +89,21 @@ public class CPAsyncTask extends AsyncTask<Void, Integer, Throwable> implements 
     }
 
     @Override
-    protected Throwable doInBackground(Void... params) {
-        try {
-            cpExecutor.doInBackground(this);
-        } catch (Throwable e) {
-            Log.e(this.DEBUG_TAG, String.format("doInBackground, thread %s", Thread.currentThread().getName()), e);
-            return e;
-        }
-        return null;
-    }
-
-    @Override
-    protected void onProgressUpdate(Integer... values) {
-        super.onProgressUpdate(values);
-        if (progressBarHolder != null) {
-            progressBarHolder.updateProgressBar(values[0]);
-        }
-    }
-
-    @Override
     public void setProgress(int progress) {
         if (progress - oldProgress >= 1) {
             oldProgress = progress;
             if (progress > 100) {
                 progress = 100;
             }
-            super.publishProgress(progress);
+            final int newProgress = progress;
+            if (progressBarHolder != null) {
+                handler.post(() -> {
+                    //UI Thread work here
+                    progressBarHolder.updateProgressBar(newProgress);
+                });
+            }
         }
     }
-}
-
-interface ProgressPublisher {
-    void publishProgress(int progress);
 }
 
 interface CPPostExecutor {
@@ -116,4 +114,3 @@ interface CPExecutor extends CPPostExecutor{
     void doInBackground(CpFile.ProgressObserver progressObserver) throws Config.PGNException;
     void onExecuteException(Throwable e);
 }
-

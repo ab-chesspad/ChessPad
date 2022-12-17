@@ -20,7 +20,6 @@
 */
 package com.ab.droid.chesspad;
 
-import android.annotation.TargetApi;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -32,8 +31,6 @@ import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.widget.Toast;
-
-import androidx.annotation.RequiresApi;
 
 import com.ab.pgn.Config;
 import com.ab.pgn.dgtboard.DgtBoardIO;
@@ -75,11 +72,21 @@ public class DgtBoardInterface extends DgtBoardIO {
 
     private final BroadcastReceiver usbReceiver = new BroadcastReceiver() {
         @Override
+        @SuppressWarnings("deprecation")
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (ACTION_USB_PERMISSION.equals(action)) {
                 synchronized (this) {
-                    UsbAccessory accessory = intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
+                    UsbAccessory accessory = null;
+                    try {
+                        accessory = getAccessory();
+                    } catch (IOException e) {
+                        Log.w("LED", e.getLocalizedMessage());
+                    }
+                    if (accessory == null) {
+                        // do it the old way
+                        accessory = intent.getParcelableExtra(UsbManager.EXTRA_ACCESSORY);
+                    }
                     if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                         Toast.makeText(MainActivity.getContext(), "USB permission obtained", Toast.LENGTH_LONG).show();
                         setAccessory(accessory);
@@ -106,6 +113,9 @@ public class DgtBoardInterface extends DgtBoardIO {
 	}
 
     private UsbAccessory getAccessory() throws IOException {
+        if (usbManager == null) {
+            throw new IOException("Usb Manager is null");
+        }
         UsbAccessory[] accessories = usbManager.getAccessoryList();
         if (accessories == null) {
             throw new IOException("Usb Manager did not find any accessories. Is DGT board connected?");
