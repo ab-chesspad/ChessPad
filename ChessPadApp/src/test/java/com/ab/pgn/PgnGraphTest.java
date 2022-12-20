@@ -671,9 +671,8 @@ public class PgnGraphTest extends BaseTest {
         logger.debug(String.format("draw, %s", move.comment));
     }
 
-    // can run only after runBookBuilder()
     @Test
-    @Ignore
+    @Ignore("can run only after runBookBuilder()")
     public void testBook() throws Config.PGNException, IOException {
         String fileName = BOOK_PATH;
         File f = new File(fileName);
