@@ -1,23 +1,18 @@
 plugins {
-    id 'com.android.application'
+    id 'com.android.library'
 }
 
 android {
+    namespace 'com.ab.pgn'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.ab.droid.chesspad"
         minSdk 21
         targetSdk 33
-        versionCode 16
-        versionName "2.0.3"
+        versionCode 1
+        versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        externalNativeBuild {
-            cmake {
-                cppFlags '-std=c++17'
-            }
-        }
     }
 
     buildTypes {
@@ -30,24 +25,12 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-    android.ndkVersion '23.1.7779620'
-    externalNativeBuild {
-        cmake {
-            path file('src/main/cpp/CMakeLists.txt')
-            version '3.10.2'
-        }
-    }
-    buildFeatures {
-        viewBinding true
-    }
 }
 
 dependencies {
+
     implementation 'androidx.appcompat:appcompat:1.5.1'
     implementation 'com.google.android.material:material:1.7.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'org.jetbrains:annotations:15.0'
-    implementation project(path: ':PgnLib')
 
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.4'

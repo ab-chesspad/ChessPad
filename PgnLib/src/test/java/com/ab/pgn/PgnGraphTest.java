@@ -19,6 +19,7 @@
 package com.ab.pgn;
 
 import com.ab.pgn.io.CpFile;
+
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -608,7 +609,7 @@ public class PgnGraphTest extends BaseTest {
                 }
 
                 @Override
-                public boolean handle(int index, CpFile.PgnItem entry) throws Config.PGNException {
+                public boolean handle(int index, CpFile.PgnItem entry) {
                     pgnItems.add(entry);
                     return true;
                 }
@@ -674,8 +675,7 @@ public class PgnGraphTest extends BaseTest {
     @Test
     @Ignore("can run only after runBookBuilder()")
     public void testBook() throws Config.PGNException, IOException {
-        String fileName = BOOK_PATH;
-        File f = new File(fileName);
+        File f = new File(BOOK_PATH);
         long length = f.length();
         InputStream is = new FileInputStream(f);
         Book book = new Book(is, length);

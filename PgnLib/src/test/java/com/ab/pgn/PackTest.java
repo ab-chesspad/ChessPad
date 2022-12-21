@@ -19,13 +19,14 @@
  */
 package com.ab.pgn;
 
+import static org.mockito.ArgumentMatchers.startsWith;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import static org.mockito.ArgumentMatchers.startsWith;
 
 public class PackTest extends BaseTest {
 

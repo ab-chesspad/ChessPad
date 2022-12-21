@@ -194,7 +194,7 @@ public class CpFileTest extends BaseTest {
     }
 
     @Test
-    public void testPgnFileList() throws Exception {
+    public void testPgnFileList() {
         final String[] fileNames = {
             "lichess_puzzles-0.pgn",
             "SicilianTaimanovMain.pgn",

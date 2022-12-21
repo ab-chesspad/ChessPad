@@ -53,7 +53,8 @@ public class BaseTest {
     static {
         // in IntelliJ working dir is <project>, in AndroidStudio it is <project>/app
         File testFile = new File("xyz");
-        if (testFile.getAbsoluteFile().getParent().endsWith("/ChessPadApp")) {
+        String parentPath = testFile.getAbsoluteFile().getParent();
+        if (parentPath.endsWith("/ChessPadApp") || parentPath.endsWith("/PgnLib")) {
             prefix = "../";
             bookPath = "etc/test/../../ChessPadApp/src/main/assets/book/combined.book";
         }

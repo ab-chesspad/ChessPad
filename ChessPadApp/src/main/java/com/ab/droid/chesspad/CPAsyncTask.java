@@ -21,7 +21,6 @@ package com.ab.droid.chesspad;
 
 import com.ab.pgn.io.CpFile;
 
-import android.os.AsyncTask;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;

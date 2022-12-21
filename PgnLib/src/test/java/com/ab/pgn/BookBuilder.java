@@ -20,7 +20,6 @@
 package com.ab.pgn;
 
 import com.ab.pgn.io.CpFile;
-import com.ab.pgn.BaseTest;
 
 import org.junit.Ignore;
 import org.junit.Test;

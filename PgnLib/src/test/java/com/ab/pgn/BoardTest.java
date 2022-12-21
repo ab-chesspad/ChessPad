@@ -25,8 +25,6 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
-import com.ab.pgn.BaseTest;
-
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
