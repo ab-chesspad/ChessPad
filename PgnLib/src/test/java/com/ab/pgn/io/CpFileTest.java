@@ -412,6 +412,7 @@ public class CpFileTest extends BaseTest {
         };
         for (String path : paths) {
             CpFile cpFile = CpFile.fromPath(path);
+            List<CpFile> children = cpFile.getChildrenNames();  // to obtain totalChildren
             BitStream.Writer writer = new BitStream.Writer();
             cpFile.serialize(writer);
             writer.close();
