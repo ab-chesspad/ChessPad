@@ -16,9 +16,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNNUE_EMBEDDING_OFF -Dshared_lib")
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 
-#set(sf_dir ../../../../../../src)
-set(sf_dir stockfish)
-file(GLOB SOURCES ${sf_dir}/*.cpp ${sf_dir}/syzygy/*.cpp
+set(sf_dir ../../../../Stockfish/src)
+file(GLOB SOURCES ${sf_dir}/jni/*.cpp ${sf_dir}/*.cpp ${sf_dir}/syzygy/*.cpp
         ${sf_dir}/nnue/*.cpp ${sf_dir}/nnue/features/*.cpp
         ${sf_dir}/nnue/layers/*.cpp ${sf_dir}/incbin/*.cpp)
 
@@ -30,7 +29,7 @@ add_library( # Sets the name of the library.
 
         # Provides a relative path to your source file(s).
         ${SOURCES}
-        stockfishlib.cpp
+#        stockfishlib.cpp
         )
 
 # Searches for a specified prebuilt library and stores the path as a
