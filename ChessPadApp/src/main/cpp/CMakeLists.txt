@@ -14,14 +14,7 @@ cmake_minimum_required(VERSION 3.18.1)
 # Declares and names the project.
 project("stockfishlib")
 
-execute_process (
-    COMMAND make net
-    WORKING_DIRECTORY ../Stockfish/src
-)
-# 'COMMAND' treats '*' as an actual character, thus this weird way to move nnue file
-execute_process (
-    COMMAND ./move-nnue ../Stockfish/src src/main/assets
-)
+execute_process (COMMAND ./get-nnue ../Stockfish/src src/main/assets)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNNUE_EMBEDDING_OFF -Dshared_lib")
 

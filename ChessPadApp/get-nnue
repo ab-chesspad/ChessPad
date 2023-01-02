@@ -1,0 +1,8 @@
+#!/bin/bash
+if [ -e $2/*.nnue ] ; then
+   exit 0
+fi
+pushd $1
+make net
+popd
+mv $1/*.nnue $2/
