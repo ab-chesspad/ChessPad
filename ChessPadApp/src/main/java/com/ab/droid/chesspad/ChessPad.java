@@ -399,7 +399,7 @@ public class ChessPad implements Serializable, BoardHolder {
             Uri uri = result.getData().getData();
             MainActivity.getContext().getContentResolver().takePersistableUriPermission(
                 uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION
             );
             try {
                 DocFilAx.setRoot(MainActivity.getContext(), uri.toString());
