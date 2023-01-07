@@ -342,16 +342,41 @@ public class PgnGraph {
         }
     }
 
-    public Board getInitBoard() {
-        return positions.get(new Pack(rootMove.packData));
-    }
-
-    public Board getBoard() {
-        return positions.get(new Pack(getCurrentMove().packData));
+    public String getGraphDescription(int[] packData) throws Config.PGNException {
+        String msg = "";
+        Board board = Board.unpack(rootMove.packData);
+        msg = String.format("%s\npositions %s\nlooking for %s\n",
+                board.toFEN(), positions.size(), Board.unpack(packData).toFEN());
+        for (Move m : moveLine) {
+            msg += m.toString();
+        }
+        return msg;
     }
 
     private Board getBoard(int[] packData) {
-        return positions.get(new Pack(packData));
+        Board b = positions.get(new Pack(packData));
+        if (b == null) {
+            String msg;
+            try {
+                msg = getGraphDescription(packData);
+            } catch (Config.PGNException e) {
+                // error in unpack
+                msg = String.format("positions %s ", positions.size());
+                for (Move m : moveLine) {
+                    msg += m.toString();
+                }
+            }
+            throw  new NullPointerException(msg);
+        }
+        return b;
+    }
+
+    public Board getInitBoard() {
+        return getBoard(rootMove.packData);
+    }
+
+    public Board getBoard() {
+        return getBoard(getCurrentMove().packData);
     }
 
     public Board getBoard(Move move) {
@@ -389,9 +414,7 @@ public class PgnGraph {
         if (!newComment.equals(oldComment)) {
             if (DEBUG) {
                 Board board = this.getBoard();
-                if (board != null) {
-                    logger.debug(String.format("comment %s -> %s\n%s", move, newComment, board));
-                }
+                logger.debug(String.format("comment %s -> %s\n%s", move, newComment, board));
             }
             move.comment = newComment;
             if (move.comment.isEmpty()) {
@@ -450,12 +473,9 @@ public class PgnGraph {
 
     public void toNext() {
         Board board = getBoard();
-        if (board != null) {
-            // sanity check
-            moveLine.addLast(board.getMove());
-            if (DEBUG) {
-                logger.debug(String.format("toNext %s\n%s", getCurrentMove().toString(), this.getBoard().toString()));
-            }
+        moveLine.addLast(board.getMove());
+        if (DEBUG) {
+            logger.debug(String.format("toNext %s\n%s", getCurrentMove().toString(), this.getBoard().toString()));
         }
     }
 
@@ -465,9 +485,6 @@ public class PgnGraph {
         }
         if (DEBUG) {
             Board board = getBoard();
-            if (board == null) {
-                return;
-            }
             logger.debug(String.format("toPrev %s\n%s", getCurrentMove().toString(), board));
         }
     }
@@ -476,9 +493,6 @@ public class PgnGraph {
         while (moveLine.size() > 1) {
             moveLine.removeLast();
             Board board = getBoard();
-            if (board == null) {
-                return;
-            }
             if (board.getMove().getVariation() != null) {
                 break;
             }
@@ -510,10 +524,6 @@ public class PgnGraph {
 
     void toEnd() {
         Board board = getBoard();
-        if (board == null) {
-            // quick and dirty
-            board = getInitBoard();
-        }
         Move move;
         while ((move = board.getMove()) != null) {
             moveLine.addLast(move);
@@ -526,9 +536,6 @@ public class PgnGraph {
 
     public void toVariation(Move variation) {
         Board board = getBoard();
-        if (board == null) {
-            return;
-        }
         Move move = board.getMove();
         while (move != null) {
             if (variation == move) {
@@ -539,15 +546,6 @@ public class PgnGraph {
         if (move != null) {
             moveLine.addLast(move);
         }
-    }
-
-    public Move getNextMove(Move move) {
-        Board board = getBoard(move);
-        if (board == null) {
-            // sanity check, should never happen
-            return null;
-        }
-        return board.getMove();
     }
 
     public Move getCurrentMove() {
@@ -578,14 +576,11 @@ public class PgnGraph {
 
     public boolean isEnd() {
         Board board = getBoard();
-        return board == null || board.getMove() == null;
+        return board.getMove() == null;
     }
 
     public List<Move> getVariations() {
         Board board = getBoard();
-        if (board == null) {
-            return null;
-        }
         Move move = board.getMove();
         Move variation;
         if (move == null || (variation = move.getVariation()) == null) {
@@ -602,9 +597,6 @@ public class PgnGraph {
 
     public int getFlags() {
         Board board = getBoard();
-        if (board == null) {
-            return 0;
-        }
         return board.getFlags();
     }
 
@@ -727,9 +719,6 @@ public class PgnGraph {
 
     // board after requested move!
     private static String getMoveNum(Board board) {
-        if (board == null) {
-            return "";
-        }
         int plyNum = board.getPlyNum();
         return "" + ((plyNum + 1) / 2) + ". "
                 + ((plyNum & 1) == 1 ? "" : "... ");
@@ -932,7 +921,7 @@ public class PgnGraph {
             pm.variation = m.variation;
         }
 
-        move2Del.setVariation(null);    // do not delete its variaipons
+        move2Del.setVariation(null);    // do not delete its variations
         delPositionsAfter(move2Del);
         modified = traceModified;
     }
@@ -947,11 +936,6 @@ public class PgnGraph {
         }
         while (move != null) {
             board = getBoard(move);
-            if (board == null) {
-                // should never happen
-                logger.error(String.format("board == null after %s", move));
-                return;
-            }
             if (board.getInMoves() > 0) {
                 board.incrementInMoves(-1);
                 logger.debug(String.format("decrement inMoves to %s, %s\n%s", board.getInMoves(), move, board));
@@ -1042,10 +1026,6 @@ public class PgnGraph {
             }
             prevBoard = board;
             board = this.getBoard(move.packData);
-            if (board == null) {
-                logger.error(String.format("%s\n%s -> null board", prevBoard.toString(), move));
-                break;
-            }
             if (board.getVisited()) {
                 break;
             }
@@ -1461,11 +1441,8 @@ public class PgnGraph {
         @Override
         public void onVariantClose() {
             // restore move line to prior to variation start
-            Board board = pgnGraph.getBoard();
-            if (board == null) {
-                return;
-            }
             if (DEBUG) {
+                Board board = pgnGraph.getBoard();
                 logger.debug(String.format("onVariantClose %s\n%s", newMove.toString(), board));
             }
             Pair<Move, Move> variationPair = variations.removeLast();

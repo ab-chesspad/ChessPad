@@ -298,8 +298,9 @@ public class ChessPad implements Serializable, BoardHolder {
             uci = new UCI(new UCI.EngineWatcher() {
                 @Override
                 public String getCurrentFen() {
-                    if (openingBook.getMoves(getBoard()) == null) {
-                        return getPgnGraph().getBoard().toFEN();
+                    Board b = getPgnGraph().getBoard();
+                    if (openingBook.getMoves(b) == null) {
+                        return b.toFEN();
                     }
                     return null;
                 }
@@ -1291,7 +1292,7 @@ public class ChessPad implements Serializable, BoardHolder {
 
     void notifyUci() {
         if (uci != null) {
-            if (getPgnGraph() != null && getPgnGraph().getBoard() != null) {
+            if (getPgnGraph() != null) {
                 Log.d(DEBUG_TAG, String.format("notifyUci() %s", getPgnGraph().getBoard().toFEN()));
             }
             uci.abortCurrentAnalisys();

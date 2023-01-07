@@ -198,6 +198,19 @@ public class PgnGraphTest extends BaseTest {
         }
     }
 
+    private Move getNextMove(PgnGraph graph, Move move) {
+        Board board = null;
+        try {
+            board = graph.getBoard(move);
+        } catch (NullPointerException e) {
+            // ignore, happens when move does not belong to graph
+        }
+        if (board == null) {
+            return null;
+        }
+        return board.getMove();
+    }
+
     @Test
     public void testDelMainMove() throws Config.PGNException {
         String pgn =
@@ -253,7 +266,7 @@ public class PgnGraphTest extends BaseTest {
         s = graph.toPgn();
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
-        Move m = graph.getNextMove(graph.getCurrentMove());
+        Move m = getNextMove(graph, graph.getCurrentMove());
         graph.toNext();
         Assert.assertEquals(2, graph.moveLine.size());
         Move m1 = graph.getCurrentMove();
@@ -308,7 +321,7 @@ public class PgnGraphTest extends BaseTest {
         Assert.assertEquals(0, graph.getNumberOfMissingVertices());
 
         Move m = new Move(0);
-        Move m1 = graph.getNextMove(m);
+        Move m1 = getNextMove(graph, m);
         Assert.assertNull(m1);
     }
 
