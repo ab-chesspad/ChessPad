@@ -1317,9 +1317,13 @@ public class ChessPad implements Serializable, BoardHolder {
         if (pgnGraph.moveLine.size() > 1) {
             // find current opening name:
             Move prevMove = pgnGraph.moveLine.get(pgnGraph.moveLine.size() - 2);
-            Board prevBoard = openingBook.getBoard(prevMove);
-            if (prevBoard != null) {
+            Board prevBoard = null;
+            try {
+                prevBoard = openingBook.getBoard(prevMove);
+            } catch (NullPointerException e) {
                 // prevBoard == null if we step out of the opening book and then get a book position
+            }
+            if (prevBoard != null) {
                 Move lastMove = pgnGraph.getCurrentMove();
                 Move bookMove = prevBoard.getMove();
                 while (bookMove != null) {
