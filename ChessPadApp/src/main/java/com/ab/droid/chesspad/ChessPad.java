@@ -764,11 +764,12 @@ public class ChessPad implements Serializable, BoardHolder {
     }
 
     public void onButtonClick(Command command) {
+        if (CPAsyncTask.isBGTaskRunning()) {
+            return;
+        }
         Board board = getBoard();
         if (DEBUG) {
-            if (board != null) {
-                Log.d(DEBUG_TAG, String.format("click %s\n%s", command.toString(), board));
-            }
+            Log.d(DEBUG_TAG, String.format("click %s\n%s", command.toString(), board));
         }
         switch (command) {
             case Start:
@@ -1565,7 +1566,7 @@ public class ChessPad implements Serializable, BoardHolder {
 
     @Override
     public boolean onSquareClick(Square clicked) {
-        if (isUiFrozen()) {
+        if (isUiFrozen() || CPAsyncTask.isBGTaskRunning()) {
             return false;
         }
         PgnGraph pgnGraph = getPgnGraph();

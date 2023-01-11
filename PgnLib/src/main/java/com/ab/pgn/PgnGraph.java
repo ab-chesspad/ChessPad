@@ -442,6 +442,7 @@ public class PgnGraph {
             String fen = getInitBoard().toFEN();
             pgnItem.setFen(fen);
         }
+        pgnItem.setMoveText("");    // conserve memory
         pgnItem.setMoveText(this.toPgn());
     }
 
@@ -528,9 +529,6 @@ public class PgnGraph {
         while ((move = board.getMove()) != null) {
             moveLine.addLast(move);
             board = getBoard();
-            if (board == null) {
-                return;
-            }
         }
     }
 

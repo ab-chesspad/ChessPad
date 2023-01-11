@@ -36,6 +36,7 @@ public class CPAsyncTask implements CpFile.ProgressObserver {
     private final CPExecutor cpExecutor;
     private int oldProgress;
     private static ProgressBarHolder progressBarHolder;
+    private static boolean progressBarShown;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -52,6 +53,7 @@ public class CPAsyncTask implements CpFile.ProgressObserver {
     public void execute() {
         oldProgress = 0;
         if (progressBarHolder != null) {
+            progressBarShown = true;
             progressBarHolder.showProgressBar(true);
             progressBarHolder.updateProgressBar(oldProgress);
         }
@@ -74,6 +76,7 @@ public class CPAsyncTask implements CpFile.ProgressObserver {
 
     private void onPostExecute(Throwable param) {
         if (progressBarHolder != null) {
+            progressBarShown = false;
             progressBarHolder.showProgressBar(false);
         }
         try {
@@ -102,6 +105,10 @@ public class CPAsyncTask implements CpFile.ProgressObserver {
                 });
             }
         }
+    }
+
+    public static boolean isBGTaskRunning() {
+        return progressBarShown;
     }
 }
 

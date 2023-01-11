@@ -162,9 +162,6 @@ public class BoardView extends View {
     private Point board2screen(int x, int y) {
         Point res = new Point();
         Board board = boardHolder.getBoard();
-        if (board == null) {
-            return res;
-        }
         if (boardHolder.isFlipped()) {
             int xSize = board.getXSize();
             res.x = margin + (xSize - 1 - x) * squareSize;
@@ -181,9 +178,6 @@ public class BoardView extends View {
     private Square screen2board(int x, int y) {
         Square res = new Square();
         Board board = boardHolder.getBoard();
-        if (board == null) {
-            return res;
-        }
         if (boardHolder.isFlipped()) {
             res.x = board.getXSize() - 1 - (x - margin) / squareSize;
             res.y = (y - margin) / squareSize;
@@ -217,9 +211,6 @@ public class BoardView extends View {
             Log.d(DEBUG_TAG, "BoardView.drawBoard()");
         }
         Board board = boardHolder.getBoard();
-        if (board == null) {
-            return;
-        }
         boolean drawNotation = board.getXSize() == Config.BOARD_SIZE && board.getYSize() == Config.BOARD_SIZE;
         Paint paint = new Paint();
         paint.setColor(Color.BLACK);
@@ -356,9 +347,6 @@ public class BoardView extends View {
                 Log.d(DEBUG_TAG, String.format("BoardView (%s) %s", clicked, event));
             }
             Board board = boardHolder.getBoard();
-            if (board == null) {
-                return true;
-            }
 
             int action = event.getActionMasked();
             switch (action) {

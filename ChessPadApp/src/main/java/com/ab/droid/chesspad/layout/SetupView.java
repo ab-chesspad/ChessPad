@@ -202,9 +202,6 @@ public class SetupView extends ChessPadLayout.CpView {
             @Override
             public void setValue(String str) {
                 Board board = getBoard();
-                if (board == null) {
-                    return;
-                }
                 int hmClock = getNumericValue(str);
                 int oldHm = board.getReversiblePlyNum();
                 if (oldHm != hmClock) {
@@ -214,11 +211,7 @@ public class SetupView extends ChessPadLayout.CpView {
             }
             @Override
             public String getValue() {
-                Board board = getBoard();
-                if (board == null) {
-                    return "";
-                }
-                return "" + board.getReversiblePlyNum();
+                return "" + getBoard().getReversiblePlyNum();
             }
         });
 
@@ -365,18 +358,11 @@ public class SetupView extends ChessPadLayout.CpView {
     }
 
     private int getMoveNum() {
-        Board board = getBoard();
-        if (board == null) {
-            return 0;
-        }
         return getBoard().getPlyNum() / 2 + 1;
     }
 
     private void setMoveNum(int moveNum) {
         Board board = getBoard();
-        if (board == null) {
-            return;
-        }
         // this is the next move number!
         int plyNum = 2 * (moveNum - 1);
         if ((board.getFlags() & Config.FLAGS_BLACK_MOVE) != 0) {
